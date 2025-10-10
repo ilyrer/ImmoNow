@@ -1,0 +1,302 @@
+/* Premium Kanban Board Glassmorphism Styles */
+
+/* Glassmorphism Utilities */
+.glass-morphism {
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.glass-morphism-dark {
+  background: rgba(28, 28, 30, 0.5);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Smooth Scrolling */
+.kanban-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.kanban-scrollbar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+.kanban-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 10px;
+  transition: background 0.2s ease;
+}
+
+.kanban-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+/* Dark Mode Scrollbar */
+.dark .kanban-scrollbar::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.dark .kanban-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.dark .kanban-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Task Card Animations */
+@keyframes taskSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.task-card-enter {
+  animation: taskSlideIn 0.3s ease-out;
+}
+
+/* Drag Preview */
+.dragging-task {
+  transform: rotate(5deg) scale(1.05);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+/* Column Highlight on Drag Over */
+.column-drag-over {
+  background: rgba(10, 132, 255, 0.1);
+  border-color: rgba(10, 132, 255, 0.3);
+}
+
+/* Progress Bar Animation */
+@keyframes progressFill {
+  from {
+    width: 0%;
+  }
+}
+
+.progress-bar {
+  animation: progressFill 0.8s ease-out;
+}
+
+/* Badge Pulse */
+@keyframes badgePulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.9;
+  }
+}
+
+.badge-pulse {
+  animation: badgePulse 2s ease-in-out infinite;
+}
+
+/* Smooth Transitions */
+.smooth-transition {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Hover Effects */
+.hover-lift:hover {
+  transform: translateY(-2px);
+}
+
+.hover-scale:hover {
+  transform: scale(1.02);
+}
+
+/* Focus Ring */
+.focus-ring-glass:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(10, 132, 255, 0.5);
+}
+
+/* Mobile Optimizations */
+@media (max-width: 768px) {
+  .glass-morphism,
+  .glass-morphism-dark {
+    backdrop-filter: blur(15px) saturate(180%);
+    -webkit-backdrop-filter: blur(15px) saturate(180%);
+  }
+  
+  .kanban-column {
+    min-width: 280px;
+  }
+  
+  .task-card {
+    touch-action: pan-y;
+  }
+}
+
+/* Tablet Optimizations */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .kanban-column {
+    min-width: 300px;
+  }
+}
+
+/* Desktop Optimizations */
+@media (min-width: 1024px) {
+  .kanban-board {
+    gap: 1.5rem;
+  }
+  
+  .kanban-column {
+    min-width: 320px;
+  }
+}
+
+/* High DPI Displays */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .glass-morphism,
+  .glass-morphism-dark {
+    backdrop-filter: blur(25px) saturate(180%);
+    -webkit-backdrop-filter: blur(25px) saturate(180%);
+  }
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Print Styles */
+@media print {
+  .glass-morphism,
+  .glass-morphism-dark {
+    background: white;
+    border: 1px solid #e5e7eb;
+  }
+  
+  .kanban-column {
+    break-inside: avoid;
+  }
+}
+
+/* Custom Properties for Dynamic Theming */
+:root {
+  --kanban-bg-gradient-start: rgba(239, 246, 255, 0.5);
+  --kanban-bg-gradient-mid: rgba(243, 232, 255, 0.5);
+  --kanban-bg-gradient-end: rgba(252, 231, 243, 0.5);
+  --kanban-card-bg: rgba(255, 255, 255, 0.4);
+  --kanban-card-border: rgba(255, 255, 255, 0.2);
+  --kanban-text-primary: #111827;
+  --kanban-text-secondary: #6b7280;
+}
+
+.dark {
+  --kanban-bg-gradient-start: #111827;
+  --kanban-bg-gradient-mid: #111827;
+  --kanban-bg-gradient-end: #111827;
+  --kanban-card-bg: rgba(255, 255, 255, 0.05);
+  --kanban-card-border: rgba(255, 255, 255, 0.1);
+  --kanban-text-primary: #ffffff;
+  --kanban-text-secondary: #9ca3af;
+}
+
+/* Utility Classes */
+.text-shadow-sm {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.text-shadow-md {
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.backdrop-blur-3xl {
+  backdrop-filter: blur(64px);
+  -webkit-backdrop-filter: blur(64px);
+}
+
+.backdrop-blur-4xl {
+  backdrop-filter: blur(80px);
+  -webkit-backdrop-filter: blur(80px);
+}
+
+/* Loading States */
+.skeleton-loading {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.1) 0%,
+    rgba(255, 255, 255, 0.2) 50%,
+    rgba(255, 255, 255, 0.1) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Empty State */
+.empty-state {
+  opacity: 0.6;
+  transition: opacity 0.3s ease;
+}
+
+.empty-state:hover {
+  opacity: 0.8;
+}
+
+/* Status Badges */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+/* Priority Badges */
+.priority-critical {
+  background: rgba(255, 69, 58, 0.1);
+  color: #ff453a;
+  border: 1px solid rgba(255, 69, 58, 0.3);
+}
+
+.priority-high {
+  background: rgba(255, 159, 10, 0.1);
+  color: #ff9f0a;
+  border: 1px solid rgba(255, 159, 10, 0.3);
+}
+
+.priority-medium {
+  background: rgba(255, 214, 10, 0.1);
+  color: #ffd60a;
+  border: 1px solid rgba(255, 214, 10, 0.3);
+}
+
+.priority-low {
+  background: rgba(50, 215, 75, 0.1);
+  color: #32d74b;
+  border: 1px solid rgba(50, 215, 75, 0.3);
+}

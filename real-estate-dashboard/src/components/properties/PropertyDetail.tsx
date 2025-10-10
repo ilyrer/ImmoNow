@@ -1,0 +1,953 @@
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useProperties, useUpdateProperty, QUERY_KEYS } from '../../hooks/useApi';
+import { useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
+import { 
+  ArrowLeft, Edit2, Save, X, MapPin, Euro, Home, Calendar, 
+  TrendingUp, Eye, MessageSquare, Users, Clock, Tag, Star,
+  Building2, Ruler, Bed, Bath, Car, Zap, Flame, Download,
+  FileText, Share2, Settings, ChevronLeft, ChevronRight
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+
+// Import specialized tab components
+import ExposeTab from './ExposeTab';
+import PublishTab from './PublishTab';
+import EnergyEfficiencyTab from './EnergyEfficiencyTab';
+
+interface Property {
+  id: string;
+  title: string;
+  description: string;
+  price: number;
+  location: string;
+  type: 'house' | 'apartment' | 'commercial';
+  status: 'available' | 'sold' | 'reserved' | 'akquise' | 'vorbereitung';
+  features: {
+    bedrooms: string;
+    bathrooms: string;
+    area: string;
+    yearBuilt: string;
+    parking: string;
+    energyClass: string;
+    heatingType: string;
+    floor: string;
+  };
+  amenities: string[];
+  images: string[];
+  contactPerson: {
+    name: string;
+    phone: string;
+    email: string;
+  };
+  address: {
+    street: string;
+    city: string;
+    zipCode: string;
+    state: string;
+    country: string;
+  };
+  financials: {
+    purchasePrice: number;
+    additionalCosts: number;
+    monthlyRent?: number;
+    yield?: number;
+  };
+  metrics: {
+    views: number;
+    inquiries: number;
+    visits: number;
+    daysOnMarket: number;
+  };
+  lastUpdated: string;
+  priority: 'high' | 'medium' | 'low';
+  tags: string[];
+  locationDescription?: string;
+  equipmentDescription?: string;
+  additionalInfo?: string;
+  areas?: {
+    living?: number;
+    plot?: number;
+    usable?: number;
+    balcony?: number;
+    garden?: number;
+    floors?: number;
+  };
+  buildYear?: number;
+  energyClass?: {
+    efficiency?: string;
+    energyValue?: number;
+    co2Emissions?: number;
+    validUntil?: string;
+    certificateType?: string;
+    heatingType?: string;
+  };
+}
+
+const PropertyDetail: React.FC = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { data: apiProperty, isLoading } = useProperties({ page: 1, size: 1 });
+  const updateMutation = useUpdateProperty();
+
+  // State Management
+  const [property, setProperty] = useState<Property | null>(null);
+  const [activeTab, setActiveTab] = useState('overview');
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingProperty, setEditingProperty] = useState<Property | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Tab Configuration
+  const tabs = [
+    { id: 'overview', label: 'Übersicht', icon: Home },
+    { id: 'details', label: 'Details', icon: FileText },
+    { id: 'features', label: 'Ausstattung', icon: Star },
+    { id: 'energy', label: 'Energieeffizienz', icon: Zap },
+    { id: 'location', label: 'Lage', icon: MapPin },
+    { id: 'expose', label: 'Exposé', icon: FileText },
+    { id: 'publish', label: 'Veröffentlichen', icon: Share2 },
+    { id: 'performance', label: 'Performance', icon: TrendingUp },
+  ];
+
+  // Map API property to UI property
+  useEffect(() => {
+    if (!apiProperty) return;
+    
+    const p = apiProperty as any;
+    const mapped: Property = {
+      id: p.id || '',
+      title: p.titel || '',
+      description: p.beschreibung || '',
+      price: p.kaufpreis || 0,
+      location: `${p.plz || ''} ${p.ort || ''}`.trim(),
+      type: p.objektart === 'Wohnung' ? 'apartment' : p.objektart === 'Haus' ? 'house' : 'commercial',
+      status: mapStatus(p.status),
+      features: {
+        bedrooms: p.anzahl_zimmer?.toString() || '0',
+        bathrooms: p.anzahl_badezimmer?.toString() || '0',
+        area: p.wohnflaeche?.toString() || '0',
+        yearBuilt: p.baujahr?.toString() || '',
+        parking: p.anzahl_parkplaetze?.toString() || '0',
+        energyClass: p.energieeffizienzklasse || '',
+        heatingType: p.heizungsart || '',
+        floor: p.etage?.toString() || '',
+      },
+      amenities: [],
+      images: p.bilder || [],
+      contactPerson: {
+        name: p.ansprechpartner || '',
+        phone: p.telefon || '',
+        email: p.email || '',
+      },
+      address: {
+        street: p.strasse || '',
+        city: p.ort || '',
+        zipCode: p.plz || '',
+        state: p.bundesland || '',
+        country: 'Deutschland',
+      },
+      financials: {
+        purchasePrice: p.kaufpreis || 0,
+        additionalCosts: p.nebenkosten || 0,
+        monthlyRent: p.kaltmiete,
+        yield: p.rendite,
+      },
+      metrics: {
+        views: 0,
+        inquiries: 0,
+        visits: 0,
+        daysOnMarket: 0,
+      },
+      lastUpdated: p.updated_at || new Date().toISOString(),
+      priority: 'medium',
+      tags: [],
+      locationDescription: p.lagebeschreibung,
+      equipmentDescription: p.ausstattung,
+      additionalInfo: p.sonstiges,
+      areas: {
+        living: p.wohnflaeche,
+        plot: p.grundstuecksflaeche,
+        usable: p.nutzflaeche,
+      },
+      buildYear: p.baujahr,
+      energyClass: {
+        efficiency: p.energieeffizienzklasse,
+        energyValue: p.endenergiebedarf,
+        co2Emissions: p.co2_emissionen,
+        validUntil: p.energieausweis_gueltig_bis,
+        certificateType: p.energieausweis_typ,
+        heatingType: p.heizungsart,
+      },
+    };
+
+    setProperty(mapped);
+  }, [apiProperty]);
+
+  // Helper: Map API status to UI status
+  const mapStatus = (status?: string): Property['status'] => {
+    switch (status) {
+      case 'aktiv': return 'available';
+      case 'verkauft': return 'sold';
+      case 'reserviert': return 'reserved';
+      case 'vorbereitung': return 'vorbereitung';
+      case 'akquise': return 'akquise';
+      default: return 'available';
+    }
+  };
+
+  // Helper: Get status styling
+  const getStatusStyle = (status: string) => {
+    const styles = {
+      available: 'bg-gradient-to-r from-emerald-500 to-green-500 text-white',
+      sold: 'bg-gradient-to-r from-gray-500 to-slate-500 text-white',
+      reserved: 'bg-gradient-to-r from-amber-500 to-orange-500 text-white',
+      akquise: 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white',
+      vorbereitung: 'bg-gradient-to-r from-purple-500 to-pink-500 text-white',
+    };
+    return styles[status as keyof typeof styles] || styles.available;
+  };
+
+  // Handle Edit Mode
+  const handleEdit = () => {
+    setIsEditing(true);
+    setEditingProperty(property);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditingProperty(null);
+  };
+
+  const handleSave = async () => {
+    if (!editingProperty) return;
+    
+    setIsSaving(true);
+    try {
+      // Map UI status back to API status
+      const apiStatus = mapStatusToApi(editingProperty.status);
+      
+      await (updateMutation.mutateAsync as any)({
+        id: editingProperty.id,
+        payload: { ...editingProperty, status: apiStatus } as any,
+      });
+      
+      setProperty(editingProperty);
+      setIsEditing(false);
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.properties] });
+      toast.success('Immobilie erfolgreich aktualisiert');
+    } catch (error) {
+      console.error('Save error:', error);
+      toast.error('Fehler beim Speichern');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Helper: Map UI status to API status
+  const mapStatusToApi = (status: Property['status']): string => {
+    switch (status) {
+      case 'available': return 'aktiv';
+      case 'sold': return 'verkauft';
+      case 'reserved': return 'reserviert';
+      case 'vorbereitung': return 'vorbereitung';
+      case 'akquise': return 'akquise';
+      default: return 'aktiv';
+    }
+  };
+
+  // Update editing property helper
+  const updateEditingProperty = (field: string, value: any) => {
+    if (!editingProperty) return;
+    
+    const fields = field.split('.');
+    const updated = { ...editingProperty };
+    let current: any = updated;
+    
+    for (let i = 0; i < fields.length - 1; i++) {
+      current[fields[i]] = { ...current[fields[i]] };
+      current = current[fields[i]];
+    }
+    
+    current[fields[fields.length - 1]] = value;
+    setEditingProperty(updated);
+  };
+
+  // Image Navigation
+  const handlePrevImage = () => {
+    if (!property) return;
+    setSelectedImageIndex((prev) => 
+      prev === 0 ? property.images.length - 1 : prev - 1
+    );
+  };
+
+  const handleNextImage = () => {
+    if (!property) return;
+    setSelectedImageIndex((prev) => 
+      prev === property.images.length - 1 ? 0 : prev + 1
+    );
+  };
+
+  // TODO: Implement real performance data API
+  const performanceData: Array<{ date: string; views: number; inquiries: number; visits: number }> = [];
+
+  if (isLoading || !property) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="text-center"
+        >
+          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400">Immobilie wird geladen...</p>
+        </motion.div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/20 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+      {/* Header */}
+      <motion.div 
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-700 sticky top-0 z-50"
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => navigate('/properties')}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-all duration-200 group"
+              >
+                <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+                <span>Zurück</span>
+              </button>
+              
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {property.title}
+                </h1>
+                <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2 mt-1">
+                  <MapPin className="w-4 h-4" />
+                  {property.location}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <span className={`px-4 py-2 rounded-lg font-semibold ${getStatusStyle(property.status)}`}>
+                {property.status === 'available' && 'Verfügbar'}
+                {property.status === 'sold' && 'Verkauft'}
+                {property.status === 'reserved' && 'Reserviert'}
+                {property.status === 'akquise' && 'Akquise'}
+                {property.status === 'vorbereitung' && 'Vorbereitung'}
+              </span>
+
+              {isEditing ? (
+                <>
+                  <button
+                    onClick={handleCancelEdit}
+                    disabled={isSaving}
+                    className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-all"
+                  >
+                    <X className="w-4 h-4" />
+                    Abbrechen
+                  </button>
+                  <button
+                    onClick={handleSave}
+                    disabled={isSaving}
+                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white rounded-lg transition-all disabled:opacity-50"
+                  >
+                    <Save className="w-4 h-4" />
+                    {isSaving ? 'Speichern...' : 'Speichern'}
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={handleEdit}
+                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-lg transition-all"
+                >
+                  <Edit2 className="w-4 h-4" />
+                  Bearbeiten
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Main Content */}
+      <div className="max-w-[1600px] mx-auto px-6 sm:px-8 lg:px-12 py-12">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+          {/* Left Column: Image Gallery & Tabs */}
+          <div className="lg:col-span-2 space-y-8">
+            {/* Image Gallery */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden"
+            >
+              <div className="relative aspect-video bg-gray-900">
+                {property.images.length > 0 ? (
+                  <>
+                    <img
+                      src={property.images[selectedImageIndex]}
+                      alt={property.title}
+                      className="w-full h-full object-cover"
+                    />
+                    
+                    {/* Navigation Arrows */}
+                    {property.images.length > 1 && (
+                      <>
+                        <button
+                          onClick={handlePrevImage}
+                          className="absolute left-6 top-1/2 -translate-y-1/2 w-14 h-14 bg-black/50 hover:bg-black/70 backdrop-blur-sm rounded-full flex items-center justify-center text-white transition-all hover:scale-110"
+                        >
+                          <ChevronLeft className="w-7 h-7" />
+                        </button>
+                        <button
+                          onClick={handleNextImage}
+                          className="absolute right-6 top-1/2 -translate-y-1/2 w-14 h-14 bg-black/50 hover:bg-black/70 backdrop-blur-sm rounded-full flex items-center justify-center text-white transition-all hover:scale-110"
+                        >
+                          <ChevronRight className="w-7 h-7" />
+                        </button>
+                      </>
+                    )}
+
+                    {/* Image Counter */}
+                    <div className="absolute bottom-6 right-6 px-4 py-2 bg-black/50 backdrop-blur-sm rounded-full text-white text-sm font-medium">
+                      {selectedImageIndex + 1} / {property.images.length}
+                    </div>
+                  </>
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <Building2 className="w-24 h-24 text-gray-600" />
+                  </div>
+                )}
+              </div>
+
+              {/* Thumbnail Strip */}
+              {property.images.length > 1 && (
+                <div className="p-6 bg-gray-50 dark:bg-gray-900/50 flex gap-3 overflow-x-auto">
+                  {property.images.map((img, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setSelectedImageIndex(idx)}
+                      className={`flex-shrink-0 w-24 h-24 rounded-xl overflow-hidden border-2 transition-all ${
+                        idx === selectedImageIndex
+                          ? 'border-blue-500 ring-2 ring-blue-500/30 scale-105'
+                          : 'border-transparent hover:border-gray-300 dark:hover:border-gray-600 hover:scale-105'
+                      }`}
+                    >
+                      <img src={img} alt="" className="w-full h-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+
+            {/* Tab Navigation */}
+            <div className="relative bg-white/70 dark:bg-gray-800/70 backdrop-blur-md rounded-3xl p-4 border border-gray-200 dark:border-gray-700 shadow-lg">
+              <div className="absolute left-0 top-0 bottom-0 w-16 bg-gradient-to-r from-white/95 dark:from-gray-800/95 to-transparent pointer-events-none z-10 rounded-l-3xl"></div>
+              <div className="absolute right-0 top-0 bottom-0 w-16 bg-gradient-to-l from-white/95 dark:from-gray-800/95 to-transparent pointer-events-none z-10 rounded-r-3xl"></div>
+              
+              <div className="flex gap-4 overflow-x-auto pb-1 px-3 scrollbar-hide scroll-smooth">
+                {tabs.map((tab) => {
+                  const Icon = tab.icon;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`flex-shrink-0 flex items-center gap-3 px-8 py-4 rounded-2xl font-medium transition-all duration-300 ${
+                        activeTab === tab.id
+                          ? 'bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 text-white shadow-xl shadow-blue-500/40 scale-105'
+                          : 'bg-white/90 dark:bg-gray-700/50 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600/50 hover:shadow-lg hover:scale-102'
+                      }`}
+                    >
+                      <Icon className={`w-5 h-5 ${activeTab === tab.id ? 'animate-pulse' : ''}`} />
+                      <span className="whitespace-nowrap text-base font-semibold">{tab.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Tab Content */}
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeTab}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.2 }}
+                className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700 p-8"
+              >
+                {/* Overview Tab */}
+                {activeTab === 'overview' && (
+                  <div className="space-y-8">
+                    <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+                      Objektübersicht
+                    </h3>
+
+                    {/* Key Metrics Grid */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                      <div className="p-6 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl border border-blue-200 dark:border-blue-700 hover:shadow-lg transition-all">
+                        <Euro className="w-10 h-10 text-blue-600 dark:text-blue-400 mb-3" />
+                        <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
+                          {property.price.toLocaleString('de-DE')} €
+                        </div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400">Kaufpreis</div>
+                      </div>
+
+                      <div className="p-6 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-2xl border border-purple-200 dark:border-purple-700 hover:shadow-lg transition-all">
+                        <Ruler className="w-10 h-10 text-purple-600 dark:text-purple-400 mb-3" />
+                        <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
+                          {property.features.area} m²
+                        </div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400">Wohnfläche</div>
+                      </div>
+
+                      <div className="p-6 bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20 rounded-2xl border border-emerald-200 dark:border-emerald-700 hover:shadow-lg transition-all">
+                        <Bed className="w-10 h-10 text-emerald-600 dark:text-emerald-400 mb-3" />
+                        <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
+                          {property.features.bedrooms}
+                        </div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400">Zimmer</div>
+                      </div>
+
+                      <div className="p-6 bg-gradient-to-br from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20 rounded-2xl border border-orange-200 dark:border-orange-700 hover:shadow-lg transition-all">
+                        <Bath className="w-10 h-10 text-orange-600 dark:text-orange-400 mb-3" />
+                        <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
+                          {property.features.bathrooms}
+                        </div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400">Badezimmer</div>
+                      </div>
+                    </div>
+
+                    {/* Description */}
+                    <div>
+                      <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Beschreibung</h4>
+                      {isEditing ? (
+                        <textarea
+                          value={editingProperty?.description || ''}
+                          onChange={(e) => updateEditingProperty('description', e.target.value)}
+                          rows={8}
+                          className="w-full px-5 py-4 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base leading-relaxed"
+                        />
+                      ) : (
+                        <p className="text-gray-600 dark:text-gray-300 leading-relaxed">
+                          {property.description || 'Keine Beschreibung verfügbar'}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Details Tab */}
+                {activeTab === 'details' && (
+                  <div className="space-y-8">
+                    <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+                      Objektdetails
+                    </h3>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      {[
+                        { label: 'Objektart', value: property.type === 'apartment' ? 'Wohnung' : property.type === 'house' ? 'Haus' : 'Gewerbe', icon: Building2 },
+                        { label: 'Baujahr', value: property.features.yearBuilt || 'Nicht angegeben', icon: Calendar },
+                        { label: 'Etage', value: property.features.floor || 'Nicht angegeben', icon: Building2 },
+                        { label: 'Parkplätze', value: property.features.parking || '0', icon: Car },
+                        { label: 'Heizungsart', value: property.features.heatingType || 'Nicht angegeben', icon: Flame },
+                        { label: 'Energieklasse', value: property.features.energyClass || 'Nicht angegeben', icon: Zap },
+                      ].map((item, idx) => {
+                        const Icon = item.icon;
+                        return (
+                          <div key={idx} className="p-5 bg-gray-50/50 dark:bg-gray-700/30 rounded-2xl border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-all">
+                            <div className="flex items-center gap-4">
+                              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                                <Icon className="w-6 h-6 text-white" />
+                              </div>
+                              <div>
+                                <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">{item.label}</div>
+                                <div className="text-base font-semibold text-gray-900 dark:text-white">{item.value}</div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Areas */}
+                    {property.areas && (
+                      <div>
+                        <h4 className="font-semibold text-gray-900 dark:text-white mb-3">Flächen</h4>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                          {property.areas.living && (
+                            <div className="p-3 bg-blue-50/50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
+                              <div className="text-xs text-gray-500 dark:text-gray-400">Wohnfläche</div>
+                              <div className="text-lg font-bold text-gray-900 dark:text-white">{property.areas.living} m²</div>
+                            </div>
+                          )}
+                          {property.areas.plot && (
+                            <div className="p-3 bg-green-50/50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-700">
+                              <div className="text-xs text-gray-500 dark:text-gray-400">Grundstück</div>
+                              <div className="text-lg font-bold text-gray-900 dark:text-white">{property.areas.plot} m²</div>
+                            </div>
+                          )}
+                          {property.areas.usable && (
+                            <div className="p-3 bg-purple-50/50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-700">
+                              <div className="text-xs text-gray-500 dark:text-gray-400">Nutzfläche</div>
+                              <div className="text-lg font-bold text-gray-900 dark:text-white">{property.areas.usable} m²</div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Features Tab */}
+                {activeTab === 'features' && (
+                  <div className="space-y-6">
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+                      Ausstattung & Beschreibung
+                    </h3>
+
+                    {/* Equipment Description */}
+                    <div>
+                      <h4 className="font-semibold text-gray-900 dark:text-white mb-3">Ausstattungsbeschreibung</h4>
+                      {isEditing ? (
+                        <textarea
+                          value={editingProperty?.equipmentDescription || ''}
+                          onChange={(e) => updateEditingProperty('equipmentDescription', e.target.value)}
+                          rows={6}
+                          className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="Beschreiben Sie die Ausstattung..."
+                        />
+                      ) : (
+                        <p className="text-gray-600 dark:text-gray-300 leading-relaxed">
+                          {property.equipmentDescription || 'Keine Ausstattungsbeschreibung verfügbar'}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Additional Info */}
+                    <div>
+                      <h4 className="font-semibold text-gray-900 dark:text-white mb-3">Sonstige Angaben</h4>
+                      {isEditing ? (
+                        <textarea
+                          value={editingProperty?.additionalInfo || ''}
+                          onChange={(e) => updateEditingProperty('additionalInfo', e.target.value)}
+                          rows={4}
+                          className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="Weitere Informationen..."
+                        />
+                      ) : (
+                        <p className="text-gray-600 dark:text-gray-300 leading-relaxed">
+                          {property.additionalInfo || 'Keine weiteren Angaben verfügbar'}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Energy Tab */}
+                {activeTab === 'energy' && (
+                  <EnergyEfficiencyTab property={property} />
+                )}
+
+                {/* Location Tab */}
+                {activeTab === 'location' && (
+                  <div className="space-y-6">
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+                      Adresse & Lage
+                    </h3>
+
+                    {/* Address */}
+                    <div>
+                      <h4 className="font-semibold text-gray-900 dark:text-white mb-3">Adresse</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {[
+                          { label: 'Straße', value: property.address.street, field: 'address.street' },
+                          { label: 'PLZ', value: property.address.zipCode, field: 'address.zipCode' },
+                          { label: 'Ort', value: property.address.city, field: 'address.city' },
+                          { label: 'Bundesland', value: property.address.state, field: 'address.state' },
+                        ].map((item, idx) => (
+                          <div key={idx} className="p-4 bg-gray-50/50 dark:bg-gray-700/30 rounded-xl">
+                            <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">{item.label}</div>
+                            {isEditing ? (
+                              <input
+                                type="text"
+                                value={
+                                  item.field.includes('.')
+                                    ? (editingProperty as any)?.[item.field.split('.')[0]]?.[item.field.split('.')[1]] || ''
+                                    : (editingProperty as any)?.[item.field] || ''
+                                }
+                                onChange={(e) => updateEditingProperty(item.field, e.target.value)}
+                                className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                              />
+                            ) : (
+                              <div className="text-sm font-semibold text-gray-900 dark:text-white">{item.value}</div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Location Description */}
+                    <div>
+                      <h4 className="font-semibold text-gray-900 dark:text-white mb-3">Lagebeschreibung</h4>
+                      {isEditing ? (
+                        <textarea
+                          value={editingProperty?.locationDescription || ''}
+                          onChange={(e) => updateEditingProperty('locationDescription', e.target.value)}
+                          rows={6}
+                          className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="Beschreiben Sie die Lage..."
+                        />
+                      ) : (
+                        <p className="text-gray-600 dark:text-gray-300 leading-relaxed">
+                          {property.locationDescription || 'Keine Lagebeschreibung verfügbar'}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Expose Tab */}
+                {activeTab === 'expose' && (
+                  <ExposeTab propertyId={property.id} />
+                )}
+
+                {/* Publish Tab */}
+                {activeTab === 'publish' && (
+                  <PublishTab propertyId={property.id} property={property} />
+                )}
+
+                {/* Performance Tab */}
+                {activeTab === 'performance' && (
+                  <div className="space-y-6">
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+                      Performance-Übersicht
+                    </h3>
+
+                    {/* Metrics Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      <div className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl border border-blue-200 dark:border-blue-700">
+                        <Eye className="w-8 h-8 text-blue-600 dark:text-blue-400 mb-2" />
+                        <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                          {property.metrics.views}
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">Aufrufe</div>
+                      </div>
+
+                      <div className="p-4 bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20 rounded-xl border border-emerald-200 dark:border-emerald-700">
+                        <MessageSquare className="w-8 h-8 text-emerald-600 dark:text-emerald-400 mb-2" />
+                        <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                          {property.metrics.inquiries}
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">Anfragen</div>
+                      </div>
+
+                      <div className="p-4 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl border border-purple-200 dark:border-purple-700">
+                        <Users className="w-8 h-8 text-purple-600 dark:text-purple-400 mb-2" />
+                        <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                          {property.metrics.visits}
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">Besichtigungen</div>
+                      </div>
+
+                      <div className="p-4 bg-gradient-to-br from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20 rounded-xl border border-orange-200 dark:border-orange-700">
+                        <Clock className="w-8 h-8 text-orange-600 dark:text-orange-400 mb-2" />
+                        <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                          {property.metrics.daysOnMarket}
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">Tage im Markt</div>
+                      </div>
+                    </div>
+
+                    {/* Performance Chart */}
+                    <div>
+                      <h4 className="font-semibold text-gray-900 dark:text-white mb-4">Aktivität (7 Tage)</h4>
+                      <div className="h-80 bg-gray-50 dark:bg-gray-900/50 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={performanceData}>
+                            <defs>
+                              <linearGradient id="colorViews" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+                                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                              </linearGradient>
+                              <linearGradient id="colorInquiries" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                                <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                              </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.2} />
+                            <XAxis dataKey="date" stroke="#9ca3af" />
+                            <YAxis stroke="#9ca3af" />
+                            <Tooltip
+                              contentStyle={{
+                                backgroundColor: '#1f2937',
+                                border: '1px solid #374151',
+                                borderRadius: '0.5rem',
+                                color: '#fff',
+                              }}
+                            />
+                            <Area
+                              type="monotone"
+                              dataKey="views"
+                              stroke="#3b82f6"
+                              strokeWidth={2}
+                              fillOpacity={1}
+                              fill="url(#colorViews)"
+                              name="Aufrufe"
+                            />
+                            <Area
+                              type="monotone"
+                              dataKey="inquiries"
+                              stroke="#10b981"
+                              strokeWidth={2}
+                              fillOpacity={1}
+                              fill="url(#colorInquiries)"
+                              name="Anfragen"
+                            />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </motion.div>
+            </AnimatePresence>
+          </div>
+
+          {/* Right Column: Sidebar */}
+          <div className="space-y-8">
+            {/* Financial Info */}
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.1 }}
+              className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700 p-8"
+            >
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-3">
+                <Euro className="w-6 h-6 text-blue-500" />
+                Finanzen
+              </h3>
+              
+              <div className="space-y-4">
+                <div className="p-6 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl border border-blue-200 dark:border-blue-700">
+                  <div className="text-sm text-gray-500 dark:text-gray-400 mb-2">Kaufpreis</div>
+                  <div className="text-3xl font-bold text-gray-900 dark:text-white">
+                    {property.financials.purchasePrice.toLocaleString('de-DE')} €
+                  </div>
+                </div>
+
+                <div className="p-4 bg-gray-50/50 dark:bg-gray-700/30 rounded-xl">
+                  <div className="text-sm text-gray-500 dark:text-gray-400">Nebenkosten</div>
+                  <div className="text-lg font-semibold text-gray-900 dark:text-white mt-2">
+                    {property.financials.additionalCosts.toLocaleString('de-DE')} €
+                  </div>
+                </div>
+
+                {property.financials.monthlyRent && (
+                  <div className="p-4 bg-gray-50/50 dark:bg-gray-700/30 rounded-xl">
+                    <div className="text-sm text-gray-500 dark:text-gray-400">Monatliche Miete</div>
+                    <div className="text-lg font-semibold text-gray-900 dark:text-white mt-2">
+                      {property.financials.monthlyRent.toLocaleString('de-DE')} €
+                    </div>
+                  </div>
+                )}
+
+                {property.financials.yield && (
+                  <div className="p-4 bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20 rounded-xl border border-emerald-200 dark:border-emerald-700">
+                    <div className="text-sm text-gray-500 dark:text-gray-400">Rendite</div>
+                    <div className="text-lg font-semibold text-emerald-600 dark:text-emerald-400 mt-2">
+                      {property.financials.yield}%
+                    </div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+
+            {/* Contact Person */}
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2 }}
+              className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700 p-8"
+            >
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
+                Ansprechpartner
+              </h3>
+              
+              <div className="space-y-4">
+                <div className="p-4 bg-gray-50/50 dark:bg-gray-700/30 rounded-xl">
+                  <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Name</div>
+                  <div className="text-base font-semibold text-gray-900 dark:text-white">
+                    {property.contactPerson.name || 'Nicht angegeben'}
+                  </div>
+                </div>
+
+                <div className="p-4 bg-gray-50/50 dark:bg-gray-700/30 rounded-xl">
+                  <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Telefon</div>
+                  <div className="text-base font-semibold text-gray-900 dark:text-white">
+                    {property.contactPerson.phone || 'Nicht angegeben'}
+                  </div>
+                </div>
+
+                <div className="p-4 bg-gray-50/50 dark:bg-gray-700/30 rounded-xl">
+                  <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">E-Mail</div>
+                  <div className="text-base font-semibold text-gray-900 dark:text-white break-all">
+                    {property.contactPerson.email || 'Nicht angegeben'}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Quick Actions */}
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.3 }}
+              className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700 p-8"
+            >
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
+                Aktionen
+              </h3>
+              
+              <div className="space-y-3">
+                <button
+                  onClick={() => setActiveTab('expose')}
+                  className="w-full flex items-center gap-3 px-5 py-4 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white rounded-xl transition-all hover:shadow-xl"
+                >
+                  <FileText className="w-5 h-5" />
+                  <span className="font-semibold">Exposé erstellen</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('publish')}
+                  className="w-full flex items-center gap-3 px-5 py-4 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-xl transition-all hover:shadow-xl"
+                >
+                  <Share2 className="w-5 h-5" />
+                  <span className="font-semibold">Veröffentlichen</span>
+                </button>
+
+                <button className="w-full flex items-center gap-3 px-5 py-4 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-900 dark:text-white rounded-xl transition-all hover:shadow-lg">
+                  <Download className="w-5 h-5" />
+                  <span className="font-semibold">Dokumente</span>
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default PropertyDetail;
