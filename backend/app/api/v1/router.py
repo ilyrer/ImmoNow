@@ -15,13 +15,18 @@ from app.api.v1 import (
     properties,
     contacts,
     analytics,
+    communications,
+    social,
+    finance,
+    tenant,
+    notifications,
 )
 
 # Create main API router
 api_router = APIRouter()
 
 # Include auth router (no prefix, it has its own)
-api_router.include_router(auth.router, tags=["authentication"])
+api_router.include_router(auth.router, tags=["Authentication"])
 
 # Include all domain routers
 api_router.include_router(documents.router, prefix="/documents", tags=["documents"])
@@ -34,3 +39,8 @@ api_router.include_router(appointments.router, prefix="/appointments", tags=["ap
 api_router.include_router(properties.router, prefix="/properties", tags=["properties"])
 api_router.include_router(contacts.router, prefix="/contacts", tags=["contacts"])
 api_router.include_router(analytics.router, prefix="/analytics", tags=["analytics"])
+api_router.include_router(communications.router, prefix="/communications", tags=["communications"])
+api_router.include_router(social.router, prefix="/social", tags=["social"])
+api_router.include_router(finance.router, prefix="/finance", tags=["finance"])
+api_router.include_router(tenant.router, prefix="/tenant", tags=["tenant"])
+api_router.include_router(notifications.router, prefix="/notifications", tags=["notifications"])

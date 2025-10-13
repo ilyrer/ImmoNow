@@ -110,7 +110,7 @@ const getTeamPerformance = async (params: PerformanceFilterParams): Promise<Perf
     });
     
     // Map backend data to performance data
-    const data = response.data || {};
+    const data = (response as any)?.data || {};
     const tasksByStatus = data.tasks_by_status || [];
     
     return tasksByStatus.map((item: any, index: number) => ({
@@ -153,11 +153,11 @@ const getTopPerformers = async (): Promise<Performer[]> => {
       params: { page: 1, size: 10 }
     });
     
-    const employees = response.data?.items || [];
+    const employees = (response as any)?.data?.items || [];
     
     // Get task analytics to calculate performance
     const tasksResponse = await apiClient.get('/api/v1/analytics/tasks');
-    const taskData = tasksResponse.data || {};
+    const taskData = (tasksResponse as any)?.data || {};
     
     return employees.slice(0, 5).map((emp: any) => ({
       id: emp.id,

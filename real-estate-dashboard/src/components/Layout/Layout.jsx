@@ -7,6 +7,7 @@ import ChatbotFAB from '../common/ChatbotFAB.tsx';
 
 const Layout = ({ children, user, onLogout }) => {
   const [chatOpen, setChatOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Callback-Funktionen für den KI-Chatbot
   const handleCreateTask = (taskData) => {
@@ -35,10 +36,10 @@ const Layout = ({ children, user, onLogout }) => {
       
       <div className="relative z-10 flex min-h-screen">
         {/* Global Glasmorphism Sidebar */}
-        <GlobalSidebar user={user} onLogout={onLogout} />
+        <GlobalSidebar user={user} onLogout={onLogout} onCollapsedChange={setSidebarCollapsed} />
 
-        {/* Hauptbereich */}
-        <main className="flex-1 ml-80 transition-all duration-300 ease-in-out">
+        {/* Hauptbereich - Dynamic margin based on sidebar state */}
+        <main className={`flex-1 transition-all duration-300 ease-in-out ${sidebarCollapsed ? 'ml-20' : 'ml-80'}`}>
           {/* Global Header */}
           <GlobalHeader />
 

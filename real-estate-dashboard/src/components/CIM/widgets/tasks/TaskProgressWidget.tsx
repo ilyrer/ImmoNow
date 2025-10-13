@@ -32,10 +32,10 @@ const TaskProgressWidget: React.FC = () => {
       try {
         setIsLoading(true);
         setError(null);
-        const response = await apiClient.get('/tasks');
+        const response = await apiClient.get('/api/v1/tasks');
         
         // Handle different response structures
-        const tasksData = response.data?.tasks || response.data || [];
+        const tasksData = (response as any)?.data?.tasks || (response as any)?.data || []; 
         
         // Ensure we have an array
         const tasksArray = Array.isArray(tasksData) ? tasksData : [];

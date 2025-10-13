@@ -10,6 +10,7 @@ from django.utils import timezone
 # Import new auth models
 from .tenant import Tenant
 from .user import User, TenantUser, UserManager
+from .notification import Notification, NotificationPreference
 
 # Export all models
 __all__ = [
@@ -28,10 +29,13 @@ __all__ = [
     'ContactPerson',
     'PropertyFeatures',
     'PropertyImage',
+    'PropertyDocument',
     'Contact',
     'Appointment',
     'Attendee',
     'AuditLog',
+    'Notification',
+    'NotificationPreference',
 ]
 
 
@@ -292,18 +296,58 @@ class Property(models.Model):
         ('industrial', 'Industrial'),
     ]
     
+    PRICE_TYPE_CHOICES = [
+        ('sale', 'Sale'),
+        ('rent', 'Rent'),
+    ]
+    
+    STATUS_CHOICES = [
+        ('vorbereitung', 'Vorbereitung'),
+        ('aktiv', 'Aktiv'),
+        ('reserviert', 'Reserviert'),
+        ('verkauft', 'Verkauft'),
+        ('zurückgezogen', 'Zurückgezogen'),
+    ]
+    
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='properties')
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
-    status = models.CharField(max_length=50, default='active')
+    status = models.CharField(max_length=50, default='vorbereitung', choices=STATUS_CHOICES)
     property_type = models.CharField(max_length=50, choices=PROPERTY_TYPE_CHOICES)
+    
+    # Price fields
     price = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
+    price_currency = models.CharField(max_length=3, default='EUR')
+    price_type = models.CharField(max_length=20, choices=PRICE_TYPE_CHOICES, default='sale')
+    
     location = models.CharField(max_length=255)
-    living_area = models.IntegerField(blank=True, null=True)
-    rooms = models.IntegerField(blank=True, null=True)
-    bathrooms = models.IntegerField(blank=True, null=True)
+    
+    # Area fields
+    living_area = models.IntegerField(blank=True, null=True, help_text="Wohnfläche in m²")
+    total_area = models.IntegerField(blank=True, null=True, help_text="Gesamtfläche in m²")
+    plot_area = models.IntegerField(blank=True, null=True, help_text="Grundstücksfläche in m²")
+    
+    # Room fields
+    rooms = models.IntegerField(blank=True, null=True, help_text="Anzahl Zimmer")
+    bedrooms = models.IntegerField(blank=True, null=True, help_text="Anzahl Schlafzimmer")
+    bathrooms = models.IntegerField(blank=True, null=True, help_text="Anzahl Bäder")
+    floors = models.IntegerField(blank=True, null=True, help_text="Anzahl Etagen")
+    
+    # Building info
     year_built = models.IntegerField(blank=True, null=True)
+    energy_class = models.CharField(max_length=10, blank=True, null=True)
+    energy_consumption = models.IntegerField(blank=True, null=True, help_text="kWh/m²a")
+    heating_type = models.CharField(max_length=100, blank=True, null=True)
+    
+    # Location coordinates
+    coordinates_lat = models.DecimalField(max_digits=9, decimal_places=6, blank=True, null=True)
+    coordinates_lng = models.DecimalField(max_digits=9, decimal_places=6, blank=True, null=True)
+    
+    # Additional data
+    amenities = models.JSONField(default=list, blank=True, help_text="Liste von Ausstattungsmerkmalen")
+    tags = models.JSONField(default=list, blank=True, help_text="Tags für Kategorisierung")
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     created_by = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -326,10 +370,12 @@ class Address(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     property = models.OneToOneField(Property, on_delete=models.CASCADE, related_name='address')
     street = models.CharField(max_length=255)
+    house_number = models.CharField(max_length=20, blank=True, null=True)
     city = models.CharField(max_length=100)
     zip_code = models.CharField(max_length=10)
-    state = models.CharField(max_length=100)
-    country = models.CharField(max_length=100, default='Germany')
+    postal_code = models.CharField(max_length=10, blank=True, null=True, help_text="Alias für zip_code")
+    state = models.CharField(max_length=100, blank=True, null=True)
+    country = models.CharField(max_length=100, default='Deutschland')
     
     class Meta:
         db_table = 'addresses'
@@ -379,36 +425,94 @@ class PropertyImage(models.Model):
     """Property image model"""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     property = models.ForeignKey(Property, on_delete=models.CASCADE, related_name='images')
-    url = models.URLField()
+    file = models.FileField(upload_to='properties/images/%Y/%m/', blank=True, null=True)
+    url = models.URLField(blank=True, null=True)
+    thumbnail_url = models.URLField(blank=True, null=True)
     alt_text = models.CharField(max_length=255, blank=True, null=True)
     is_primary = models.BooleanField(default=False)
     order = models.IntegerField(default=0)
+    size = models.IntegerField(default=0, help_text="File size in bytes")
+    mime_type = models.CharField(max_length=100, blank=True, null=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True, blank=True, null=True)
+    uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
     
     class Meta:
         db_table = 'property_images'
         indexes = [
             models.Index(fields=['property', 'order']),
+            models.Index(fields=['property', 'is_primary']),
         ]
     
     def __str__(self):
         return f"Image for {self.property.title}"
 
 
+class PropertyDocument(models.Model):
+    """Property document model"""
+    DOCUMENT_TYPE_CHOICES = [
+        ('expose', 'Exposé'),
+        ('floor_plan', 'Grundriss'),
+        ('energy_certificate', 'Energieausweis'),
+        ('contract', 'Vertrag'),
+        ('protocol', 'Protokoll'),
+        ('other', 'Sonstiges'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    property = models.ForeignKey(Property, on_delete=models.CASCADE, related_name='documents')
+    file = models.FileField(upload_to='properties/documents/%Y/%m/')
+    url = models.URLField(blank=True, null=True)
+    name = models.CharField(max_length=255)
+    document_type = models.CharField(max_length=50, choices=DOCUMENT_TYPE_CHOICES, default='other')
+    size = models.IntegerField(default=0, help_text="File size in bytes")
+    mime_type = models.CharField(max_length=100)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    
+    class Meta:
+        db_table = 'property_documents'
+        indexes = [
+            models.Index(fields=['property', 'document_type']),
+            models.Index(fields=['property', 'uploaded_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.name} for {self.property.title}"
+
+
 # Contact Models
 class Contact(models.Model):
     """Contact model"""
+    PRIORITY_CHOICES = [
+        ('low', 'Low'),
+        ('medium', 'Medium'),
+        ('high', 'High'),
+        ('urgent', 'Urgent'),
+    ]
+    
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='contacts')
     name = models.CharField(max_length=255)
     email = models.EmailField()
     phone = models.CharField(max_length=50)
     company = models.CharField(max_length=255, blank=True, null=True)
-    status = models.CharField(max_length=50, default='active')
+    category = models.CharField(max_length=100, blank=True, null=True)
+    status = models.CharField(max_length=50, default='Lead')
+    priority = models.CharField(max_length=20, choices=PRIORITY_CHOICES, default='medium')
+    location = models.CharField(max_length=255, blank=True, null=True)
+    avatar = models.URLField(blank=True, null=True)
+    
+    # Budget field - main potential value for CIM matching
+    budget = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True, help_text="Hauptbudget / Potenzialwert")
+    budget_currency = models.CharField(max_length=3, default='EUR')
+    
+    # Legacy fields - will be migrated to budget
     budget_min = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
     budget_max = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
-    budget_currency = models.CharField(max_length=3, default='EUR')
+    
     preferences = models.JSONField(default=dict, blank=True)
     lead_score = models.IntegerField(default=0)
+    last_contact = models.DateTimeField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -418,6 +522,8 @@ class Contact(models.Model):
             models.Index(fields=['tenant', 'status']),
             models.Index(fields=['tenant', 'lead_score']),
             models.Index(fields=['tenant', 'created_at']),
+            models.Index(fields=['tenant', 'priority']),
+            models.Index(fields=['tenant', 'category']),
         ]
     
     def __str__(self):
@@ -514,7 +620,7 @@ class Attendee(models.Model):
 class AuditLog(models.Model):
     """Audit log model"""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='audit_logs')
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='audit_logs', null=True, blank=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     action = models.CharField(max_length=50)
     resource_type = models.CharField(max_length=50)

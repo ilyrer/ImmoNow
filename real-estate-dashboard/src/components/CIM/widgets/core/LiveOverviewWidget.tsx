@@ -26,35 +26,34 @@ const LiveOverviewWidget: React.FC = () => {
         setError(null);
 
         // Fetch data from multiple endpoints
-        const [dashboardData, propertiesData, contactsData, tasksData] = await Promise.all([
-          apiClient.get('/analytics/dashboard'),
-          apiClient.get('/analytics/properties'),
-          apiClient.get('/analytics/contacts'),
-          apiClient.get('/analytics/tasks'),
+        const [dashboardData, propertiesData, contactsData] = await Promise.all([
+          apiClient.get('/api/v1/analytics/dashboard'),
+          apiClient.get('/api/v1/analytics/properties'),
+          apiClient.get('/api/v1/analytics/contacts'),
         ]);
 
-        const dashboard = dashboardData.data || {};
-        const properties = propertiesData.data || {};
-        const contacts = contactsData.data || {};
-        const tasks = tasksData.data || {};
+        console.log('📊 Dashboard Data:', dashboardData);
+        console.log('🏠 Properties Data:', propertiesData);
+        console.log('👥 Contacts Data:', contactsData);
 
-        // Map backend data to display format
+        // Map backend data to display format - use correct field names
         const liveData: LiveAnalytics = {
-          totalProperties: properties.total_properties || 0,
-          activeListings: properties.active_listings || 0,
-          totalRevenue: dashboard.total_revenue || 0,
-          newLeads: contacts.new_contacts_this_month || 0,
-          monthly_sales: properties.sales_this_month || 0,
-          viewings: dashboard.viewings_this_week || 0,
-          new_inquiries: contacts.new_inquiries_this_week || 0,
-          conversion_rate: Math.round((properties.sales_this_month / (contacts.new_contacts_this_month || 1)) * 100) || 0,
-          revenue_current_month: dashboard.revenue_current_month || 0,
-          revenue_target: dashboard.revenue_target || 120000, // Default target
+          totalProperties: (propertiesData as any).total_properties || 0,
+          activeListings: (propertiesData as any).active_listings || 0,
+          totalRevenue: (dashboardData as any).total_revenue || 0,
+          newLeads: (contactsData as any).new_contacts_this_month || 0,
+          monthly_sales: (propertiesData as any).sales_this_month || 0,
+          viewings: (dashboardData as any).viewings_this_week || 0,
+          new_inquiries: (contactsData as any).new_inquiries_this_week || 0,
+          conversion_rate: Math.round((contactsData as any).conversion_rate || 0),
+          revenue_current_month: (dashboardData as any).revenue_current_month || 0,
+          revenue_target: (dashboardData as any).revenue_target || 120000,
         };
 
+        console.log('✅ Mapped Live Data:', liveData);
         setAnalytics(liveData);
       } catch (err) {
-        console.error('Error fetching live analytics:', err);
+        console.error('❌ Error fetching live analytics:', err);
         setError(err as Error);
       } finally {
         setIsLoading(false);

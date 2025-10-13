@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useProperties, useUpdateProperty, QUERY_KEYS } from '../../hooks/useApi';
+import { useProperty, usePropertyMetrics } from '../../hooks/useProperties';
 import { useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { 
@@ -90,7 +91,10 @@ const PropertyDetail: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { data: apiProperty, isLoading } = useProperties({ page: 1, size: 1 });
+  
+  // ✅ Backend-Integration: Echte Property-Daten + Metrics
+  const { data: apiProperty, isLoading } = useProperty(id || '');
+  const { data: metrics, isLoading: metricsLoading } = usePropertyMetrics(id || '');
   const updateMutation = useUpdateProperty();
 
   // State Management
@@ -120,35 +124,36 @@ const PropertyDetail: React.FC = () => {
     const p = apiProperty as any;
     const mapped: Property = {
       id: p.id || '',
-      title: p.titel || '',
-      description: p.beschreibung || '',
-      price: p.kaufpreis || 0,
-      location: `${p.plz || ''} ${p.ort || ''}`.trim(),
-      type: p.objektart === 'Wohnung' ? 'apartment' : p.objektart === 'Haus' ? 'house' : 'commercial',
+      title: p.title || p.titel || '',
+      description: p.description || p.beschreibung || '',
+      price: p.price || p.kaufpreis || 0,
+      location: p.location || `${p.plz || ''} ${p.ort || ''}`.trim(),
+      type: p.property_type === 'apartment' || p.objektart === 'Wohnung' ? 'apartment' : 
+            p.property_type === 'house' || p.objektart === 'Haus' ? 'house' : 'commercial',
       status: mapStatus(p.status),
       features: {
-        bedrooms: p.anzahl_zimmer?.toString() || '0',
-        bathrooms: p.anzahl_badezimmer?.toString() || '0',
-        area: p.wohnflaeche?.toString() || '0',
-        yearBuilt: p.baujahr?.toString() || '',
+        bedrooms: (p.rooms || p.anzahl_zimmer)?.toString() || '0',
+        bathrooms: (p.bathrooms || p.anzahl_badezimmer)?.toString() || '0',
+        area: (p.living_area || p.wohnflaeche)?.toString() || '0',
+        yearBuilt: (p.year_built || p.baujahr)?.toString() || '',
         parking: p.anzahl_parkplaetze?.toString() || '0',
         energyClass: p.energieeffizienzklasse || '',
         heatingType: p.heizungsart || '',
         floor: p.etage?.toString() || '',
       },
       amenities: [],
-      images: p.bilder || [],
+      images: p.images?.map((img: any) => img.url) || p.bilder || [],
       contactPerson: {
-        name: p.ansprechpartner || '',
-        phone: p.telefon || '',
-        email: p.email || '',
+        name: p.contact_person?.name || p.ansprechpartner || '',
+        phone: p.contact_person?.phone || p.telefon || '',
+        email: p.contact_person?.email || p.email || '',
       },
       address: {
-        street: p.strasse || '',
-        city: p.ort || '',
-        zipCode: p.plz || '',
-        state: p.bundesland || '',
-        country: 'Deutschland',
+        street: p.address?.street || p.strasse || '',
+        city: p.address?.city || p.ort || '',
+        zipCode: p.address?.zip_code || p.plz || '',
+        state: p.address?.state || p.bundesland || '',
+        country: p.address?.country || 'Deutschland',
       },
       financials: {
         purchasePrice: p.kaufpreis || 0,
@@ -157,10 +162,10 @@ const PropertyDetail: React.FC = () => {
         yield: p.rendite,
       },
       metrics: {
-        views: 0,
-        inquiries: 0,
-        visits: 0,
-        daysOnMarket: 0,
+        views: metrics?.views || 0,
+        inquiries: metrics?.inquiries || 0,
+        visits: metrics?.visits || 0,
+        daysOnMarket: metrics?.daysOnMarket || 0,
       },
       lastUpdated: p.updated_at || new Date().toISOString(),
       priority: 'medium',
@@ -185,7 +190,7 @@ const PropertyDetail: React.FC = () => {
     };
 
     setProperty(mapped);
-  }, [apiProperty]);
+  }, [apiProperty, metrics]); // ✅ Re-run when metrics change
 
   // Helper: Map API status to UI status
   const mapStatus = (status?: string): Property['status'] => {
@@ -291,8 +296,14 @@ const PropertyDetail: React.FC = () => {
     );
   };
 
-  // TODO: Implement real performance data API
-  const performanceData: Array<{ date: string; views: number; inquiries: number; visits: number }> = [];
+  // ✅ Performance Chart Data vom Backend
+  const performanceData: Array<{ date: string; views: number; inquiries: number; visits: number }> = 
+    metrics?.chartData?.map(item => ({
+      date: new Date(item.date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }),
+      views: item.views,
+      inquiries: item.inquiries,
+      visits: item.visits,
+    })) || [];
 
   if (isLoading || !property) {
     return (
@@ -735,46 +746,53 @@ const PropertyDetail: React.FC = () => {
                       Performance-Übersicht
                     </h3>
 
-                    {/* Metrics Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                      <div className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl border border-blue-200 dark:border-blue-700">
-                        <Eye className="w-8 h-8 text-blue-600 dark:text-blue-400 mb-2" />
-                        <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                          {property.metrics.views}
-                        </div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">Aufrufe</div>
+                    {metricsLoading ? (
+                      <div className="flex items-center justify-center py-12">
+                        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
                       </div>
+                    ) : (
+                      <>
+                        {/* Metrics Cards */}
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                          <div className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl border border-blue-200 dark:border-blue-700">
+                            <Eye className="w-8 h-8 text-blue-600 dark:text-blue-400 mb-2" />
+                            <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                              {property.metrics.views.toLocaleString('de-DE')}
+                            </div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">Aufrufe</div>
+                          </div>
 
-                      <div className="p-4 bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20 rounded-xl border border-emerald-200 dark:border-emerald-700">
-                        <MessageSquare className="w-8 h-8 text-emerald-600 dark:text-emerald-400 mb-2" />
-                        <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                          {property.metrics.inquiries}
+                          <div className="p-4 bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20 rounded-xl border border-emerald-200 dark:border-emerald-700">
+                            <MessageSquare className="w-8 h-8 text-emerald-600 dark:text-emerald-400 mb-2" />
+                            <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                              {property.metrics.inquiries.toLocaleString('de-DE')}
+                            </div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">Anfragen</div>
+                          </div>
+
+                          <div className="p-4 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl border border-purple-200 dark:border-purple-700">
+                            <Users className="w-8 h-8 text-purple-600 dark:text-purple-400 mb-2" />
+                            <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                              {property.metrics.visits.toLocaleString('de-DE')}
+                            </div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">Besichtigungen</div>
+                          </div>
+
+                          <div className="p-4 bg-gradient-to-br from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20 rounded-xl border border-orange-200 dark:border-orange-700">
+                            <Clock className="w-8 h-8 text-orange-600 dark:text-orange-400 mb-2" />
+                            <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                              {property.metrics.daysOnMarket}
+                            </div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">Tage im Markt</div>
+                          </div>
                         </div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">Anfragen</div>
-                      </div>
 
-                      <div className="p-4 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl border border-purple-200 dark:border-purple-700">
-                        <Users className="w-8 h-8 text-purple-600 dark:text-purple-400 mb-2" />
-                        <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                          {property.metrics.visits}
-                        </div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">Besichtigungen</div>
-                      </div>
-
-                      <div className="p-4 bg-gradient-to-br from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20 rounded-xl border border-orange-200 dark:border-orange-700">
-                        <Clock className="w-8 h-8 text-orange-600 dark:text-orange-400 mb-2" />
-                        <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                          {property.metrics.daysOnMarket}
-                        </div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">Tage im Markt</div>
-                      </div>
-                    </div>
-
-                    {/* Performance Chart */}
-                    <div>
-                      <h4 className="font-semibold text-gray-900 dark:text-white mb-4">Aktivität (7 Tage)</h4>
-                      <div className="h-80 bg-gray-50 dark:bg-gray-900/50 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
-                        <ResponsiveContainer width="100%" height="100%">
+                        {/* Performance Chart */}
+                        <div>
+                          <h4 className="font-semibold text-gray-900 dark:text-white mb-4">Aktivität (30 Tage)</h4>
+                          {performanceData.length > 0 ? (
+                            <div className="h-80 bg-gray-50 dark:bg-gray-900/50 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+                              <ResponsiveContainer width="100%" height="100%">
                           <AreaChart data={performanceData}>
                             <defs>
                               <linearGradient id="colorViews" x1="0" y1="0" x2="0" y2="1">
@@ -817,8 +835,15 @@ const PropertyDetail: React.FC = () => {
                             />
                           </AreaChart>
                         </ResponsiveContainer>
-                      </div>
-                    </div>
+                            </div>
+                          ) : (
+                            <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                              Keine Performance-Daten verfügbar
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
               </motion.div>

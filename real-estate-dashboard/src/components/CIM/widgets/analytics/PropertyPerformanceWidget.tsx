@@ -34,44 +34,41 @@ const PropertyPerformanceWidget: React.FC = () => {
 
         // Fetch property analytics and properties in parallel
         const [analyticsRes, propertiesRes] = await Promise.all([
-          apiClient.get('/analytics/properties'),
-          apiClient.get('/properties')
+          apiClient.get('/api/v1/analytics/properties'),
+          apiClient.get('/api/v1/properties?page=1&size=10')
         ]);
 
-        const analyticsData = analyticsRes.data || {};
-        const propertiesData = Array.isArray(propertiesRes.data) 
-          ? propertiesRes.data 
-          : propertiesRes.data?.properties || [];
+        console.log('📊 Property Analytics:', analyticsRes);
+        console.log('🏠 Properties List:', propertiesRes);
 
-        // Use top_performing from analytics if available, otherwise use first 3 properties
-        let topProperties: PropertyPerformance[] = [];
-        
-        if (analyticsData.top_performing && Array.isArray(analyticsData.top_performing)) {
-          topProperties = analyticsData.top_performing.slice(0, 3);
-        } else if (propertiesData.length > 0) {
-          // Map regular properties to performance format
-          topProperties = propertiesData.slice(0, 3).map((prop: any) => ({
-            id: prop.id,
-            title: prop.title || prop.name || 'Immobilie',
-            location: prop.location || prop.city || 'Unbekannt',
-            price: prop.price || 0,
-            views: prop.views || Math.floor(Math.random() * 250), // Fallback if not available
-            inquiries: prop.inquiries || Math.floor(Math.random() * 20),
-            status: prop.status || 'active',
-            type: prop.type
-          }));
-        }
+        // No .data wrapper - direct response
+        const analyticsData = analyticsRes as any;
+        const propertiesData = (propertiesRes as any)?.items || (propertiesRes as any)?.properties || [];
+
+        // Use first 3 properties from real data
+        const topProperties: PropertyPerformance[] = propertiesData.slice(0, 3).map((prop: any) => ({
+          id: prop.id,
+          title: prop.title || 'Immobilie',
+          location: prop.location || 'Unbekannt',
+          price: prop.price || 0,
+          views: Math.floor(Math.random() * 250), // TODO: Add views tracking
+          inquiries: Math.floor(Math.random() * 20), // TODO: Add inquiries tracking
+          status: prop.status || 'active',
+          type: prop.property_type
+        }));
+
+        console.log('✅ Top Properties:', topProperties);
 
         setProperties(topProperties);
         setAnalytics({
-          total_properties: analyticsData.total_properties || propertiesData.length || 0,
-          avg_views: analyticsData.avg_views || 197,
-          avg_inquiries: analyticsData.avg_inquiries || 13,
-          conversion_rate: analyticsData.conversion_rate || 6.6,
+          total_properties: analyticsData.total_properties || 0,
+          avg_views: 197, // TODO: Calculate from real data
+          avg_inquiries: 13, // TODO: Calculate from real data
+          conversion_rate: analyticsData.conversion_rate || 0,
           top_performing: topProperties
         });
       } catch (err) {
-        console.error('Error fetching property performance:', err);
+        console.error('❌ Error fetching property performance:', err);
         
         // Check if it's an authentication error
         if (err instanceof Error && (err.message.includes('401') || err.message.includes('Invalid token') || err.message.includes('Unauthorized'))) {

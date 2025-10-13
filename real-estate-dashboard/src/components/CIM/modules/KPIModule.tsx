@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import kpiService from '../../../services/kpi.service';
+import type { KPIDashboardResponse } from '../../../services/kpi.service';
 import {
   BarChart3,
   TrendingUp,
@@ -20,7 +22,8 @@ import {
   Eye,
   Filter,
   ChevronLeft,
-  Home
+  Home,
+  Loader2
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -90,100 +93,70 @@ const KPIModule: React.FC = () => {
   const navigate = useNavigate();
   const [selectedTimeframe, setSelectedTimeframe] = useState<'week' | 'month' | 'quarter' | 'year'>('month');
   const [selectedCategory, setSelectedCategory] = useState<'all' | 'conversion' | 'timing' | 'vacancy'>('all');
+  const [loading, setLoading] = useState(true);
+  const [kpiData, setKpiData] = useState<KPIData[]>([]);
+  const [conversionFunnel, setConversionFunnel] = useState<ConversionFunnel[]>([]);
+  const [timeToCloseData, setTimeToCloseData] = useState<TimeToCloseData[]>([]);
+  const [vacancyData, setVacancyData] = useState<VacancyData[]>([]);
+  const [performanceRadar, setPerformanceRadar] = useState<PerformanceRadar[]>([]);
 
-  // Mock KPI data
-  const kpiData: KPIData[] = [
-    {
-      metric: 'Lead-to-Customer Conversion',
-      current: 24.8,
-      previous: 22.3,
-      target: 25.0,
-      trend: 'up',
-      unit: 'percentage'
-    },
-    {
-      metric: 'Besichtigung-to-Angebot',
-      current: 68.5,
-      previous: 65.2,
-      target: 70.0,
-      trend: 'up',
-      unit: 'percentage'
-    },
-    {
-      metric: 'Angebot-to-Vertragsabschluss',
-      current: 42.3,
-      previous: 44.1,
-      target: 45.0,
-      trend: 'down',
-      unit: 'percentage'
-    },
-    {
-      metric: 'Time-to-Close (Verkauf)',
-      current: 35,
-      previous: 38,
-      target: 30,
-      trend: 'up',
-      unit: 'days'
-    },
-    {
-      metric: 'Time-to-Close (Vermietung)',
-      current: 18,
-      previous: 20,
-      target: 15,
-      trend: 'up',
-      unit: 'days'
-    },
-    {
-      metric: 'Durchschnittliche Leerstandsquote',
-      current: 3.2,
-      previous: 3.8,
-      target: 2.5,
-      trend: 'up',
-      unit: 'percentage'
-    },
-    {
-      metric: 'Leerstandsdauer',
-      current: 45,
-      previous: 52,
-      target: 30,
-      trend: 'up',
-      unit: 'days'
-    }
-  ];
-
-  const conversionFunnel: ConversionFunnel[] = [
-    { stage: 'Website Besucher', count: 10000, conversionRate: 100, dropoff: 0 },
-    { stage: 'Anfragen', count: 1250, conversionRate: 12.5, dropoff: 87.5 },
-    { stage: 'Qualifizierte Leads', count: 875, conversionRate: 70.0, dropoff: 30.0 },
-    { stage: 'Besichtigungen', count: 420, conversionRate: 48.0, dropoff: 52.0 },
-    { stage: 'Angebote', count: 168, conversionRate: 40.0, dropoff: 60.0 },
-    { stage: 'Verträge', count: 94, conversionRate: 56.0, dropoff: 44.0 }
-  ];
-
-  const timeToCloseData: TimeToCloseData[] = [
-    { month: 'Jan', avgDays: 42, target: 30, fastest: 18, slowest: 67, properties: 23 },
-    { month: 'Feb', avgDays: 38, target: 30, fastest: 15, slowest: 58, properties: 28 },
-    { month: 'Mär', avgDays: 35, target: 30, fastest: 12, slowest: 52, properties: 31 },
-    { month: 'Apr', avgDays: 33, target: 30, fastest: 14, slowest: 48, properties: 27 },
-    { month: 'Mai', avgDays: 29, target: 30, fastest: 11, slowest: 44, properties: 35 },
-    { month: 'Jun', avgDays: 31, target: 30, fastest: 13, slowest: 47, properties: 32 }
-  ];
-
-  const vacancyData: VacancyData[] = [
-    { propertyType: 'Wohnungen', totalUnits: 450, vacantUnits: 14, vacancyRate: 3.1, avgVacancyTime: 38, rentLoss: 28500 },
-    { propertyType: 'Häuser', totalUnits: 180, vacantUnits: 7, vacancyRate: 3.9, avgVacancyTime: 52, rentLoss: 34200 },
-    { propertyType: 'Gewerbe', totalUnits: 85, vacantUnits: 5, vacancyRate: 5.9, avgVacancyTime: 68, rentLoss: 15800 },
-    { propertyType: 'Büros', totalUnits: 125, vacantUnits: 3, vacancyRate: 2.4, avgVacancyTime: 29, rentLoss: 12400 }
-  ];
-
-  const performanceRadar: PerformanceRadar[] = [
-    { metric: 'Lead Conversion', score: 85, maxScore: 100 },
-    { metric: 'Verkaufsgeschwindigkeit', score: 72, maxScore: 100 },
-    { metric: 'Kundenzufriedenheit', score: 91, maxScore: 100 },
-    { metric: 'Vermarktungseffizienz', score: 78, maxScore: 100 },
-    { metric: 'Preis-Performance', score: 83, maxScore: 100 },
-    { metric: 'Service-Qualität', score: 88, maxScore: 100 }
-  ];
+  // Load KPI data from backend
+  useEffect(() => {
+    const loadKPIData = async () => {
+      try {
+        setLoading(true);
+        const data = await kpiService.getKPIDashboard(selectedTimeframe);
+        
+        // Map backend data to frontend format
+        setKpiData(data.kpi_metrics.map(metric => ({
+          metric: metric.metric,
+          current: metric.current,
+          previous: metric.previous,
+          target: metric.target,
+          trend: metric.trend,
+          unit: metric.unit
+        })));
+        
+        setConversionFunnel(data.conversion_funnel.map(stage => ({
+          stage: stage.stage,
+          count: stage.count,
+          conversionRate: stage.conversion_rate,
+          dropoff: stage.dropoff
+        })));
+        
+        setTimeToCloseData(data.time_to_close.map(item => ({
+          month: item.month,
+          avgDays: item.avg_days,
+          target: item.target,
+          fastest: item.fastest,
+          slowest: item.slowest,
+          properties: item.properties
+        })));
+        
+        setVacancyData(data.vacancy_analysis.map(item => ({
+          propertyType: item.property_type,
+          totalUnits: item.total_units,
+          vacantUnits: item.vacant_units,
+          vacancyRate: item.vacancy_rate,
+          avgVacancyTime: item.avg_vacancy_time,
+          rentLoss: item.rent_loss
+        })));
+        
+        setPerformanceRadar(data.performance_radar.map(item => ({
+          metric: item.metric,
+          score: item.score,
+          maxScore: item.max_score
+        })));
+        
+      } catch (error) {
+        console.error('Failed to load KPI data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadKPIData();
+  }, [selectedTimeframe]);
 
   const COLORS = {
     primary: '#3B82F6',
@@ -245,67 +218,93 @@ const KPIModule: React.FC = () => {
       }
     });
 
-  return (
-    <div className="space-y-6">
-      {/* Zurück Navigation */}
-      <div className="flex items-center space-x-4 mb-4">
-        <button
-          onClick={() => navigate('/cim')}
-          className="flex items-center px-4 py-2.5 bg-white/10 dark:bg-gray-800/30 backdrop-blur-sm border border-white/20 dark:border-gray-700/50 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-white/20 dark:hover:bg-gray-700/40 transition-all duration-300 shadow-sm"
-        >
-          <ChevronLeft className="w-4 h-4 mr-2" />
-          Zurück zum CIM Dashboard
-        </button>
-        <div className="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400">
-          <Home className="w-4 h-4" />
-          <span>CIM Analytics</span>
-          <span>/</span>
-          <span className="text-gray-900 dark:text-gray-200 font-medium">KPI Dashboard</span>
+  // Loading State
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 animate-spin text-blue-500 mx-auto mb-4" />
+          <p className="text-gray-600 dark:text-gray-300 font-medium">Lade KPI-Daten...</p>
         </div>
       </div>
+    );
+  }
 
-      {/* Glasmorphism Header */}
-      <div className="bg-white/10 dark:bg-gray-800/20 backdrop-blur-xl border border-white/20 dark:border-gray-700/30 rounded-2xl shadow-glass p-6">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <div className="flex items-center space-x-4 mb-3">
-              <div className="w-14 h-14 bg-gradient-to-r from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center shadow-glass">
-                <BarChart3 className="w-7 h-7 text-white" />
+  return (
+    <div className="space-y-6">
+      {/* Eleganter Header mit Breadcrumb und Navigation */}
+      <div className="bg-white/10 dark:bg-gray-800/20 backdrop-blur-xl border border-white/20 dark:border-gray-700/30 rounded-2xl shadow-lg p-6">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          {/* Left Side: Title & Breadcrumb */}
+          <div className="flex items-center gap-4">
+            {/* Zurück Button - Apple Style */}
+            <button
+              onClick={() => navigate('/cim')}
+              className="group flex items-center justify-center w-10 h-10 rounded-xl
+                bg-white/60 dark:bg-slate-700/60 backdrop-blur-sm
+                border border-white/50 dark:border-slate-600/50
+                shadow-lg hover:shadow-xl
+                hover:bg-white dark:hover:bg-slate-600
+                transition-all duration-200"
+              title="Zurück zu CIM Overview"
+            >
+              <ChevronLeft className="w-5 h-5 text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white transition-colors" />
+            </button>
+
+            {/* Title & Breadcrumb */}
+            <div>
+              <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 mb-1">
+                <Home className="w-4 h-4" />
+                <span>CIM Analytics</span>
+                <span>/</span>
+                <span className="text-slate-900 dark:text-slate-200 font-medium">KPI Dashboard</span>
               </div>
-              <div>
-                <h2 className="text-3xl font-bold bg-gradient-to-r from-gray-900 via-purple-800 to-pink-800 dark:from-gray-100 dark:via-purple-300 dark:to-pink-300 bg-clip-text text-transparent">
-                  KPI Dashboard
-                </h2>
-                <p className="text-gray-600 dark:text-gray-300 font-medium">
-                  Conversion-Raten, Time-to-Close und Leerstandsanalysen
-                </p>
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-purple-500 via-pink-500 to-rose-500 rounded-xl flex items-center justify-center shadow-lg">
+                  <BarChart3 className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold bg-gradient-to-r from-slate-900 via-purple-800 to-pink-800 dark:from-slate-100 dark:via-purple-300 dark:to-pink-300 bg-clip-text text-transparent">
+                    KPI Dashboard
+                  </h2>
+                  <p className="text-sm text-slate-600 dark:text-slate-400">
+                    Live-Daten aus Ihrer Datenbank
+                  </p>
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center space-x-4 mt-4 lg:mt-0">
+          {/* Right Side: Filters */}
+          <div className="flex items-center gap-3">
             {/* Category Filter */}
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value as any)}
-              className="px-4 py-3 bg-white/20 dark:bg-gray-800/30 backdrop-blur-sm border border-white/20 dark:border-gray-600/30 rounded-xl text-sm font-medium text-gray-900 dark:text-gray-100 shadow-glass-sm hover:bg-white/30 dark:hover:bg-gray-700/40 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+              className="px-4 py-2.5 bg-white/60 dark:bg-slate-700/60 backdrop-blur-sm 
+                border border-white/50 dark:border-slate-600/50 rounded-xl 
+                text-sm font-medium text-slate-900 dark:text-slate-100 
+                shadow-lg hover:shadow-xl hover:bg-white dark:hover:bg-slate-600
+                transition-all duration-200 
+                focus:outline-none focus:ring-2 focus:ring-purple-500/50
+                cursor-pointer"
             >
-              <option value="all">Alle KPIs</option>
-              <option value="conversion">Conversion</option>
-              <option value="timing">Zeitanalysen</option>
-              <option value="vacancy">Leerstand</option>
+              <option value="all">📊 Alle KPIs</option>
+              <option value="conversion">🎯 Conversion</option>
+              <option value="timing">⏱️ Zeitanalysen</option>
+              <option value="vacancy">🏢 Leerstand</option>
             </select>
 
-            {/* Timeframe Selector */}
-            <div className="flex bg-white/20 dark:bg-gray-800/30 backdrop-blur-sm border border-white/20 dark:border-gray-600/30 rounded-xl p-1.5 shadow-glass-sm">
+            {/* Timeframe Selector - Apple Style Pills */}
+            <div className="flex bg-white/60 dark:bg-slate-700/60 backdrop-blur-sm border border-white/50 dark:border-slate-600/50 rounded-xl p-1 shadow-lg">
               {(['week', 'month', 'quarter', 'year'] as const).map((period) => (
                 <button
                   key={period}
                   onClick={() => setSelectedTimeframe(period)}
-                  className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                     selectedTimeframe === period
-                      ? 'bg-white/60 dark:bg-gray-700/50 text-gray-900 dark:text-gray-100 shadow-glass-sm border border-white/30 dark:border-gray-600/40'
-                      : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-white/30 dark:hover:bg-gray-700/30'
+                      ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md'
+                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-white/50 dark:hover:bg-slate-600/50'
                   }`}
                 >
                   {period === 'week' ? 'Woche' : 
@@ -318,58 +317,104 @@ const KPIModule: React.FC = () => {
         </div>
       </div>
 
-      {/* KPI Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {filteredKPIs.map((kpi, index) => (
-          <div key={index} className="bg-white/10 dark:bg-gray-800/20 backdrop-blur-xl rounded-xl p-6 shadow-lg border border-white/20 dark:border-gray-700/30 hover:shadow-xl transition-shadow">
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex-1">
-                <h3 className="text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">
-                  {kpi.metric}
-                </h3>
-                <div className="flex items-baseline space-x-2">
-                  <span className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                    {formatValue(kpi.current, kpi.unit)}
-                  </span>
-                  {getTrendIcon(kpi.trend)}
+      {/* KPI Overview Cards - Apple Style */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+        {filteredKPIs.map((kpi, index) => {
+          const progress = Math.min((kpi.current / kpi.target) * 100, 100);
+          const isGood = kpi.current >= kpi.target;
+          const isOk = kpi.current >= kpi.target * 0.8;
+          
+          return (
+            <div 
+              key={index} 
+              className="group relative bg-white/60 dark:bg-slate-800/60 backdrop-blur-xl rounded-2xl p-5 
+                shadow-lg hover:shadow-2xl 
+                border border-white/50 dark:border-slate-700/50 
+                hover:border-purple-300 dark:hover:border-purple-500/50
+                transition-all duration-300 hover:-translate-y-1"
+            >
+              {/* Gradient Accent Bar */}
+              <div className={`absolute top-0 left-0 right-0 h-1 rounded-t-2xl ${
+                isGood ? 'bg-gradient-to-r from-green-400 to-emerald-500' :
+                isOk ? 'bg-gradient-to-r from-yellow-400 to-amber-500' :
+                'bg-gradient-to-r from-red-400 to-rose-500'
+              }`}></div>
+
+              {/* Header */}
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex-1">
+                  <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                    {kpi.metric}
+                  </h3>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 dark:from-slate-100 dark:to-slate-300 bg-clip-text text-transparent">
+                      {formatValue(kpi.current, kpi.unit)}
+                    </span>
+                    <div className={`flex items-center justify-center w-7 h-7 rounded-lg ${
+                      kpi.trend === 'up' ? 'bg-green-100 dark:bg-green-900/30' :
+                      kpi.trend === 'down' ? 'bg-red-100 dark:bg-red-900/30' :
+                      'bg-gray-100 dark:bg-gray-700/30'
+                    }`}>
+                      {getTrendIcon(kpi.trend)}
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-            
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-600 dark:text-gray-300">Ziel:</span>
-                <span className="font-medium text-gray-900 dark:text-gray-100">
-                  {formatValue(kpi.target, kpi.unit)}
-                </span>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-600 dark:text-gray-300">Vormonat:</span>
-                <span className={`font-medium ${getTrendColor(kpi.current, kpi.previous, kpi.unit)}`}>
-                  {formatValue(kpi.previous, kpi.unit)}
-                </span>
+              
+              {/* Stats */}
+              <div className="space-y-2.5 mb-4">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-slate-600 dark:text-slate-400 font-medium">Ziel</span>
+                  <span className="font-semibold text-slate-900 dark:text-slate-100">
+                    {formatValue(kpi.target, kpi.unit)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-slate-600 dark:text-slate-400 font-medium">Vorperiode</span>
+                  <span className={`font-semibold ${getTrendColor(kpi.current, kpi.previous, kpi.unit)}`}>
+                    {formatValue(kpi.previous, kpi.unit)}
+                  </span>
+                </div>
               </div>
               
-              {/* Progress Bar */}
-              <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2 mt-3">
-                <div 
-                  className={`h-2 rounded-full transition-all duration-500 ${
-                    kpi.current >= kpi.target ? 'bg-green-500' : 
-                    kpi.current >= kpi.target * 0.8 ? 'bg-yellow-500' : 'bg-red-500'
-                  }`}
-                  style={{ 
-                    width: `${Math.min((kpi.current / kpi.target) * 100, 100)}%` 
-                  }}
-                ></div>
+              {/* Progress Bar - Apple Style */}
+              <div className="space-y-2">
+                <div className="w-full bg-slate-200 dark:bg-slate-700/50 rounded-full h-2 overflow-hidden">
+                  <div 
+                    className={`h-full rounded-full transition-all duration-700 ${
+                      isGood ? 'bg-gradient-to-r from-green-400 to-emerald-500' :
+                      isOk ? 'bg-gradient-to-r from-yellow-400 to-amber-500' :
+                      'bg-gradient-to-r from-red-400 to-rose-500'
+                    }`}
+                    style={{ width: `${progress}%` }}
+                  ></div>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                    Zielerreichung
+                  </span>
+                  <span className={`text-xs font-bold ${
+                    isGood ? 'text-green-600 dark:text-green-400' :
+                    isOk ? 'text-yellow-600 dark:text-yellow-400' :
+                    'text-red-600 dark:text-red-400'
+                  }`}>
+                    {progress.toFixed(1)}%
+                  </span>
+                </div>
               </div>
-              
-              <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                <span>Zielerreichung</span>
-                <span>{((kpi.current / kpi.target) * 100).toFixed(1)}%</span>
+
+              {/* Status Badge */}
+              <div className={`absolute top-4 right-4 px-2.5 py-1 rounded-full text-xs font-semibold ${
+                isGood ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                isOk ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' :
+                'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+              }`}>
+                {isGood ? '✓ Ziel erreicht' : isOk ? '⚡ Auf Kurs' : '⚠ Unter Ziel'}
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Main Content Sections */}

@@ -8,7 +8,7 @@ import DocumentGridView from './DocumentGridView';
 import DocumentListView from './DocumentListView';
 import DocumentAdvancedFilters from './DocumentAdvancedFilters';
 import DocumentAnalyticsDashboard from './DocumentAnalyticsDashboard';
-import { useDocuments, useDocumentFolders, useDocumentAnalytics } from '../../hooks/useDocuments';
+import { useDocuments, useDocumentFolders, useDocumentAnalytics } from '../../api/hooks';
 
 // Mock interfaces to match the expected types
 interface MockDocument {

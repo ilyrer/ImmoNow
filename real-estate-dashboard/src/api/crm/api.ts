@@ -5,6 +5,7 @@
  */
 
 import { API_BASE_URL } from '../../config';
+import { apiClient } from '../../lib/api/client';
 
 // Mock CRM API for backward compatibility
 export const crmApi = {
@@ -24,9 +25,14 @@ export const crmApi = {
     console.warn('Legacy CRM API call - please update to new services');
     return { data: null };
   },
-  getRecommendations: async (contactId: string) => {
-    console.warn('Legacy CRM API call - please update to new services');
-    return { data: [] };
+  getRecommendations: async (contactId: string, limit: number = 10) => {
+    try {
+      const response = await apiClient.get(`/api/v1/contacts/${contactId}/matching-properties?limit=${limit}`);
+      return { properties: response };
+    } catch (error) {
+      console.error('Error getting recommendations:', error);
+      return { properties: [] };
+    }
   },
   getContactOverview: async (contactId: string) => {
     console.warn('Legacy CRM API call - please update to new services');

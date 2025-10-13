@@ -21,7 +21,7 @@ class InvestorService {
       assets: InvestorAssetResponse[];
       kpis: PortfolioKPIsResponse;
     }>('/investor/portfolio');
-    return response.data;
+    return response;
   }
 }
 

@@ -26,19 +26,19 @@ const CalendarWidget: React.FC = () => {
         
         // Try to fetch calendar entries or appointments
         try {
-          const response = await apiClient.get('/calendar/entries', {
+          const response = await apiClient.get('/api/v1/calendar/entries', {
             params: {
               start_date: startOfMonth.toISOString().split('T')[0],
               end_date: endOfMonth.toISOString().split('T')[0]
             }
           });
           
-          const entriesData = response.data?.entries || response.data || [];
+          const entriesData = (response as any)?.data?.entries || (response as any)?.data || []; 
           setEvents(Array.isArray(entriesData) ? entriesData : []);
         } catch (calendarErr) {
           // Fallback to appointments endpoint
-          const appointmentsRes = await apiClient.get('/appointments');
-          const appointmentsData = appointmentsRes.data?.appointments || appointmentsRes.data || [];
+          const appointmentsRes = await apiClient.get('/api/v1/appointments');
+          const appointmentsData = (appointmentsRes as any)?.data?.appointments || (appointmentsRes as any)?.data || [];
           setEvents(Array.isArray(appointmentsData) ? appointmentsData : []);
         }
       } catch (err) {

@@ -2,12 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryProvider } from './providers/QueryProvider';
 import Layout from './components/Layout/Layout';
-import Dashboard from './components/dashboard/Dashboard.tsx';
+import DashboardNew from './components/dashboard/DashboardNew';
 import RoleBasedDashboard from './components/dashboard/RoleBasedDashboard.tsx';
 import TeamStatusBoard from './components/dashboard/TeamStatusBoard';
 import ProjectStatusOverview from './components/dashboard/TeamStatusComponents/ProjectStatusOverview';
 import TasksBoard from './components/dashboard/Kanban/TasksBoard';
-import Properties from './components/properties/Properties.tsx';
+import PropertiesPage from './components/properties/PropertiesPage.tsx';
 import PropertyCreateWizard from './components/properties/PropertyCreateWizard.tsx';
 import PropertyDetail from './components/properties/PropertyDetail.tsx';
 import { ContactsList, ContactDetail } from './components/contacts';
@@ -28,172 +28,112 @@ import SettingsPage from './pages/SettingsPage.tsx';
 import AvmPage from './pages/AvmPage.tsx';
 import MatchingPage from './pages/MatchingPage.tsx';
 import SocialHubIndex from './components/SocialHub';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
-import apiService from './services/api.service';
-// TODO: Remove apiService import - not needed anymore
-import CommunicationsHub from './pages/communications/CommunicationsHub.tsx';
-import ChatView from './pages/communications/ChatView.tsx';
+import ProfilePage from './components/profile/ProfilePage.tsx';
 import AdminConsole from './components/admin/AdminConsole.tsx';
-import CIMPage from './pages/CIMPage.tsx';
-import CalendarPage from './pages/CalendarPage.tsx';
-import AuthPage from './pages/AuthPage.tsx';
-
-function App() {
-  return (
-    <QueryProvider>
-      <AuthProvider>
-        <Router>
-          <AppContent />
-        </Router>
-      </AuthProvider>
-    </QueryProvider>
-  );
-}
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { UserProvider } from './contexts/UserContext';
+import { useCurrentUser, useCurrentTenant, useLogin, useLogout } from './api/hooks';
 
 function AppContent() {
   const { token, tenantId, setAuth, clearAuth, isAuthenticated } = useAuth();
-  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Prüfe beim App-Start UND wenn sich der Token ändert
+  const { data: user, isLoading: userLoading, error: userError } = useCurrentUser();
+  const { data: tenantInfo, isLoading: tenantLoading, error: tenantError } = useCurrentTenant();
+  
+  const loginMutation = useLogin();
+  const logoutMutation = useLogout();
+
+  // EINFACHER Authentication check - KEINE automatischen Löschungen
   useEffect(() => {
-    const checkAuth = async () => {
-      console.log('🔍 App: Auth check triggered', { 
-        hasToken: !!token, 
-        hasUser: !!user,
-        isAuthenticated,
-        loading
-      });
-      
-      // Wenn wir bereits einen User haben, nichts tun
-      if (user) {
-        console.log('✅ App: User already loaded, skipping check');
-        setLoading(false);
-        return;
-      }
-      
-      // WICHTIG: Loading state aktiv halten während Token-Refresh!
-      setLoading(true);
-      
-      // Wenn kein Access Token, prüfe ob wir einen Refresh Token haben
-      if (!token || !isAuthenticated) {
-        console.log('⚠️ App: No access token found');
-        
-        // Versuche Token mit Refresh Token zu erneuern
-        const refreshToken = localStorage.getItem('refreshToken') || localStorage.getItem('refresh_token');
-        if (refreshToken && refreshToken !== 'mock-refresh') {
-          console.log('🔄 App: Refresh token found, attempting to refresh access token...');
-          try {
-            const refreshResult = await apiService.refreshAccessToken();
-            console.log('✅ App: Token refreshed successfully');
-            
-            // Update AuthContext with new token
-            if (refreshResult.token && refreshResult.tenant?.id) {
-              setAuth(refreshResult.token, refreshResult.tenant.id);
-            }
-            
-            // WICHTIG: Loading bleibt TRUE, damit Dashboard noch nicht rendert
-            // Der useEffect wird mit neuem Token erneut laufen und dann User laden
-            console.log('⏳ App: Waiting for re-run with new token...');
-            return;
-          } catch (error) {
-            console.error('❌ App: Token refresh failed:', error);
-            // Refresh failed, clear everything and show login
-            await apiService.logout();
-            clearAuth();
-            setUser(null);
-            setLoading(false);
-            return;
-          }
-        }
-        
-        console.log('ℹ️ App: No valid tokens, user needs to login');
-        setUser(null);
-        setLoading(false);
-        return;
-      }
-      
-      // Wir haben einen Token aber noch keinen User -> Lade User vom Backend
-      console.log('✅ App: Token found, loading user from backend...');
-      try {
-        // Teste zuerst die Backend-Verbindung
-        await apiService.testBackendConnection();
-        
-        const currentUser = await apiService.getCurrentUser();
-        console.log('✅ App: User loaded successfully:', currentUser.email);
-        setUser(currentUser);
-        setLoading(false); // NUR HIER wird loading false, wenn alles fertig ist!
-      } catch (error) {
-        console.error('❌ App: Failed to load user, token might be expired:', error);
-        
-        // Versuche Token Refresh als letzte Chance
-        const refreshToken = localStorage.getItem('refreshToken') || localStorage.getItem('refresh_token');
-        if (refreshToken && refreshToken !== 'mock-refresh') {
-          console.log('🔄 App: Trying token refresh as fallback...');
-          try {
-            const refreshResult = await apiService.refreshAccessToken();
-            console.log('✅ App: Token refreshed on fallback');
-            
-            // Update AuthContext with new token
-            if (refreshResult.token && refreshResult.tenant?.id) {
-              setAuth(refreshResult.token, refreshResult.tenant.id);
-            }
-            
-            // Effect will run again with new token - loading stays true
-            return;
-          } catch (refreshError) {
-            console.error('❌ App: Token refresh also failed:', refreshError);
-          }
-        }
-        
-        // Token ist ungültig und Refresh fehlgeschlagen, entferne alles
-        await apiService.logout();
-        clearAuth();
-        setUser(null);
-        setLoading(false);
-        console.log('🗑️ App: Invalid/expired token removed');
-      }
-    };
+    console.log('🔍 App: Simple auth check - token:', !!token, 'isAuthenticated:', isAuthenticated, 'user:', !!user);
+    
+    // Wenn wir bereits einen User haben, brauchen wir nichts zu tun
+    if (user) {
+      console.log('✅ App: User already loaded');
+      setLoading(false);
+      return;
+    }
+    
+    // Wenn kein Token, zeige Login
+    if (!token || !isAuthenticated) {
+      console.log('⚠️ App: No token, showing login');
+      setLoading(false);
+      return;
+    }
+    
+    // Wir haben einen Token - lass React Query die User-Daten laden
+    console.log('✅ App: Token found, React Query will load user data');
+    setLoading(false);
+  }, [token, isAuthenticated, user]);
 
-    // Debug Token-Informationen
-    apiService.debugTokens();
-    checkAuth();
-  }, [token, isAuthenticated]); // ✅ Run when token changes!
+  // Handle user/tenant data loading
+  useEffect(() => {
+    if (user && !loading) {
+      console.log('✅ App: User data loaded:', user.email);
+      setLoading(false);
+    }
+  }, [user, loading]);
 
-  // Login-Handler (für Legacy-Support, falls noch verwendet)
+  // Handle errors - ABER NICHT automatisch löschen
+  useEffect(() => {
+    if (userError || tenantError) {
+      console.error('❌ App: Error loading user data:', userError || tenantError);
+      // NICHT automatisch löschen - nur Logging
+      setLoading(false);
+    }
+  }, [userError, tenantError]);
+
+  // Login-Handler
   const handleLogin = async (payload) => {
     try {
-      // If payload looks like a user, just adopt it (used after registration)
-      if (payload && !payload.password && payload.email && payload.id) {
-        console.log('✅ App: Setting user from payload');
-        setUser(payload);
-        setLoading(false);
-        setTimeout(() => apiService.debugTokens(), 100);
-        return;
-      }
-      
       console.log('🔐 App: Starting login process...');
       setLoading(true);
       
-      const response = await apiService.login(payload);
-      console.log('✅ App: Login response received:', response.user.email);
+      // Use React Query mutation
+      const response = await loginMutation.mutateAsync(payload);
+      console.log('✅ App: Login response received:', response);
       
-      // Setze Auth-Token und Tenant-ID im API Client ZUERST
-      if (response.token && response.user.tenant_id) {
-        console.log('✅ App: Setting auth token and tenant ID');
-        setAuth(response.token, response.user.tenant_id);
+      // Speichere Tokens im AuthContext
+      if (response.access_token && response.tenant?.id) {
+        console.log('✅ App: Setting auth tokens in AuthContext');
+        console.log('🔍 Token preview:', response.access_token.substring(0, 20) + '...');
+        console.log('🔍 Tenant ID:', response.tenant.id);
+        
+        setAuth(response.access_token, response.tenant.id);
+        
+        // Speichere Tenant-Informationen für Sidebar
+        if (response.tenant) {
+          localStorage.setItem('tenant_info', JSON.stringify({
+            id: response.tenant.id,
+            name: response.tenant.name,
+            slug: response.tenant.slug,
+            plan: response.tenant.plan,
+            is_active: response.tenant.is_active,
+            logo_url: response.tenant.logo_url
+          }));
+        }
+        
+        // Speichere auch refresh token
+        if (response.refresh_token) {
+          localStorage.setItem('refresh_token', response.refresh_token);
+        }
+        
+        // Debug localStorage nach Login
+        setTimeout(() => {
+          console.log('🔍 localStorage after login:', {
+            auth_token: localStorage.getItem('auth_token'),
+            tenant_id: localStorage.getItem('tenant_id'),
+            refresh_token: localStorage.getItem('refresh_token')
+          });
+        }, 100);
+      } else {
+        console.error('❌ App: No access_token or tenant in response:', response);
       }
       
-      // Dann setze User - WICHTIG: Direkt nach setAuth
-      console.log('✅ App: Setting user state');
-      setUser(response.user);
+      console.log('✅ App: Login complete');
       setLoading(false);
       
-      // Debug nach Login
-      setTimeout(() => {
-        apiService.debugTokens();
-        console.log('✅ App: Login complete, user should stay logged in');
-      }, 100);
     } catch (error) {
       console.error('❌ App: Login failed:', error);
       setLoading(false);
@@ -201,12 +141,13 @@ function AppContent() {
     }
   };
 
-  // Logout-Handler
+  // Logout-Handler - NUR manueller Aufruf
   const handleLogout = async () => {
     try {
-      await apiService.logout();
-      setUser(null);
+      console.log('🚪 App: Manual logout initiated');
+      await logoutMutation.mutateAsync();
       clearAuth();
+      console.log('✅ App: Logout complete');
     } catch (error) {
       console.error('Logout failed:', error);
     }
@@ -214,15 +155,6 @@ function AppContent() {
 
   // Plan-Änderungs-Handler
   const handlePlanChange = (newPlan, billingCycle) => {
-    const updatedUser = {
-      ...user,
-      plan: newPlan,
-      billing_cycle: billingCycle,
-      planChangeDate: new Date().toISOString()
-    };
-    setUser(updatedUser);
-    
-    // Hier würde normalerweise ein API-Call zur Zahlungsabwicklung stattfinden
     console.log(`Plan geändert zu: ${newPlan} (${billingCycle})`);
   };
 
@@ -239,86 +171,72 @@ function AppContent() {
     );
   }
 
-  // Wenn nicht eingeloggt, zeige Login-/öffentliche Routen
-  if (!user) {
-    console.log('🔒 App: No user, showing login routes');
+  // Login-Screen
+  if (!isAuthenticated || !token) {
+    console.log('🔐 App: Showing login screen');
     return (
-      <Routes>
-        <Route path="/" element={<AuthPage />} />
-        <Route path="/login" element={<AuthPage />} />
-        <Route path="/register" element={<AuthPage />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
-        <Route path="/subscription/success" element={<SubscriptionSuccess />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
+        <LoginPage onLogin={handleLogin} />
+      </div>
     );
   }
 
-  // Hauptanwendung für eingeloggte Benutzer
-  console.log('✅ App: User authenticated, showing main app for:', user.email);
+  // Main App
+  console.log('🏠 App: Rendering main application');
   return (
     <div className="App">
       <Layout user={user} onLogout={handleLogout}>
         <Routes>
           <Route path="/" element={<RoleBasedDashboard />} />
           <Route path="/dashboard" element={<RoleBasedDashboard />} />
-          <Route path="/dashboard-classic" element={<Dashboard user={user} />} />
-          <Route path="/team-status" element={<TeamStatusBoard user={user} />} />
-          <Route path="/projektstatus" element={<ProjectStatusOverview timeRange="week" teamFilter="sales" user={user} />} />
-          <Route path="/aufgaben" element={<TasksBoard user={user} />} />
+          <Route path="/dashboard-classic" element={<DashboardNew user={user} />} />
+          <Route path="/team-status" element={<TeamStatusBoard />} />
+          <Route path="/project-status" element={<ProjectStatusOverview />} />
+          <Route path="/tasks" element={<TasksBoard />} />
           <Route path="/kanban" element={<KanbanPage />} />
-          {/* ENTFERNTE ROUTEN: Kalender, Termine, Nachrichten, Video-Meetings, Admin */}
-          <Route path="/termine" element={<RemovedFeatureRedirect featureName="Termine" />} />
-          <Route path="/calendar" element={<RemovedFeatureRedirect featureName="Kalender" />} />
-          <Route path="/messages" element={<RemovedFeatureRedirect featureName="Nachrichten" />} />
-          <Route path="/meetings" element={<RemovedFeatureRedirect featureName="Video-Meetings" />} />
-          
-          {/* NEW: Admin Console */}
-          <Route path="/admin" element={<AdminConsole />} />
-          
-          <Route path="/immobilien" element={<Properties user={user} />} />
-          <Route path="/immobilien/neu" element={<PropertyCreateWizard />} />
-          <Route path="/immobilien/:id" element={<PropertyDetail user={user} />} />
-          {/* Backward compatibility */}
-          <Route path="/properties" element={<Properties user={user} />} />
-          <Route path="/properties/add" element={<PropertyCreateWizard />} />
-          <Route path="/properties/:id" element={<PropertyDetail user={user} />} />
-          <Route path="/kontakte" element={<ContactsList user={user} />} />
-          <Route path="/kontakte/:id" element={<ContactDetail user={user} />} />
+          <Route path="/properties" element={<PropertiesPage user={user} />} />
+          <Route path="/properties/create" element={<PropertyCreateWizard />} />
+          <Route path="/properties/:id" element={<PropertyDetail />} />
+          <Route path="/contacts" element={<ContactsList user={user} />} />
+          <Route path="/contacts/:id" element={<ContactDetail />} />
+          <Route path="/documents" element={<ModernDocumentsPage />} />
+          <Route path="/financing" element={<ProfessionalFinancingCalculator />} />
+          <Route path="/subscription" element={<SubscriptionManager onPlanChange={handlePlanChange} />} />
+          <Route path="/subscription/success" element={<SubscriptionSuccess />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/investor" element={<InvestorDashboard />} />
           <Route path="/cim" element={<CIMOverview />} />
           <Route path="/cim/sales" element={<CIMSales />} />
           <Route path="/cim/geographical" element={<CIMGeographical />} />
           <Route path="/cim/kpi" element={<CIMKPI />} />
-          <Route path="/investoren" element={<InvestorDashboard />} />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/admin" element={<AdminConsole />} />
+          <Route path="/settings" element={<SettingsPage />} />
           <Route path="/avm" element={<AvmPage />} />
           <Route path="/matching" element={<MatchingPage />} />
           <Route path="/social-hub" element={<SocialHubIndex />} />
-          <Route path="/communications" element={<CommunicationsHub />} />
-          <Route path="/communications/chat" element={<ChatView />} />
-          <Route path="/finance" element={<ProfessionalFinancingCalculator user={user} />} />
-          <Route path="/documents" element={<ModernDocumentsPage />} />
-          <Route path="/dokumente" element={<ModernDocumentsPage />} />
-          <Route path="/documents/*" element={<ModernDocumentsPage />} />
-          <Route path="/dokumente/*" element={<ModernDocumentsPage />} />
-          <Route path="/cim" element={<CIMPage />} />
-          <Route path="/calendar" element={<CalendarPage />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
-          <Route 
-            path="/subscription" 
-            element={
-              <SubscriptionManager 
-                currentUser={user} 
-                onPlanChange={handlePlanChange} 
-              />
-            } 
-          />
-          <Route path="/subscription/success" element={<SubscriptionSuccess />} />
-          {/* Fallback für unbekannte Routen */}
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/reports" element={<RemovedFeatureRedirect />} />
+          <Route path="/communications" element={<RemovedFeatureRedirect />} />
+          <Route path="/analytics" element={<RemovedFeatureRedirect />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Layout>
     </div>
   );
 }
 
-export default App; 
+function App() {
+  return (
+    <QueryProvider>
+      <AuthProvider>
+        <UserProvider>
+          <Router>
+            <AppContent />
+          </Router>
+        </UserProvider>
+      </AuthProvider>
+    </QueryProvider>
+  );
+}
+
+export default App;

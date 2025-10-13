@@ -21,8 +21,8 @@ const RevenueChartWidget: React.FC = () => {
     const fetchRevenueData = async () => {
       try {
         setIsLoading(true);
-        const response = await apiClient.get('/analytics/dashboard');
-        const data = response.data || {};
+        const response = await apiClient.get('/api/v1/analytics/dashboard');
+        const data = (response as any)?.data || {};
         
         // Get monthly revenue trends
         const monthlyTrends = data.monthly_revenue_trends || [];

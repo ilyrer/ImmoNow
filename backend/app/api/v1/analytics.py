@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, Query
 from app.api.deps import require_read_scope, get_tenant_id
 from app.core.security import TokenData
 from app.services.analytics_service import AnalyticsService
+from app.services.kpi_service import KPIService
 
 router = APIRouter()
 
@@ -82,3 +83,17 @@ async def get_task_analytics(
     )
     
     return analytics
+
+
+@router.get("/kpi")
+async def get_kpi_dashboard(
+    timeframe: str = Query('month', description="Timeframe: week, month, quarter, year"),
+    current_user: TokenData = Depends(require_read_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Get KPI dashboard with live data"""
+    
+    kpi_service = KPIService(tenant_id)
+    kpi_data = await kpi_service.get_kpi_dashboard(timeframe=timeframe)
+    
+    return kpi_data

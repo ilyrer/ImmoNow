@@ -27,58 +27,58 @@ export interface TaskListParams extends PaginationParams, SortParams {
 
 class TasksService {
   /**
-   * GET /tasks - Tasks auflisten
+   * GET /api/v1/tasks - Tasks auflisten
    */
   async listTasks(params: TaskListParams): Promise<TaskResponse[]> {
-    const response = await apiClient.get<TaskResponse[]>('/tasks', params);
-    return response.data;
+    const response = await apiClient.get<TaskResponse[]>('/api/v1/tasks', { params });
+    return response;
   }
 
   /**
-   * POST /tasks - Task erstellen
+   * POST /api/v1/tasks - Task erstellen
    */
   async createTask(payload: CreateTaskRequest): Promise<TaskResponse> {
-    const response = await apiClient.post<TaskResponse>('/tasks', payload);
-    return response.data;
+    const response = await apiClient.post<TaskResponse>('/api/v1/tasks', payload);
+    return response;
   }
 
   /**
-   * PUT /tasks/{id} - Task aktualisieren
+   * PUT /api/v1/tasks/{id} - Task aktualisieren
    */
   async updateTask(id: string, payload: Partial<CreateTaskRequest>): Promise<TaskResponse> {
-    const response = await apiClient.put<TaskResponse>(`/tasks/${id}`, payload);
-    return response.data;
+    const response = await apiClient.put<TaskResponse>(`/api/v1/tasks/${id}`, payload);
+    return response;
   }
 
   /**
-   * PATCH /tasks/{id}/move - Task verschieben
+   * PATCH /api/v1/tasks/{id}/move - Task verschieben
    */
   async moveTask(id: string, payload: MoveTaskRequest): Promise<TaskResponse> {
-    const response = await apiClient.patch<TaskResponse>(`/tasks/${id}/move`, payload);
-    return response.data;
+    const response = await apiClient.patch<TaskResponse>(`/api/v1/tasks/${id}/move`, payload);
+    return response;
   }
 
   /**
-   * DELETE /tasks/{id} - Task löschen
+   * DELETE /api/v1/tasks/{id} - Task löschen
    */
   async deleteTask(id: string): Promise<void> {
-    await apiClient.delete(`/tasks/${id}`);
+    await apiClient.delete(`/api/v1/tasks/${id}`);
   }
 
   /**
-   * GET /employees - Mitarbeiter auflisten
+   * GET /api/v1/employees - Mitarbeiter auflisten
    */
   async listEmployees(): Promise<EmployeeResponse[]> {
-    const response = await apiClient.get<EmployeeResponse[]>('/employees');
-    return response.data;
+    const response = await apiClient.get<EmployeeResponse[]>('/api/v1/employees');
+    return response;
   }
 
   /**
-   * GET /tasks/statistics - Task-Statistiken
+   * GET /api/v1/tasks/statistics - Task-Statistiken
    */
   async getStatistics(): Promise<TaskStatisticsResponse> {
-    const response = await apiClient.get<TaskStatisticsResponse>('/tasks/statistics');
-    return response.data;
+    const response = await apiClient.get<TaskStatisticsResponse>('/api/v1/tasks/statistics');
+    return response;
   }
 }
 

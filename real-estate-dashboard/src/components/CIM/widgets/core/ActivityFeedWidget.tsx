@@ -22,8 +22,8 @@ const ActivityFeedWidget: React.FC = () => {
         setError(null);
 
         // Try to fetch from dashboard analytics first
-        const response = await apiClient.get('/analytics/dashboard');
-        const data = response.data || {};
+        const response = await apiClient.get('/api/v1/analytics/dashboard');
+        const data = (response as any)?.data || {};
         
         // Extract recent activities
         const recentActivities = data.recent_activities || [];

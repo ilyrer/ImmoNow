@@ -54,7 +54,7 @@ interface TasksFilterParams {
 const getTasks = async (params?: any) => {
   try {
     const response = await apiClient.get('/api/v1/tasks', { params });
-    return response.data;
+    return (response as any)?.data;
   } catch (error) {
     console.error('Error fetching tasks:', error);
     return { items: [], total: 0, page: 1, size: 10, pages: 0 };
@@ -64,7 +64,7 @@ const getTasks = async (params?: any) => {
 const updateTaskStatus = async (id: string, status: string) => {
   try {
     const response = await apiClient.put(`/api/v1/tasks/${id}`, { status });
-    return response.data;
+    return (response as any)?.data;
   } catch (error) {
     console.error('Error updating task status:', error);
     throw error;
@@ -74,7 +74,7 @@ const updateTaskStatus = async (id: string, status: string) => {
 const getTasksKPI = async () => {
   try {
     const response = await apiClient.get('/api/v1/analytics/tasks');
-    const data = response.data || {};
+    const data = (response as any)?.data || {};
     
     return {
       totalTasks: data.total_tasks || 0,
@@ -97,7 +97,7 @@ const getAvailableTags = async () => {
   try {
     // Tags are not directly available, extract from tasks
     const response = await apiClient.get('/api/v1/tasks', { params: { size: 100 } });
-    const tasks = response.data?.items || [];
+    const tasks = (response as any)?.data?.items || [];
     const tagSet = new Set<string>();
     
     tasks.forEach((task: any) => {
@@ -116,7 +116,7 @@ const getAvailableTags = async () => {
 const createTask = async (data: any) => {
   try {
     const response = await apiClient.post('/api/v1/tasks', data);
-    return response.data;
+    return (response as any)?.data;
   } catch (error) {
     console.error('Error creating task:', error);
     throw error;
@@ -126,7 +126,7 @@ const createTask = async (data: any) => {
 const updateTask = async (id: string, data: any) => {
   try {
     const response = await apiClient.put(`/api/v1/tasks/${id}`, data);
-    return response.data;
+    return (response as any)?.data;
   } catch (error) {
     console.error('Error updating task:', error);
     throw error;

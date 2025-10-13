@@ -11,6 +11,10 @@ import os
 from datetime import datetime, date
 from typing import Union, List, Dict, Any
 import json
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv("env.local")
 
 # Custom JSON Encoder for datetime objects
 class CustomJSONEncoder(json.JSONEncoder):
@@ -25,8 +29,8 @@ from django.conf import settings as django_settings
 
 # Configure Django settings
 django_settings.configure(
-    DEBUG=True,
-    SECRET_KEY="django-insecure-change-me-in-production",
+    DEBUG=os.getenv('DEBUG', 'True').lower() == 'true',
+    SECRET_KEY=os.getenv('SECRET_KEY', 'django-insecure-change-me-in-production'),
     DATABASES={
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
@@ -40,6 +44,7 @@ django_settings.configure(
         'django.contrib.admin',
         'app',
     ],
+    AUTH_USER_MODEL='app.User',
     MIDDLEWARE=[
         'django.middleware.security.SecurityMiddleware',
         'django.contrib.sessions.middleware.SessionMiddleware',
@@ -55,7 +60,9 @@ django_settings.configure(
     USE_I18N=True,
     USE_TZ=True,
     STATIC_URL='/static/',
+    STATIC_ROOT=os.path.join(os.path.dirname(os.path.abspath(__file__)), '../staticfiles'),
     MEDIA_URL='/media/',
+    MEDIA_ROOT=os.path.join(os.path.dirname(os.path.abspath(__file__)), '../media'),
     ALLOWED_HOSTS=['*'],
     SECURE_BROWSER_XSS_FILTER=True,
     SECURE_CONTENT_TYPE_NOSNIFF=True,
@@ -168,7 +175,7 @@ def create_app() -> FastAPI:
     # CORS Middleware
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.CORS_ORIGINS,
+        allow_origins=settings.CORS_ORIGINS.split(','),
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -210,7 +217,17 @@ def create_app() -> FastAPI:
 
     @app.exception_handler(Exception)
     async def general_exception_handler(request: Request, exc: Exception):
-        logger.error(f"Unhandled exception: {exc}", exc_info=True)
+        # Special handling for Django ValidationError to see full stack trace
+        if exc.__class__.__name__ == 'ValidationError' and 'django' in exc.__class__.__module__:
+            logger.error(f"🔴 Django ValidationError: {exc}", exc_info=True)
+            logger.error(f"🔴 Exception type: {type(exc)}")
+            logger.error(f"🔴 Exception module: {exc.__class__.__module__}")
+            logger.error(f"🔴 Exception details: {exc}")
+            import traceback
+            logger.error(f"🔴 Full traceback:\n{traceback.format_exc()}")
+        else:
+            logger.error(f"Unhandled exception: {exc}", exc_info=True)
+        
         return CustomJSONResponse(
             status_code=500,
             content=ErrorResponse(

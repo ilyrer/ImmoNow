@@ -17,7 +17,7 @@ import {
  */
 export const getTasks = async (params: TasksFilterParams = {}): Promise<TasksResponse> => {
   try {
-  const response = await apiClient.get(`/tasks`, { params });
+  const response = await apiClient.get(`/api/v1/tasks`, { params });
     return response.data;
   } catch (error) {
     console.error('Fehler beim Abrufen der Aufgaben:', error);
@@ -30,7 +30,7 @@ export const getTasks = async (params: TasksFilterParams = {}): Promise<TasksRes
  */
 export const getTaskById = async (id: string): Promise<Task> => {
   try {
-  const response = await apiClient.get(`/tasks/${id}`);
+  const response = await apiClient.get(`/api/v1/tasks/${id}`);
     return response.data;
   } catch (error) {
     console.error(`Fehler beim Abrufen der Aufgabe mit ID ${id}:`, error);
@@ -43,7 +43,7 @@ export const getTaskById = async (id: string): Promise<Task> => {
  */
 export const createTask = async (data: CreateTaskRequest): Promise<Task> => {
   try {
-  const response = await apiClient.post(`/tasks`, data);
+  const response = await apiClient.post(`/api/v1/tasks`, data);
     return response.data;
   } catch (error) {
     console.error('Fehler beim Erstellen einer neuen Aufgabe:', error);
@@ -57,7 +57,7 @@ export const createTask = async (data: CreateTaskRequest): Promise<Task> => {
 export const updateTask = async (id: string, data: UpdateTaskRequest): Promise<Task> => {
   try {
   // Backend expects PATCH for updates
-  const response = await apiClient.patch(`/tasks/${id}`, data);
+  const response = await apiClient.patch(`/api/v1/tasks/${id}`, data);
     return response.data;
   } catch (error) {
     console.error(`Fehler beim Aktualisieren der Aufgabe mit ID ${id}:`, error);
@@ -70,7 +70,7 @@ export const updateTask = async (id: string, data: UpdateTaskRequest): Promise<T
  */
 export const deleteTask = async (id: string): Promise<void> => {
   try {
-  await apiClient.delete(`/tasks/${id}`);
+  await apiClient.delete(`/api/v1/tasks/${id}`);
   } catch (error) {
     console.error(`Fehler beim Löschen der Aufgabe mit ID ${id}:`, error);
     throw error;
@@ -83,7 +83,7 @@ export const deleteTask = async (id: string): Promise<void> => {
 export const updateTaskStatus = async (id: string, newStatus: TaskStatus): Promise<Task> => {
   try {
   // Map to generic task update since specific /status route doesn't exist
-  const response = await apiClient.patch(`/tasks/${id}`, { status: newStatus });
+  const response = await apiClient.patch(`/api/v1/tasks/${id}`, { status: newStatus });
     return response.data;
   } catch (error) {
     console.error(`Fehler beim Aktualisieren des Status für Aufgabe mit ID ${id}:`, error);
@@ -97,7 +97,7 @@ export const updateTaskStatus = async (id: string, newStatus: TaskStatus): Promi
 export const addTaskComment = async (taskId: string, text: string, user: string): Promise<TaskComment> => {
   try {
   // Backend expects schemas.TaskCommentCreate; use { content }
-  const response = await apiClient.post(`/tasks/${taskId}/comments`, { content: text });
+  const response = await apiClient.post(`/api/v1/tasks/${taskId}/comments`, { content: text });
     return response.data;
   } catch (error) {
     console.error(`Fehler beim Hinzufügen eines Kommentars zur Aufgabe mit ID ${taskId}:`, error);
@@ -111,7 +111,7 @@ export const addTaskComment = async (taskId: string, text: string, user: string)
 export const getTasksKPI = async (): Promise<TasksKPIData> => {
   try {
   // Not implemented in backend; provide empty fallback shape from /tasks/analytics
-  const response = await apiClient.get(`/tasks/analytics`);
+  const response = await apiClient.get(`/api/v1/tasks/analytics`);
     return response.data;
   } catch (error) {
     console.error('Fehler beim Abrufen der KPI-Daten:', error);

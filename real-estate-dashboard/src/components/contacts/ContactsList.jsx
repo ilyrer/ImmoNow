@@ -5,7 +5,7 @@ import {
   useCreateContact, 
   useUpdateContact, 
   useDeleteContact 
-} from '../../hooks/useApi';
+} from '../../api/hooks';
 
 const ContactsList = ({ user }) => {
   // API Hooks
@@ -43,26 +43,31 @@ const ContactsList = ({ user }) => {
 
   // Process contacts data
   const contacts = useMemo(() => {
-    if (!contactsData || !Array.isArray(contactsData)) {
+    // Handle paginated response format
+    const items = contactsData?.items || contactsData?.data || contactsData;
+    
+    if (!items || !Array.isArray(items)) {
       return [];
     }
 
     // Transform API data to component format
-    return contactsData.map((contact, index) => {
+    return items.map((contact, index) => {
       
       const processed = {
         id: contact.id,
         name: contact.name || 'Unbekannt',
         phone: contact.phone || '',
         email: contact.email || '',
-        category: contact.category || '',
-        lastContact: contact.last_contact ? new Date(contact.last_contact).toLocaleDateString('de-DE') : '',
+        category: contact.category || contact.company || '',
+        lastContact: contact.last_contact ? new Date(contact.last_contact).toLocaleDateString('de-DE') : 
+                     contact.updated_at ? new Date(contact.updated_at).toLocaleDateString('de-DE') : 
+                     new Date().toLocaleDateString('de-DE'),
         status: contact.status || 'Lead',
         avatar: contact.avatar,
         company: contact.company || '',
         location: contact.location || '',
-        value: contact.value ? `€ ${contact.value.toLocaleString('de-DE')}` : '',
-        priority: contact.priority || 'medium'
+        value: contact.budget_max ? `€ ${contact.budget_max.toLocaleString('de-DE')}` : '',
+        priority: contact.priority || (contact.lead_score > 50 ? 'high' : 'medium')
       };
       
       return processed;
@@ -179,6 +184,13 @@ const ContactsList = ({ user }) => {
 
   const handleSaveContact = () => {
     if (editingContact) {
+      // Parse value to get budget_max
+      let budgetMax = null;
+      if (editingContact.value) {
+        const valueStr = editingContact.value.toString().replace(/[^\d.-]/g, '');
+        budgetMax = valueStr ? parseFloat(valueStr) : null;
+      }
+      
       // Update existing contact
       updateContactMutation.mutate({
         id: editingContact.id,
@@ -191,12 +203,13 @@ const ContactsList = ({ user }) => {
           status: editingContact.status,
           priority: editingContact.priority,
           location: editingContact.location,
-          value: editingContact.value ? parseFloat(editingContact.value.replace(/[^\d.-]/g, '')) : undefined
+          budget_max: budgetMax
         }
       }, {
         onSuccess: () => {
           setShowEditModal(false);
           setEditingContact(null);
+          refetchContacts();
         }
       });
     }
@@ -244,21 +257,30 @@ const ContactsList = ({ user }) => {
 
   const handleCreateContact = () => {
     // Validate required fields
-    if (!newContact.name || !newContact.email) {
-      alert('Name und E-Mail sind Pflichtfelder');
+    if (!newContact.name || !newContact.email || !newContact.phone) {
+      alert('Name, E-Mail und Telefon sind Pflichtfelder');
       return;
+    }
+
+    // Parse value to get budget_max
+    let budgetMax = null;
+    if (newContact.value) {
+      const valueStr = newContact.value.toString().replace(/[^\d.-]/g, '');
+      budgetMax = valueStr ? parseFloat(valueStr) : null;
     }
 
     createContactMutation.mutate({
       name: newContact.name,
       email: newContact.email,
       phone: newContact.phone,
-      company: newContact.company,
-      category: newContact.category,
-      status: newContact.status,
-      priority: newContact.priority,
-      location: newContact.location,
-      value: newContact.value ? parseFloat(newContact.value.replace(/[^\d.-]/g, '')) : undefined
+      company: newContact.company || undefined,
+      category: newContact.category || undefined,
+      status: newContact.status || 'Lead',
+      priority: newContact.priority || 'medium',
+      location: newContact.location || undefined,
+      budget_max: budgetMax,
+      budget_currency: 'EUR',
+      preferences: {}
     }, {
       onSuccess: () => {
         setShowNewContactModal(false);
@@ -273,9 +295,7 @@ const ContactsList = ({ user }) => {
           location: '',
           value: ''
         });
-      },
-      onError: (error) => {
-        console.error('Fehler beim Erstellen des Kontakts:', error);
+        refetchContacts();
       }
     });
   };
@@ -319,37 +339,6 @@ const ContactsList = ({ user }) => {
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
         <span className="ml-3 text-gray-600">Kontakte werden geladen...</span>
-      </div>
-    );
-  }
-
-  // Show authentication required
-  if (!isAuthenticated) {
-    return (
-      <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
-        <div className="flex">
-          <div className="flex-shrink-0">
-            <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-            </svg>
-          </div>
-          <div className="ml-3">
-            <h3 className="text-sm font-medium text-yellow-800">
-              Anmeldung erforderlich
-            </h3>
-            <div className="mt-2 text-sm text-yellow-700">
-              Sie müssen sich anmelden, um Kontakte zu sehen.
-            </div>
-            <div className="mt-3">
-              <a
-                href="/login"
-                className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-md text-sm font-medium"
-              >
-                Zur Anmeldung
-              </a>
-            </div>
-          </div>
-        </div>
       </div>
     );
   }
@@ -642,7 +631,7 @@ const ContactsList = ({ user }) => {
                             </div>
                             <div className="ml-4">
                               <Link
-                                to={`/kontakte/${contact.id}`}
+                                to={`/contacts/${contact.id}`}
                                 className="text-sm font-semibold text-gray-900 dark:text-white hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200"
                               >
                                 {contact.name}
@@ -680,8 +669,22 @@ const ContactsList = ({ user }) => {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-bold text-gray-900 dark:text-white">{contact.value}</div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">Potenzial</div>
+                          <div className="text-sm font-bold text-gray-900 dark:text-white">
+                            {(() => {
+                              if (contact.budget_min && contact.budget_max) {
+                                return `€${contact.budget_min.toLocaleString('de-DE')} - €${contact.budget_max.toLocaleString('de-DE')}`;
+                              } else if (contact.budget_max) {
+                                return `bis zu €${contact.budget_max.toLocaleString('de-DE')}`;
+                              } else if (contact.budget_min) {
+                                return `ab €${contact.budget_min.toLocaleString('de-DE')}`;
+                              } else if (contact.value) {
+                                return contact.value;
+                              } else {
+                                return 'Nicht angegeben';
+                              }
+                            })()}
+                          </div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">Potenzialwert</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className={`flex items-center ${getPriorityColor(contact.priority)}`}>
@@ -692,7 +695,7 @@ const ContactsList = ({ user }) => {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                           <div className="flex items-center space-x-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                             <Link
-                              to={`/kontakte/${contact.id}`}
+                              to={`/contacts/${contact.id}`}
                               className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors duration-200 transform hover:scale-110"
                               title="Details anzeigen"
                             >
@@ -743,7 +746,7 @@ const ContactsList = ({ user }) => {
                     </div>
                     <div className="flex-1 min-w-0">
                       <Link
-                        to={`/kontakte/${contact.id}`}
+                        to={`/contacts/${contact.id}`}
                         className="text-lg font-bold text-gray-900 dark:text-white hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200 block truncate"
                       >
                         {contact.name}
@@ -784,15 +787,29 @@ const ContactsList = ({ user }) => {
 
                   {/* Wert */}
                   <div className="mb-4">
-                    <div className="text-lg font-bold text-gray-900 dark:text-white">{contact.value}</div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">Potenzial</div>
+                    <div className="text-lg font-bold text-gray-900 dark:text-white">
+                      {(() => {
+                        if (contact.budget_min && contact.budget_max) {
+                          return `€${contact.budget_min.toLocaleString('de-DE')} - €${contact.budget_max.toLocaleString('de-DE')}`;
+                        } else if (contact.budget_max) {
+                          return `bis zu €${contact.budget_max.toLocaleString('de-DE')}`;
+                        } else if (contact.budget_min) {
+                          return `ab €${contact.budget_min.toLocaleString('de-DE')}`;
+                        } else if (contact.value) {
+                          return contact.value;
+                        } else {
+                          return 'Nicht angegeben';
+                        }
+                      })()}
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">Potenzialwert</div>
                   </div>
 
                   {/* Aktionen */}
                   <div className="flex items-center justify-between pt-4 border-t border-gray-200/50 dark:border-gray-700/50">
                     <div className="flex items-center space-x-2">
                       <Link
-                        to={`/kontakte/${contact.id}`}
+                        to={`/contacts/${contact.id}`}
                         className="p-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-all duration-200"
                         title="Details anzeigen"
                       >

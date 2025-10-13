@@ -4,9 +4,8 @@ Audit Service
 from typing import Optional, Dict, Any
 from datetime import datetime
 from django.db import models
-from django.contrib.auth.models import User
 
-from app.db.models import AuditLog
+from app.db.models import AuditLog, User
 
 
 class AuditService:
@@ -26,8 +25,10 @@ class AuditService:
     ) -> AuditLog:
         """Log an action in the audit log"""
         
-        # Get tenant from user profile
-        tenant = user.profile.tenant
+        # Get tenant from user profile (safe access)
+        tenant = None
+        if hasattr(user, 'profile') and user.profile:
+            tenant = user.profile.tenant
         
         audit_log = AuditLog.objects.create(
             tenant=tenant,

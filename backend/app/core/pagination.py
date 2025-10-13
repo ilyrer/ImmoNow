@@ -76,3 +76,38 @@ def validate_sort_field(allowed_fields: List[str], sort_by: Optional[str]) -> Op
         raise ValueError(f"Invalid sort field: {sort_by}. Allowed fields: {allowed_fields}")
     
     return sort_by
+
+
+def paginate(queryset, page: int = 1, size: int = 20) -> dict:
+    """
+    Paginate a Django queryset
+    
+    Args:
+        queryset: Django QuerySet to paginate
+        page: Page number (1-based)
+        size: Items per page
+        
+    Returns:
+        dict with items, total, page, size, pages, has_next, has_prev
+    """
+    # Calculate offset
+    offset = get_pagination_offset(page, size)
+    
+    # Get total count
+    total = queryset.count()
+    
+    # Calculate total pages
+    pages = math.ceil(total / size) if total > 0 else 1
+    
+    # Get items for current page
+    items = list(queryset[offset:offset + size])
+    
+    return {
+        'items': items,
+        'total': total,
+        'page': page,
+        'size': size,
+        'pages': pages,
+        'has_next': page < pages,
+        'has_prev': page > 1,
+    }

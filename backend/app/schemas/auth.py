@@ -164,6 +164,7 @@ class TenantInfo(BaseModel):
     slug: str
     plan: str
     is_active: bool
+    logo_url: Optional[str] = None
     
     @classmethod
     def from_orm(cls, obj):
@@ -173,7 +174,8 @@ class TenantInfo(BaseModel):
             name=obj.name,
             slug=obj.slug,
             plan=obj.plan,
-            is_active=obj.is_active
+            is_active=obj.is_active,
+            logo_url=obj.logo_url if hasattr(obj, 'logo_url') else None
         )
     
     class Config:
@@ -352,6 +354,7 @@ class TokenPayload(BaseModel):
     exp: int
     iat: int
     type: str  # 'access' or 'refresh'
+    scopes: list[str] = []  # Permissions scopes
     
     class Config:
         json_schema_extra = {

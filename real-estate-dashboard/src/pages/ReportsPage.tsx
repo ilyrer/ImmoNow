@@ -52,12 +52,12 @@ const ReportsPage: React.FC = () => {
         apiClient.get('/reports/templates'),
         apiClient.get('/reports', { params: { limit: 20, offset: 0 } }),
       ]);
-      setTemplates(tplRes.data || []);
-      setReports(repRes.data || []);
+      setTemplates((tplRes as any)?.data || []);
+      setReports((repRes as any)?.data || []);
       // Sales analytics (optional: requires manager/admin)
       try {
         const sa = await apiClient.get('/reports/analytics/sales', { params: { start_date: range.start, end_date: range.end } });
-        setSales(sa.data || null);
+        setSales((sa as any)?.data || null);
       } catch (e) {
         // ignore if not authorized
         setSales(null);
@@ -101,7 +101,7 @@ const ReportsPage: React.FC = () => {
 
   const handleDownload = async (rep: Report) => {
     try {
-      const url = `${apiClient.baseURL}/reports/${rep.id}/download`;
+      const url = `${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/reports/${rep.id}/download`;
       // trigger browser download
       window.open(url, '_blank');
     } catch {}

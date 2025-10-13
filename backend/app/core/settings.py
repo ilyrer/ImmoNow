@@ -9,7 +9,7 @@ from pydantic import Field
 
 class Settings(BaseSettings):
     """Application settings"""
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", case_sensitive=True, extra="ignore")
+    model_config = SettingsConfigDict(env_file="env.local", env_file_encoding="utf-8", case_sensitive=True, extra="ignore")
     
     # Application
     DEBUG: bool = Field(default=False, env="DEBUG")
@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=30, env="JWT_ACCESS_TOKEN_EXPIRE_MINUTES")
     
     # CORS
-    CORS_ORIGINS: List[str] = Field(default=["http://localhost:3000"], env="CORS_ORIGINS")
+    CORS_ORIGINS: str = Field(default="http://localhost:3000", env="CORS_ORIGINS")
     
     # File Storage
     AWS_ACCESS_KEY_ID: Optional[str] = Field(default=None, env="AWS_ACCESS_KEY_ID")

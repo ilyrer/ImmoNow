@@ -1,283 +1,497 @@
-import React from 'react';
-import { Building2, Save, Upload } from 'lucide-react';
-// TODO: Implement real API hooks
+import React, { useState, useEffect, useRef } from 'react';
 import { GlassCard, GlassButton } from '../GlassUI';
+import tenantService, { TenantDetail } from '../../../services/tenant.service';
+import { Building2, Save, Upload, Loader2, Check, AlertCircle, X } from 'lucide-react';
 
-// Mock hook for backward compatibility
-const useOrgSettingsMock = () => {
-  const settings = {
-    companyName: 'Example Company',
-    legalName: 'Example Company GmbH',
-    email: 'contact@example.com',
-    phone: '+49 123 456789',
-    address: {
-      street: 'Musterstraße 123',
-      city: 'Musterstadt',
-      zipCode: '12345',
-      postalCode: '12345',
-      country: 'Deutschland'
-    },
-    website: 'https://example.com',
-    logo: null,
-    taxId: 'DE123456789',
-    registrationNumber: 'HRB 12345',
-    ceo: 'Max Mustermann',
-    foundedYear: '2020',
-    branding: {
-      primaryColor: '#3B82F6',
-      secondaryColor: '#1E40AF',
-      logoUrl: null
-    },
-    defaults: {
-      currency: 'EUR',
-      timezone: 'Europe/Berlin',
-      language: 'de'
-    },
-    integrations: {
-      google: { enabled: false },
-      microsoft: { enabled: false },
-      slack: { enabled: false }
+export const OrganizationTab: React.FC = () => {
+  const [tenant, setTenant] = useState<TenantDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    website: '',
+    tax_id: '',
+    registration_number: '',
+    street: '',
+    city: '',
+    postal_code: '',
+    country: '',
+    primary_color: '#3B82F6',
+    secondary_color: '#1E40AF',
+    currency: 'EUR',
+    timezone: 'Europe/Berlin',
+    language: 'de'
+  });
+
+  useEffect(() => {
+    loadTenantData();
+  }, []);
+
+  const loadTenantData = async () => {
+    try {
+      setLoading(true);
+      const data = await tenantService.getTenant();
+      setTenant(data);
+      setFormData({
+        name: data.name || '',
+        email: data.email || '',
+        phone: data.phone || '',
+        website: data.website || '',
+        tax_id: data.tax_id || '',
+        registration_number: data.registration_number || '',
+        street: data.address?.street || '',
+        city: data.address?.city || '',
+        postal_code: data.address?.postal_code || '',
+        country: data.address?.country || '',
+        primary_color: data.branding?.primary_color || '#3B82F6',
+        secondary_color: data.branding?.secondary_color || '#1E40AF',
+        currency: data.defaults?.currency || 'EUR',
+        timezone: data.defaults?.timezone || 'Europe/Berlin',
+        language: data.defaults?.language || 'de'
+      });
+    } catch (error) {
+      console.error('Failed to load tenant data:', error);
+      showMessage('error', 'Fehler beim Laden der Unternehmensdaten');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const updateSettings = async (data: any) => {
-    console.warn('Mock updateSettings called');
-    return { success: true };
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  return {
-    settings,
-    updateSettings
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      await tenantService.updateTenant({
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        website: formData.website,
+        tax_id: formData.tax_id,
+        registration_number: formData.registration_number,
+        street: formData.street,
+        city: formData.city,
+        postal_code: formData.postal_code,
+        country: formData.country,
+        primary_color: formData.primary_color,
+        secondary_color: formData.secondary_color,
+        currency: formData.currency,
+        timezone: formData.timezone,
+        language: formData.language
+      });
+      showMessage('success', 'Unternehmensdaten erfolgreich gespeichert');
+      await loadTenantData();
+    } catch (error) {
+      console.error('Failed to save tenant data:', error);
+      showMessage('error', 'Fehler beim Speichern der Daten');
+    } finally {
+      setSaving(false);
+    }
   };
-};
 
-const OrganizationTab: React.FC = () => {
-  const { settings, updateSettings } = useOrgSettingsMock();
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      showMessage('error', 'Datei ist zu groß (max. 5MB)');
+      return;
+    }
+
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/svg+xml', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      showMessage('error', 'Ungültiger Dateityp (nur PNG, JPG, SVG, WebP)');
+      return;
+    }
+
+    try {
+      setUploadingLogo(true);
+      await tenantService.uploadLogo(file);
+      showMessage('success', 'Logo erfolgreich hochgeladen');
+      await loadTenantData();
+    } catch (error) {
+      console.error('Failed to upload logo:', error);
+      showMessage('error', 'Fehler beim Hochladen des Logos');
+    } finally {
+      setUploadingLogo(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const showMessage = (type: 'success' | 'error', text: string) => {
+    setMessage({ type, text });
+    setTimeout(() => setMessage(null), 5000);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      {/* Company Profile */}
+      {message && (
+        <div className={`p-4 rounded-lg flex items-center justify-between ${
+          message.type === 'success' ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300'
+        }`}>
+          <div className="flex items-center gap-2">
+            {message.type === 'success' ? <Check className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
+            <span>{message.text}</span>
+          </div>
+          <button onClick={() => setMessage(null)} className="hover:opacity-70">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+      )}
+
       <GlassCard className="p-6">
-        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">Firmenprofil</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="flex items-center gap-3 mb-6">
+          <Building2 className="w-6 h-6 text-blue-400" />
+          <h2 className="text-xl font-semibold text-white">Unternehmensprofil</h2>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Firmenname
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Unternehmensname *
             </label>
             <input
               type="text"
-              value={settings.companyName}
-              onChange={(e) => updateSettings({ companyName: e.target.value })}
-              className="w-full px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800"
+              name="name"
+              value={formData.name}
+              onChange={handleInputChange}
+              className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Rechtlicher Name
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              E-Mail
             </label>
             <input
-              type="text"
-              value={settings.legalName}
-              onChange={(e) => updateSettings({ legalName: e.target.value })}
-              className="w-full px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800"
+              type="email"
+              name="email"
+              value={formData.email}
+              onChange={handleInputChange}
+              className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Telefon
+            </label>
+            <input
+              type="tel"
+              name="phone"
+              value={formData.phone}
+              onChange={handleInputChange}
+              className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Website
+            </label>
+            <input
+              type="url"
+              name="website"
+              value={formData.website}
+              onChange={handleInputChange}
+              className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
               Steuernummer
             </label>
             <input
               type="text"
-              value={settings.taxId}
-              onChange={(e) => updateSettings({ taxId: e.target.value })}
-              className="w-full px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800"
+              name="tax_id"
+              value={formData.tax_id}
+              onChange={handleInputChange}
+              className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Logo
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Registrierungsnummer
             </label>
-            <GlassButton variant="secondary" icon={Upload} size="sm">
-              Logo hochladen
-            </GlassButton>
+            <input
+              type="text"
+              name="registration_number"
+              value={formData.registration_number}
+              onChange={handleInputChange}
+              className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
           </div>
         </div>
       </GlassCard>
 
-      {/* Address */}
       <GlassCard className="p-6">
-        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">Adresse</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <h3 className="text-lg font-semibold text-white mb-4">Unternehmenslogo</h3>
+        <div className="flex items-center gap-6">
+          <div className="w-32 h-32 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center overflow-hidden">
+            {tenant?.branding?.logo_url ? (
+              <img 
+                src={tenant.branding.logo_url} 
+                alt="Company Logo" 
+                className="w-full h-full object-contain"
+              />
+            ) : (
+              <Building2 className="w-12 h-12 text-gray-400" />
+            )}
+          </div>
+          <div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/jpg,image/svg+xml,image/webp"
+              onChange={handleLogoUpload}
+              className="hidden"
+            />
+            <GlassButton
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadingLogo}
+              className="flex items-center gap-2"
+            >
+              {uploadingLogo ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Wird hochgeladen...
+                </>
+              ) : (
+                <>
+                  <Upload className="w-4 h-4" />
+                  Logo hochladen
+                </>
+              )}
+            </GlassButton>
+            <p className="text-xs text-gray-400 mt-2">
+              PNG, JPG, SVG oder WebP (max. 5MB)
+            </p>
+          </div>
+        </div>
+      </GlassCard>
+
+      <GlassCard className="p-6">
+        <h3 className="text-lg font-semibold text-white mb-4">Adresse</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Straße
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Straße & Hausnummer
             </label>
             <input
               type="text"
-              value={settings.address?.street}
-              onChange={(e) => updateSettings({ address: { ...settings.address!, street: e.target.value } })}
-              className="w-full px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800"
+              name="street"
+              value={formData.street}
+              onChange={handleInputChange}
+              className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label className="block text-sm font-medium text-gray-300 mb-2">
               Stadt
             </label>
             <input
               type="text"
-              value={settings.address?.city}
-              onChange={(e) => updateSettings({ address: { ...settings.address!, city: e.target.value } })}
-              className="w-full px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800"
+              name="city"
+              value={formData.city}
+              onChange={handleInputChange}
+              className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label className="block text-sm font-medium text-gray-300 mb-2">
               PLZ
             </label>
             <input
               type="text"
-              value={settings.address?.postalCode}
-              onChange={(e) => updateSettings({ address: { ...settings.address!, postalCode: e.target.value } })}
-              className="w-full px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800"
+              name="postal_code"
+              value={formData.postal_code}
+              onChange={handleInputChange}
+              className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Land
+            </label>
+            <input
+              type="text"
+              name="country"
+              value={formData.country}
+              onChange={handleInputChange}
+              className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
         </div>
       </GlassCard>
 
-      {/* Branding */}
       <GlassCard className="p-6">
-        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">Branding</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <h3 className="text-lg font-semibold text-white mb-4">Branding</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label className="block text-sm font-medium text-gray-300 mb-2">
               Primärfarbe
             </label>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-2">
               <input
                 type="color"
-                value={settings.branding?.primaryColor}
-                onChange={(e) => updateSettings({ branding: { ...settings.branding!, primaryColor: e.target.value } })}
-                className="w-16 h-10 rounded-lg border border-gray-300 dark:border-gray-600"
+                name="primary_color"
+                value={formData.primary_color}
+                onChange={handleInputChange}
+                className="w-12 h-10 rounded cursor-pointer"
               />
               <input
                 type="text"
-                value={settings.branding?.primaryColor}
-                readOnly
-                className="flex-1 px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700"
+                value={formData.primary_color}
+                onChange={(e) => setFormData(prev => ({ ...prev, primary_color: e.target.value }))}
+                className="flex-1 px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label className="block text-sm font-medium text-gray-300 mb-2">
               Sekundärfarbe
             </label>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-2">
               <input
                 type="color"
-                value={settings.branding?.secondaryColor}
-                onChange={(e) => updateSettings({ branding: { ...settings.branding!, secondaryColor: e.target.value } })}
-                className="w-16 h-10 rounded-lg border border-gray-300 dark:border-gray-600"
+                name="secondary_color"
+                value={formData.secondary_color}
+                onChange={handleInputChange}
+                className="w-12 h-10 rounded cursor-pointer"
               />
               <input
                 type="text"
-                value={settings.branding?.secondaryColor}
-                readOnly
-                className="flex-1 px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700"
+                value={formData.secondary_color}
+                onChange={(e) => setFormData(prev => ({ ...prev, secondary_color: e.target.value }))}
+                className="flex-1 px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
           </div>
         </div>
       </GlassCard>
 
-      {/* Defaults */}
       <GlassCard className="p-6">
-        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">Standardeinstellungen</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <h3 className="text-lg font-semibold text-white mb-4">Standardeinstellungen</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label className="block text-sm font-medium text-gray-300 mb-2">
               Währung
             </label>
             <select
-              value={settings.defaults?.currency}
-              onChange={(e) => updateSettings({ defaults: { ...settings.defaults!, currency: e.target.value } })}
-              className="w-full px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800"
+              name="currency"
+              value={formData.currency}
+              onChange={handleInputChange}
+              className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="EUR">EUR (€)</option>
               <option value="USD">USD ($)</option>
               <option value="GBP">GBP (£)</option>
+              <option value="CHF">CHF (Fr.)</option>
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label className="block text-sm font-medium text-gray-300 mb-2">
               Zeitzone
             </label>
             <select
-              value={settings.defaults?.timezone}
-              onChange={(e) => updateSettings({ defaults: { ...settings.defaults!, timezone: e.target.value } })}
-              className="w-full px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800"
+              name="timezone"
+              value={formData.timezone}
+              onChange={handleInputChange}
+              className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="Europe/Berlin">Europa/Berlin</option>
-              <option value="Europe/London">Europa/London</option>
-              <option value="America/New_York">Amerika/New York</option>
+              <option value="Europe/Berlin">Europe/Berlin</option>
+              <option value="Europe/London">Europe/London</option>
+              <option value="Europe/Paris">Europe/Paris</option>
+              <option value="Europe/Zurich">Europe/Zurich</option>
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label className="block text-sm font-medium text-gray-300 mb-2">
               Sprache
             </label>
             <select
-              value={settings.defaults?.language}
-              onChange={(e) => updateSettings({ defaults: { ...settings.defaults!, language: e.target.value } })}
-              className="w-full px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800"
+              name="language"
+              value={formData.language}
+              onChange={handleInputChange}
+              className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="de">Deutsch</option>
               <option value="en">English</option>
+              <option value="fr">Français</option>
             </select>
           </div>
         </div>
       </GlassCard>
 
-      {/* Integrations */}
-      <GlassCard className="p-6">
-        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">Integrationen</h3>
-        <div className="space-y-4">
-          {[
-            { key: 'google', label: 'Google Workspace', icon: '🔍' },
-            { key: 'outlook', label: 'Microsoft Outlook', icon: '📧' },
-            { key: 'portals', label: 'Immobilienportale', icon: '🏠' },
-            { key: 'push', label: 'Push-Benachrichtigungen', icon: '🔔' },
-          ].map(integration => (
-            <div key={integration.key} className="flex items-center justify-between p-4 rounded-xl bg-gray-50/50 dark:bg-gray-700/50">
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">{integration.icon}</span>
-                <span className="font-medium text-gray-900 dark:text-white">{integration.label}</span>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={(settings.integrations as any)?.[integration.key]?.enabled || false}
-                  onChange={(e) => updateSettings({
-                    integrations: {
-                      ...settings.integrations,
-                      [integration.key]: { enabled: e.target.checked }
-                    }
-                  })}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-              </label>
+      {tenant?.subscription && (
+        <GlassCard className="p-6">
+          <h3 className="text-lg font-semibold text-white mb-4">Abonnement</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div>
+              <p className="text-sm text-gray-400">Plan</p>
+              <p className="text-lg font-semibold text-white">{tenant.subscription.plan}</p>
             </div>
-          ))}
-        </div>
-      </GlassCard>
+            <div>
+              <p className="text-sm text-gray-400">Status</p>
+              <span className={`inline-block px-3 py-1 rounded-full text-sm ${
+                tenant.subscription.status === 'active' 
+                  ? 'bg-green-500/20 text-green-300' 
+                  : 'bg-yellow-500/20 text-yellow-300'
+              }`}>
+                {tenant.subscription.status}
+              </span>
+            </div>
+            <div>
+              <p className="text-sm text-gray-400">Benutzer</p>
+              <p className="text-lg font-semibold text-white">
+                {tenant.subscription.limits?.max_users || 'Unbegrenzt'}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-400">Immobilien</p>
+              <p className="text-lg font-semibold text-white">
+                {tenant.subscription.limits?.max_properties || 'Unbegrenzt'}
+              </p>
+            </div>
+          </div>
+        </GlassCard>
+      )}
 
-      <div className="flex gap-3">
-        <GlassButton variant="primary" icon={Save} className="flex-1">
-          Einstellungen speichern
+      <div className="flex justify-end">
+        <GlassButton
+          onClick={handleSave}
+          disabled={saving}
+          className="flex items-center gap-2 px-6 py-3"
+        >
+          {saving ? (
+            <>
+              <Loader2 className="w-5 h-5 animate-spin" />
+              Wird gespeichert...
+            </>
+          ) : (
+            <>
+              <Save className="w-5 h-5" />
+              Änderungen speichern
+            </>
+          )}
         </GlassButton>
       </div>
     </div>
   );
 };
-
-export default OrganizationTab;

@@ -16,12 +16,27 @@ export interface CIMOverviewParams {
 }
 
 class CIMService {
+  private readonly baseUrl = '/api/v1/cim';
+
   /**
-   * GET /cim/overview - CIM Dashboard-Übersicht
+   * GET /api/v1/cim/overview - CIM Dashboard-Übersicht mit Immobiliendaten
    */
   async getOverview(params: CIMOverviewParams = {}): Promise<CIMOverviewResponse> {
-    const response = await apiClient.get<CIMOverviewResponse>('/cim/overview', params);
-    return response.data;
+    console.log('🔍 CIM Service - Fetching overview from backend:', {
+      url: `${this.baseUrl}/overview`,
+      params
+    });
+    
+    const response = await apiClient.get<CIMOverviewResponse>(`${this.baseUrl}/overview`, { params });
+    
+    console.log('✅ CIM Service - Backend response:', {
+      propertiesCount: response.recent_properties?.length || 0,
+      contactsCount: response.recent_contacts?.length || 0,
+      matchesCount: response.perfect_matches?.length || 0,
+      summary: response.summary
+    });
+    
+    return response;
   }
 }
 

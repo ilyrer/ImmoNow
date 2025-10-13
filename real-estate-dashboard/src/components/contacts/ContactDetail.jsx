@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useContact, useUpdateContact, useDeleteContact } from '../../api/hooks';
 import apiService from '../../services/api.service';
 import toast from 'react-hot-toast';
 import { getRecommendations, getContactOverview } from '../../api/crm/api';
@@ -8,6 +9,12 @@ import { listMyCompanyUsers } from '../../api/users/api';
 const ContactDetail = ({ user }) => {
   const { id } = useParams();
   const navigate = useNavigate();
+  
+  // Use the new hooks
+  const { data: contactData, isLoading: contactLoading, error: contactError, refetch: refetchContact } = useContact(id);
+  const updateContactMutation = useUpdateContact();
+  const deleteContactMutation = useDeleteContact();
+  
   const [contact, setContact] = useState(null);
   const [activeTab, setActiveTab] = useState('details');
   const [activities, setActivities] = useState([]);
@@ -38,48 +45,48 @@ const ContactDetail = ({ user }) => {
   const [taskPriority, setTaskPriority] = useState('medium');
   const [taskDesc, setTaskDesc] = useState('');
 
+  // Update contact state when data changes
   useEffect(() => {
-    loadContactData();
+    if (contactData) {
+      console.log('✅ Contact data loaded from hook:', contactData);
+      setContact(contactData);
+      setLoading(false);
+    }
+  }, [contactData]);
+
+  // Update error state
+  useEffect(() => {
+    if (contactError) {
+      console.error('❌ Error loading contact:', contactError);
+      setError(contactError.message || 'Fehler beim Laden des Kontakts');
+      setLoading(false);
+    }
+  }, [contactError]);
+
+  useEffect(() => {
+    if (id) {
+      loadAdditionalData();
+    }
   }, [id]);
 
-  const loadContactData = async () => {
+  const loadAdditionalData = async () => {
     try {
-      setLoading(true);
-      setError(null);
+      console.log('🔍 Loading additional contact data for ID:', id);
       
-      console.log('🔍 Loading contact data for ID:', id);
-      
-      // Lade 360° Overview zuerst (enthält alle CIM-Daten)
+      // Lade 360° Overview (enthält CIM-Daten, Aktivitäten, etc.)
       try {
         setLoadingOverview(true);
         const o = await getContactOverview(String(id));
         console.log('✅ CIM Overview loaded:', o);
         setOverview(o || null);
-        
-        // Verwende die Kontakt-Daten aus dem CIM-Overview
-        if (o?.contact) {
-          console.log('✅ Using CIM contact data:', o.contact);
-          console.log('✅ Lead score from CIM:', o.contact.lead_score);
-          setContact(o.contact);
-        } else {
-          // Fallback: Lade Kontakt-Daten separat
-          console.log('⚠️ CIM contact data not available, loading separately');
-          const contactData = await apiService.getContact(id);
-          console.log('✅ Fallback contact data:', contactData);
-          console.log('✅ Lead score from fallback:', contactData.lead_score);
-          setContact(contactData);
-        }
       } catch (e) {
         console.warn('CIM Overview konnte nicht geladen werden:', e?.message || e);
-        // Fallback: Lade Kontakt-Daten separat
-        const contactData = await apiService.getContact(id);
-        setContact(contactData);
         setOverview(null);
       } finally {
         setLoadingOverview(false);
       }
 
-      // CRM: Empfehlungen laden (nutzt jetzt CIM-Daten)
+      // CRM: Empfehlungen laden
       try {
         const r = await getRecommendations(String(id), 5);
         setRecs(Array.isArray(r?.properties) ? r.properties : []);
@@ -95,7 +102,7 @@ const ContactDetail = ({ user }) => {
         console.warn('Dokumente konnten nicht geladen werden:', e?.message || e);
       }
       
-      // Aktivitäten aus dem Backend laden und für die UI mappen
+      // Aktivitäten aus dem Backend laden
       try {
         const raw = await apiService.listContactActivities(id);
         // Prefetch user directory for actor labels (best-effort)
@@ -470,6 +477,15 @@ const ContactDetail = ({ user }) => {
     }).format(value);
   };
 
+  // Kompakte Währungsformatierung für Potenzialwert (€200.000 statt 200.000,00 €)
+  const formatCompactCurrency = (value) => {
+    if (!value) return 'Nicht angegeben';
+    return `€${new Intl.NumberFormat('de-DE', { 
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(value)}`;
+  };
+
   // Robust parser for German/Intl numeric inputs (supports 200000, 200.000, 200,000, 200.000,00)
   const parseEuroNumber = (raw) => {
     if (raw === null || raw === undefined) return undefined;
@@ -555,15 +571,53 @@ const ContactDetail = ({ user }) => {
   };
 
   const handleSaveContact = async () => {
+    if (!editingContact || !contact) return;
+    
     try {
-      const updatedContact = await apiService.updateContact(contact.id, editingContact);
-      setContact(updatedContact);
+      // Parse budget value - use new budget field, fallback to budget_max or value
+      let budget = editingContact.budget;
+      if (!budget && editingContact.budget_max) {
+        budget = editingContact.budget_max;
+      }
+      if (!budget && editingContact.value) {
+        budget = typeof editingContact.value === 'number' 
+          ? editingContact.value 
+          : parseFloat(String(editingContact.value).replace(/[^\d.-]/g, ''));
+      }
+      
+      // Prepare update data
+      const updateData = {
+        name: editingContact.name,
+        email: editingContact.email,
+        phone: editingContact.phone,
+        company: editingContact.company || undefined,
+        category: editingContact.category || undefined,
+        status: editingContact.status || undefined,
+        priority: editingContact.priority || undefined,
+        location: editingContact.location || undefined,
+        budget: budget ? parseFloat(budget) : undefined,
+        budget_currency: editingContact.budget_currency || 'EUR',
+        preferences: editingContact.preferences || {},
+        lead_score: editingContact.lead_score ? parseInt(editingContact.lead_score) : undefined,
+      };
+
+      console.log('📤 Updating contact with data:', updateData);
+
+      // Use the mutation hook
+      await updateContactMutation.mutateAsync({
+        id: contact.id,
+        data: updateData
+      });
+
+      // Refetch contact data to get latest from backend
+      await refetchContact();
+      
       setShowEditModal(false);
       setEditingContact(null);
       toast.success('Kontakt erfolgreich aktualisiert');
     } catch (error) {
       console.error('❌ Error updating contact:', error);
-      toast.error('Fehler beim Aktualisieren des Kontakts');
+      toast.error(error?.message || 'Fehler beim Aktualisieren des Kontakts');
     }
   };
 
@@ -616,7 +670,7 @@ const ContactDetail = ({ user }) => {
           {error || 'Der angeforderte Kontakt existiert nicht oder wurde entfernt.'}
         </p>
         <Link
-          to="/kontakte"
+          to="/contacts"
           className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
         >
           <i className="ri-arrow-left-line mr-2"></i>
@@ -634,7 +688,7 @@ const ContactDetail = ({ user }) => {
         <div className="relative bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 dark:border-gray-700/50 p-8">
           {/* Breadcrumb */}
           <div className="flex items-center text-sm text-gray-500 dark:text-gray-400 mb-6">
-            <Link to="/kontakte" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+            <Link to="/contacts" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
               Kontakte
             </Link>
             <i className="ri-arrow-right-s-line mx-2"></i>
@@ -745,9 +799,16 @@ const ContactDetail = ({ user }) => {
             <div className="grid grid-cols-3 gap-4 lg:min-w-[300px]">
               <div className="text-center p-4 bg-white/50 dark:bg-gray-700/50 backdrop-blur-sm rounded-xl border border-gray-200/50 dark:border-gray-600/50">
                 <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {formatCurrency(contact.value)}
+                  {(() => {
+                    // Use budget field first, fallback to budget_max for migration
+                    const potentialValue = contact.budget || contact.budget_max || contact.value;
+                    if (potentialValue) {
+                      return formatCompactCurrency(potentialValue);
+                    }
+                    return 'Nicht angegeben';
+                  })()}
                 </div>
-                <div className="text-xs text-gray-500 dark:text-gray-400">Potenzial</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">Potenzialwert</div>
               </div>
               <div className="text-center p-4 bg-white/50 dark:bg-gray-700/50 backdrop-blur-sm rounded-xl border border-gray-200/50 dark:border-gray-600/50">
                 <div className="text-2xl font-bold text-gray-900 dark:text-white">
@@ -930,7 +991,7 @@ const ContactDetail = ({ user }) => {
                       { label: 'Unternehmen', value: contact.company, icon: 'ri-building-2-line' },
                       { 
                         label: 'Adresse', 
-                        value: contact.address ? `${contact.address.street}, ${contact.address.zip_code} ${contact.address.city}` : 'Nicht angegeben', 
+                        value: contact.address ? `${contact.address.street}, ${contact.address.zip_code} ${contact.address.city}` : contact.location || 'Nicht angegeben', 
                         icon: 'ri-map-pin-line' 
                       },
                       { label: 'Kategorie', value: contact.category, icon: 'ri-price-tag-3-line' },
@@ -939,6 +1000,29 @@ const ContactDetail = ({ user }) => {
                         value: getPriorityLabel(contact.priority), 
                         icon: getPriorityIcon(contact.priority), 
                         color: getPriorityColor(contact.priority) 
+                      },
+                      { 
+                        label: 'Potenzialwert', 
+                        value: (() => {
+                          if (contact.budget_min && contact.budget_max) {
+                            return `${formatCompactCurrency(contact.budget_min)} - ${formatCompactCurrency(contact.budget_max)}`;
+                          } else if (contact.budget_max) {
+                            return `bis zu ${formatCompactCurrency(contact.budget_max)}`;
+                          } else if (contact.budget_min) {
+                            return `ab ${formatCompactCurrency(contact.budget_min)}`;
+                          } else {
+                            return 'Nicht angegeben';
+                          }
+                        })(),
+                        icon: 'ri-money-euro-circle-line',
+                        highlight: true,
+                        description: 'Wichtig für CIM-Analysen und Matching'
+                      },
+                      { 
+                        label: 'Lead Score', 
+                        value: contact.lead_score ? `${contact.lead_score}/100` : 'Nicht bewertet', 
+                        icon: 'ri-star-line',
+                        color: contact.lead_score >= 70 ? 'text-green-600 dark:text-green-400' : contact.lead_score >= 40 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'
                       },
                       { 
                         label: 'Letzter Kontakt', 
@@ -951,15 +1035,25 @@ const ContactDetail = ({ user }) => {
                         icon: 'ri-time-line' 
                       }
                     ].map((item, index) => (
-                      <div key={index} className="flex items-center p-4 bg-gray-50/50 dark:bg-gray-700/30 rounded-xl border border-gray-200/50 dark:border-gray-600/50 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-200">
+                      <div key={index} className={`flex items-center p-4 rounded-xl border transition-colors duration-200 ${
+                        item.highlight 
+                          ? 'bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 border-emerald-200/50 dark:border-emerald-700/50 hover:from-emerald-100 hover:to-teal-100 dark:hover:from-emerald-900/30 dark:hover:to-teal-900/30'
+                          : 'bg-gray-50/50 dark:bg-gray-700/30 border-gray-200/50 dark:border-gray-600/50 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                      }`}>
                         <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
                           <i className={`${item.icon} text-white`}></i>
                         </div>
                         <div className="ml-4 flex-1">
                           <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{item.label}</div>
-                          <div className={`text-sm font-semibold ${item.color || 'text-gray-900 dark:text-white'} capitalize`}>
+                          <div className={`text-sm font-semibold ${item.color || 'text-gray-900 dark:text-white'} ${item.highlight ? 'text-lg' : ''} capitalize`}>
                             {item.value || 'Nicht angegeben'}
                           </div>
+                          {item.description && (
+                            <div className="text-xs text-emerald-600 dark:text-emerald-400 mt-1 font-medium">
+                              <i className="ri-information-line mr-1"></i>
+                              {item.description}
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -1852,7 +1946,7 @@ const ContactDetail = ({ user }) => {
                       Status
                     </label>
                     <select
-                      value={editingContact.status}
+                      value={editingContact.status || 'Lead'}
                       onChange={(e) => updateEditingContact('status', e.target.value)}
                       className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
                     >
@@ -1868,32 +1962,56 @@ const ContactDetail = ({ user }) => {
                       Priorität
                     </label>
                     <select
-                      value={editingContact.priority}
+                      value={editingContact.priority || 'medium'}
                       onChange={(e) => updateEditingContact('priority', e.target.value)}
                       className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
                     >
                       <option value="low">Niedrig</option>
                       <option value="medium">Mittel</option>
                       <option value="high">Hoch</option>
+                      <option value="urgent">Dringend</option>
                     </select>
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Potenzialwert (EUR)
+                      Lead Score (0-100)
                     </label>
                     <input
-                      type="text"
-                      inputMode="decimal"
-                      value={editingContact.value ?? ''}
-                      onChange={(e) => {
-                        const n = parseEuroNumber(e.target.value);
-                        updateEditingContact('value', n);
-                      }}
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={editingContact.lead_score ?? ''}
+                      onChange={(e) => updateEditingContact('lead_score', e.target.value)}
                       className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
-                      placeholder="500000"
+                      placeholder="z.B. 75"
                     />
                   </div>
+                </div>
+
+                {/* Single Budget Field */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Potenzialwert / Budget (EUR) *
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={editingContact.budget ?? editingContact.budget_max ?? editingContact.value ?? ''}
+                    onChange={(e) => {
+                      const n = parseEuroNumber(e.target.value);
+                      updateEditingContact('budget', n);
+                      // Update legacy fields for backward compatibility
+                      updateEditingContact('budget_max', n);
+                      updateEditingContact('value', n);
+                    }}
+                    className="w-full px-4 py-3 border border-emerald-300 dark:border-emerald-600 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-gray-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200 font-semibold"
+                    placeholder="z.B. 200000"
+                  />
+                  <p className="mt-1 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                    <i className="ri-information-line mr-1"></i>
+                    Wichtig für CIM-Analysen und Matching mit Immobilien
+                  </p>
                 </div>
 
                 <div>
@@ -1905,7 +2023,7 @@ const ContactDetail = ({ user }) => {
                     value={editingContact.category || ''}
                     onChange={(e) => updateEditingContact('category', e.target.value)}
                     className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
-                    placeholder="z.B. Eigentümer, Kaufinteressent"
+                    placeholder="z.B. Käufer, Verkäufer, Investor, Makler"
                   />
                 </div>
               </div>

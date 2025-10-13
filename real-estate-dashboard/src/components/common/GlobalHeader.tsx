@@ -1,11 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useCurrentUser } from '../../hooks/useApi';
+import { useAuth } from '../../contexts/AuthContext';
 import { Sun, Moon, Bell, User, Settings, LogOut, HelpCircle, Shield, CreditCard } from 'lucide-react';
 import GlobalSearch from './GlobalSearch';
+import { useNotifications, useUnreadCount } from '../../hooks/useNotifications';
+import { 
+  NOTIFICATION_TYPE_CONFIG,
+  NOTIFICATION_CATEGORY_CONFIG,
+  type Notification as NotificationType 
+} from '../../types/notification';
+import { formatDistanceToNow } from 'date-fns';
+import { de } from 'date-fns/locale';
 
 const GlobalHeader: React.FC = () => {
   const { data: user } = useCurrentUser();
+  const { clearAuth } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -41,6 +51,14 @@ const GlobalHeader: React.FC = () => {
     }
   }, []);
 
+  // Real notifications from backend (MUST be called before any early returns!)
+  const { data: unreadCountData } = useUnreadCount(60000); // Poll every minute
+  const { notifications: recentNotifications, isLoading: notificationsLoading } = useNotifications({
+    page: 1,
+    size: 5, // Show only 5 most recent in dropdown
+    filters: { read: false }, // Only unread
+  });
+
   // Toggle dark mode
   const toggleDarkMode = () => {
     const newDarkMode = !isDarkMode;
@@ -64,61 +82,49 @@ const GlobalHeader: React.FC = () => {
   const userName = hasValidName ? `${user.first_name} ${user.last_name}` : user.email;
   const userInitials = userName.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
 
-  // Mock notifications
-  const notifications = [
-    {
-      id: 1,
-      type: 'success',
-      icon: 'ri-check-line',
-      color: 'text-green-600 dark:text-green-400',
-      bgColor: 'bg-green-100 dark:bg-green-900/30',
-      title: 'Beitrag veröffentlicht',
-      message: 'Ihr Instagram Post wurde erfolgreich veröffentlicht',
-      time: 'vor 5 Minuten',
-      unread: true,
-    },
-    {
-      id: 2,
-      type: 'info',
-      icon: 'ri-user-add-line',
-      color: 'text-blue-600 dark:text-blue-400',
-      bgColor: 'bg-blue-100 dark:bg-blue-900/30',
-      title: 'Neuer Kontakt',
-      message: 'Max Mustermann wurde zu Ihren Kontakten hinzugefügt',
-      time: 'vor 1 Stunde',
-      unread: true,
-    },
-    {
-      id: 3,
-      type: 'warning',
-      icon: 'ri-calendar-line',
-      color: 'text-orange-600 dark:text-orange-400',
-      bgColor: 'bg-orange-100 dark:bg-orange-900/30',
-      title: 'Termin-Erinnerung',
-      message: 'Meeting mit Kunde in 30 Minuten',
-      time: 'vor 2 Stunden',
-      unread: false,
-    },
-    {
-      id: 4,
-      type: 'info',
-      icon: 'ri-file-text-line',
-      color: 'text-purple-600 dark:text-purple-400',
-      bgColor: 'bg-purple-100 dark:bg-purple-900/30',
-      title: 'Dokument hochgeladen',
-      message: 'Neues Dokument "Vertrag_2024.pdf" wurde hinzugefügt',
-      time: 'vor 3 Stunden',
-      unread: false,
-    },
-  ];
+  const unreadCount = unreadCountData || 0;
 
-  const unreadCount = notifications.filter(n => n.unread).length;
+  // Helper function to format notification time
+  const formatNotificationTime = (dateString: string) => {
+    try {
+      return formatDistanceToNow(new Date(dateString), { 
+        addSuffix: true,
+        locale: de 
+      });
+    } catch {
+      return dateString;
+    }
+  };
+
+  // Helper function to get notification display config
+  const getNotificationConfig = (notification: NotificationType) => {
+    const typeConfig = NOTIFICATION_TYPE_CONFIG[notification.type];
+    return {
+      icon: notification.metadata?.icon || typeConfig.icon,
+      color: typeConfig.color,
+      bgColor: typeConfig.bgColor,
+    };
+  };
 
   const handleLogout = () => {
-    // Clear auth token
+    console.log('🚪 GlobalHeader: Logout initiiert');
+    
+    // Clear auth using AuthContext
+    clearAuth();
+    
+    // Also clear any legacy tokens
     localStorage.removeItem('authToken');
+    localStorage.removeItem('user');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('tokenExpiry');
+    
+    // Close user menu
+    setShowUserMenu(false);
+    
+    console.log('✅ GlobalHeader: Alle Auth-Daten gelöscht, Weiterleitung zu /login');
+    
     // Redirect to login
-    navigate('/login');
+    navigate('/login', { replace: true });
   };
 
   // Get page title based on current route
@@ -173,6 +179,10 @@ const GlobalHeader: React.FC = () => {
         return 'Kontakte';
       case '/properties':
         return 'Immobilien';
+      case '/profile':
+        return 'Mein Profil';
+      case '/admin':
+        return 'Admin-Konsole';
       case '/settings':
         return 'Einstellungen';
       case '/social-hub':
@@ -265,41 +275,69 @@ const GlobalHeader: React.FC = () => {
 
                 {/* Notifications List */}
                 <div className="max-h-80 overflow-y-auto">
-                  {notifications.map((notification) => (
-                    <div
-                      key={notification.id}
-                      className={`p-3 border-b border-gray-100 dark:border-glass-dark-border hover:bg-gray-50 dark:hover:bg-glass-dark-hover transition-colors cursor-pointer ${
-                        notification.unread ? 'bg-blue-50/50 dark:bg-glass-blue' : ''
-                      }`}
-                    >
-                      <div className="flex items-start gap-2.5">
-                        <div className={`w-8 h-8 ${notification.bgColor} rounded-lg flex items-center justify-center flex-shrink-0`}>
-                          <i className={`${notification.icon} ${notification.color} text-sm`}></i>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-2">
-                            <p className="font-semibold text-xs text-gray-900 dark:text-dark-text-primary">
-                              {notification.title}
-                            </p>
-                            {notification.unread && (
-                              <div className="w-1.5 h-1.5 bg-apple-blue rounded-full flex-shrink-0 mt-1"></div>
-                            )}
-                          </div>
-                          <p className="text-xs text-gray-600 dark:text-dark-text-secondary mt-0.5 line-clamp-2">
-                            {notification.message}
-                          </p>
-                          <p className="text-xs text-gray-500 dark:text-dark-text-tertiary mt-1">
-                            {notification.time}
-                          </p>
-                        </div>
-                      </div>
+                  {notificationsLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
                     </div>
-                  ))}
+                  ) : recentNotifications.length === 0 ? (
+                    <div className="py-8 text-center">
+                      <Bell className="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-2" />
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Keine neuen Benachrichtigungen
+                      </p>
+                    </div>
+                  ) : (
+                    recentNotifications.map((notification) => {
+                      const config = getNotificationConfig(notification);
+                      return (
+                        <div
+                          key={notification.id}
+                          onClick={() => {
+                            if (notification.action_url) {
+                              navigate(notification.action_url);
+                              setShowNotifications(false);
+                            }
+                          }}
+                          className={`p-3 border-b border-gray-100 dark:border-glass-dark-border hover:bg-gray-50 dark:hover:bg-glass-dark-hover transition-colors cursor-pointer ${
+                            !notification.read ? 'bg-blue-50/50 dark:bg-glass-blue' : ''
+                          }`}
+                        >
+                          <div className="flex items-start gap-2.5">
+                            <div className={`w-8 h-8 ${config.bgColor} rounded-lg flex items-center justify-center flex-shrink-0`}>
+                              <i className={`${config.icon} ${config.color} text-sm`}></i>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between gap-2">
+                                <p className="font-semibold text-xs text-gray-900 dark:text-dark-text-primary">
+                                  {notification.title}
+                                </p>
+                                {!notification.read && (
+                                  <div className="w-1.5 h-1.5 bg-apple-blue rounded-full flex-shrink-0 mt-1"></div>
+                                )}
+                              </div>
+                              <p className="text-xs text-gray-600 dark:text-dark-text-secondary mt-0.5 line-clamp-2">
+                                {notification.message}
+                              </p>
+                              <p className="text-xs text-gray-500 dark:text-dark-text-tertiary mt-1">
+                                {formatNotificationTime(notification.created_at)}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
 
                 {/* Footer */}
                 <div className="p-2 border-t border-gray-200 dark:border-glass-dark-border bg-gray-50 dark:bg-dark-300/50 backdrop-blur-xl">
-                  <button className="w-full text-center text-xs font-medium text-apple-blue dark:text-apple-blue hover:text-blue-700 dark:hover:text-blue-300 transition-colors py-1">
+                  <button 
+                    onClick={() => {
+                      navigate('/notifications');
+                      setShowNotifications(false);
+                    }}
+                    className="w-full text-center text-xs font-medium text-apple-blue dark:text-apple-blue hover:text-blue-700 dark:hover:text-blue-300 transition-colors py-1"
+                  >
                     Alle Benachrichtigungen anzeigen
                   </button>
                 </div>
@@ -367,6 +405,21 @@ const GlobalHeader: React.FC = () => {
 
                   <button
                     onClick={() => {
+                      navigate('/admin');
+                      setShowUserMenu(false);
+                    }}
+                    className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-glass-dark-hover transition-colors text-left hover:scale-102"
+                  >
+                    <Shield className="w-4 h-4 text-gray-600 dark:text-dark-text-tertiary flex-shrink-0" />
+                    <span className="text-xs font-medium text-gray-900 dark:text-dark-text-primary">
+                      Admin-Konsole
+                    </span>
+                  </button>
+
+                  <div className="h-px bg-gray-200 dark:bg-glass-dark-border my-1.5" />
+
+                  <button
+                    onClick={() => {
                       navigate('/settings');
                       setShowUserMenu(false);
                     }}
@@ -391,18 +444,7 @@ const GlobalHeader: React.FC = () => {
                     </span>
                   </button>
 
-                  <button
-                    onClick={() => {
-                      navigate('/admin');
-                      setShowUserMenu(false);
-                    }}
-                    className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-glass-dark-hover transition-colors text-left hover:scale-102"
-                  >
-                    <Shield className="w-4 h-4 text-gray-600 dark:text-dark-text-tertiary flex-shrink-0" />
-                    <span className="text-xs font-medium text-gray-900 dark:text-dark-text-primary">
-                      Verwaltung
-                    </span>
-                  </button>
+                  <div className="h-px bg-gray-200 dark:bg-glass-dark-border my-1.5" />
 
                   <button
                     onClick={() => {

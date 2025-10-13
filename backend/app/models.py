@@ -20,6 +20,8 @@ from .db.models import (
     Appointment,
     Attendee,
     AuditLog,
+    Notification,
+    NotificationPreference,
 )
 
 __all__ = [
@@ -42,4 +44,6 @@ __all__ = [
     'Appointment',
     'Attendee',
     'AuditLog',
+    'Notification',
+    'NotificationPreference',
 ]

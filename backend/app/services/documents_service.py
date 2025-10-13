@@ -4,10 +4,10 @@ Documents Service
 from typing import Optional, List, Dict, Any, Tuple
 from datetime import datetime
 from django.db import models
-from django.contrib.auth.models import User
 from django.db.models import Q, Count, Sum
+from asgiref.sync import sync_to_async
 
-from app.db.models import Document, DocumentFolder, Tenant
+from app.db.models import Document, DocumentFolder, Tenant, User
 from app.schemas.documents import (
     DocumentResponse, DocumentFolderResponse, DocumentAnalyticsResponse,
     UploadMetadataRequest, CreateFolderRequest, UpdateDocumentRequest

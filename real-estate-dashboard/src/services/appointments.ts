@@ -23,8 +23,8 @@ class AppointmentsService {
    * GET /appointments - Termine auflisten
    */
   async listAppointments(params: AppointmentListParams = {}): Promise<AppointmentResponse[]> {
-    const response = await apiClient.get<AppointmentResponse[]>('/appointments', params);
-    return response.data;
+    const response = await apiClient.get<AppointmentResponse[]>('/appointments', { params });
+    return response;
   }
 
   /**
@@ -32,7 +32,7 @@ class AppointmentsService {
    */
   async createAppointment(payload: CreateAppointmentRequest): Promise<AppointmentResponse> {
     const response = await apiClient.post<AppointmentResponse>('/appointments', payload);
-    return response.data;
+    return response;
   }
 
   /**
@@ -40,7 +40,7 @@ class AppointmentsService {
    */
   async updateAppointment(id: string, payload: Partial<CreateAppointmentRequest>): Promise<AppointmentResponse> {
     const response = await apiClient.put<AppointmentResponse>(`/appointments/${id}`, payload);
-    return response.data;
+    return response;
   }
 
   /**

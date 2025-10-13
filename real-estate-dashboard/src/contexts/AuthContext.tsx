@@ -1,6 +1,5 @@
 /**
- * Auth Context für Token und Tenant-ID Verwaltung
- * Integriert mit dem API Client
+ * EINFACHER Auth Context - KEINE automatischen Löschungen
  */
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
@@ -33,70 +32,68 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [tenantId, setTenantId] = useState<string | null>(null);
 
   const setAuth = (newToken: string, newTenantId: string) => {
+    console.log('🔐 AuthContext: Setting auth', {
+      token: newToken.substring(0, 20) + '...',
+      tenantId: newTenantId
+    });
+    
     setToken(newToken);
     setTenantId(newTenantId);
-    apiClient.setAuth(newToken, newTenantId);
     
-    // Persistiere in localStorage
+    // Speichere in localStorage - EINFACH
     localStorage.setItem('auth_token', newToken);
     localStorage.setItem('tenant_id', newTenantId);
+    
+    // Setze auch im API Client
+    apiClient.setAuthToken(newToken, newTenantId);
+    
+    console.log('✅ AuthContext: Auth set successfully');
+    
+    // Debug localStorage nach setAuth
+    setTimeout(() => {
+      console.log('🔍 localStorage after setAuth:', {
+        auth_token: localStorage.getItem('auth_token'),
+        tenant_id: localStorage.getItem('tenant_id')
+      });
+    }, 50);
   };
 
   const clearAuth = () => {
+    console.log('🚪 AuthContext: MANUAL clear auth - nur auf expliziten Aufruf');
     setToken(null);
     setTenantId(null);
+    
+    // Entferne aus localStorage
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('tenant_id');
+    localStorage.removeItem('refresh_token');
+    
+    // Clear auch im API Client
     apiClient.clearAuth();
     
-    // Entferne aus localStorage - all possible keys
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('tenant_id');
-    localStorage.removeItem('tenantId');
-    localStorage.removeItem('tenantSlug');
+    console.log('✅ AuthContext: Auth cleared successfully');
   };
 
-  // Authentication is valid if we have at least a token
-  // Tenant ID is optional for some endpoints
+  // Authentication is valid if we have a token
   const isAuthenticated = Boolean(token);
 
-  // Initialisierung beim Mount
+  // Initialisierung beim Mount - lade Tokens aus localStorage
   useEffect(() => {
-    // Try multiple key names for backward compatibility
-    const savedToken = localStorage.getItem('authToken') || 
-                        localStorage.getItem('auth_token') || 
-                        localStorage.getItem('access_token');
+    const savedToken = localStorage.getItem('auth_token');
+    const savedTenantId = localStorage.getItem('tenant_id');
     
-    const savedTenantId = localStorage.getItem('tenantId') || 
-                          localStorage.getItem('tenant_id') || 
-                          localStorage.getItem('tenantSlug');
-    
-    console.log('🔍 Auth initialization - checking localStorage:', {
-      authToken: !!localStorage.getItem('authToken'),
-      auth_token: !!localStorage.getItem('auth_token'),
-      access_token: !!localStorage.getItem('access_token'),
-      tenantId: !!localStorage.getItem('tenantId'),
-      tenant_id: !!localStorage.getItem('tenant_id'),
-      tenantSlug: !!localStorage.getItem('tenantSlug'),
-      foundToken: !!savedToken,
-      foundTenantId: !!savedTenantId
+    console.log('🔄 AuthContext: Initializing from localStorage', {
+      hasToken: !!savedToken,
+      hasTenantId: !!savedTenantId
     });
     
-    if (savedToken) {
-      console.log('✅ Loading auth token from localStorage');
+    if (savedToken && savedTenantId) {
       setToken(savedToken);
-      
-      if (savedTenantId) {
-        console.log('✅ Loading tenant ID from localStorage');
-        setTenantId(savedTenantId);
-        apiClient.setAuth(savedToken, savedTenantId);
-      } else {
-        console.log('⚠️ No tenant ID found - setting token only');
-        // Set token even without tenant ID for now
-        apiClient.setAuthToken(savedToken);
-      }
+      setTenantId(savedTenantId);
+      apiClient.setAuthToken(savedToken, savedTenantId);
+      console.log('✅ AuthContext: Tokens loaded from localStorage');
     } else {
-      console.log('❌ No auth token found in localStorage');
+      console.log('⚠️ AuthContext: No tokens found in localStorage');
     }
   }, []);
 

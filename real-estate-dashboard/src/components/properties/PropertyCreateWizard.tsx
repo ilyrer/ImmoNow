@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Trash2, GripVertical } from 'lucide-react';
-import { useCreateProperty } from '../../hooks/useApi';
+import { useCreateProperty } from '../../api/hooks';
 import api from '../../services/api.service';
 import { PropertyResponse } from '../../lib/api/types';
 
@@ -116,19 +116,22 @@ const PropertyCreateWizard: React.FC = () => {
     setImgProgress(0);
     setDocProgress(0);
     try {
-      const created = await (createMutation.mutateAsync as any)({
+      const created = await createMutation.mutateAsync({
         ...form,
         location: form.location || form.address.city,
-      } as Partial<PropertyResponse>);
-      const propId = (created as any).id as string;
+      });
+      
+      // created ist jetzt ein PropertyResponse Objekt mit .id
+      const propId = created.id;
       toast.success('Immobilie erstellt');
+      
       // Upload media if any
       if (images.length) {
         const results = await api.uploadPropertyImages(propId, images, { onProgress: (p: number) => setImgProgress(p) });
         toast.success(`${images.length} Bild(er) hochgeladen`);
         if (mainImageIndex !== null && results[mainImageIndex]) {
           try {
-            await api.setPropertyMainImage((results[mainImageIndex] as any).id);
+            await api.setPrimaryImage(propId, (results[mainImageIndex] as any).id);
             toast.success('Hauptbild gesetzt');
           } catch (e) {
             // non-blocking
@@ -140,7 +143,7 @@ const PropertyCreateWizard: React.FC = () => {
         await api.uploadPropertyDocuments(propId, docs, { onProgress: (p: number) => setDocProgress(p) });
         toast.success(`${docs.length} Dokument(e) hochgeladen`);
       }
-      navigate(`/immobilien/${propId}`);
+      navigate(`/properties/${propId}`);
     } catch (err: any) {
       const msg = err?.response?.data?.detail || err?.message || 'Erstellen fehlgeschlagen.';
       setMessages((m) => [String(msg), ...m].slice(0, 8));

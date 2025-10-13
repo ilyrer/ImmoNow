@@ -36,10 +36,11 @@ from app.schemas.auth import (
 from app.core.errors import UnauthorizedError, ConflictError, NotFoundError
 
 
-# JWT Settings
-SECRET_KEY = getattr(settings, 'SECRET_KEY', 'your-secret-key-change-in-production')
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60  # 1 hour
+# JWT Settings - aus Pydantic Settings holen
+from app.core.settings import settings
+SECRET_KEY = settings.JWT_SECRET_KEY  # Verwende JWT_SECRET_KEY statt SECRET_KEY
+ALGORITHM = settings.JWT_ALGORITHM
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES
 REFRESH_TOKEN_EXPIRE_DAYS = 30  # 30 days
 
 
@@ -79,10 +80,21 @@ class AuthService:
             "role": role,
             "exp": expire,
             "iat": datetime.utcnow(),
-            "type": "access"
+            "type": "access",
+            "scopes": ["read", "write", "delete"] if role in ["owner", "admin"] else ["read"]
         }
         
+        print(f"🔍 AuthService: Creating token with payload: {payload}")
+        print(f"🔍 AuthService: Using JWT_SECRET_KEY: {SECRET_KEY[:20]}...")
+        print(f"🔍 AuthService: Using ALGORITHM: {ALGORITHM}")
+        print(f"🔍 AuthService: JWT_SECRET_KEY length: {len(SECRET_KEY)}")
+        print(f"🔍 AuthService: JWT_SECRET_KEY type: {type(SECRET_KEY)}")
+        
         encoded_jwt = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+        print(f"✅ AuthService: Token created: {encoded_jwt[:50]}...")
+        print(f"✅ AuthService: Token length: {len(encoded_jwt)}")
+        print(f"✅ AuthService: Token parts: {encoded_jwt.count('.')}")
+        
         return encoded_jwt
     
     @staticmethod
@@ -114,11 +126,29 @@ class AuthService:
     def decode_token(token: str) -> TokenPayload:
         """Decode and verify JWT token"""
         try:
+            print(f"🔍 AuthService: Decoding token: {token[:20]}...")
+            print(f"🔍 AuthService: Using JWT_SECRET_KEY: {SECRET_KEY[:20]}...")
+            print(f"🔍 AuthService: Using ALGORITHM: {ALGORITHM}")
+            print(f"🔍 AuthService: Token length: {len(token)}")
+            print(f"🔍 AuthService: Token parts: {token.count('.')}")
+            print(f"🔍 AuthService: JWT_SECRET_KEY length: {len(SECRET_KEY)}")
+            print(f"🔍 AuthService: JWT_SECRET_KEY type: {type(SECRET_KEY)}")
+            
+            # Prüfe Token-Format
+            if token.count('.') != 2:
+                print(f"❌ AuthService: Invalid token format - expected 3 parts, got {token.count('.') + 1}")
+                raise UnauthorizedError("Invalid token format")
+            
             payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            print(f"✅ AuthService: Token decoded successfully: {payload}")
+            
             return TokenPayload(**payload)
         except jwt.ExpiredSignatureError:
+            print("❌ AuthService: Token has expired")
             raise UnauthorizedError("Token has expired")
-        except jwt.JWTError:
+        except jwt.PyJWTError as e:
+            print(f"❌ AuthService: Invalid token - {str(e)}")
+            print(f"❌ AuthService: Error type: {type(e).__name__}")
             raise UnauthorizedError("Invalid token")
     
     @staticmethod

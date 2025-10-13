@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useCIMOverview } from '../../hooks/useCIM';
 import { 
   RecentPropertySummary, 
   RecentContactSummary, 
   CIMSummary, 
-  CIMFilters,
   PerfectMatch
-} from '../../api/cim/api';
-import { cimApiService } from '../../api/cim/api';
+} from '../../lib/api/types';
 import { 
   Building2, 
   Users, 
@@ -32,39 +31,24 @@ import {
 
 const CIMOverview: React.FC = () => {
   const navigate = useNavigate();
-  const [properties, setProperties] = useState<RecentPropertySummary[]>([]);
-  const [contacts, setContacts] = useState<RecentContactSummary[]>([]);
-  const [perfectMatches, setPerfectMatches] = useState<PerfectMatch[]>([]);
-  const [summary, setSummary] = useState<CIMSummary | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [filters, setFilters] = useState<CIMFilters>({
+  
+  // Verwende den React Query Hook
+  const { data: cimData, isLoading, error: queryError, refetch } = useCIMOverview({
     limit: 10,
-    days_back: 7
+    days_back: 30
+  });
+
+  // Mappe die Daten zu lokalen Variablen
+  const properties = cimData?.recent_properties || [];
+  const contacts = cimData?.recent_contacts || [];
+  const perfectMatches = cimData?.perfect_matches || [];
+  const summary = cimData?.summary || null;
+  
+  const [filters, setFilters] = useState({
+    limit: 10,
+    days_back: 30
   });
   const [viewMode, setViewMode] = useState<'cards' | 'charts'>('cards');
-
-  useEffect(() => {
-    loadCIMData();
-  }, [filters]);
-
-  const loadCIMData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const overview = await cimApiService.getOverview(filters);
-      setProperties(overview.recent_properties);
-      setContacts(overview.recent_contacts);
-      setPerfectMatches(overview.perfect_matches || []);
-      setSummary(overview.summary);
-    } catch (err) {
-      console.error('Error loading CIM data:', err);
-      setError('Fehler beim Laden der CIM-Daten');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // Helper functions for styling
   const getLeadQualityColor = (quality: string) => {
@@ -86,7 +70,7 @@ const CIMOverview: React.FC = () => {
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-slate-900 dark:via-slate-800 dark:to-indigo-900 flex items-center justify-center">
         <div className="bg-white/20 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-2xl shadow-glass p-8">
@@ -99,17 +83,19 @@ const CIMOverview: React.FC = () => {
     );
   }
 
-  if (error) {
+  if (queryError) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-slate-900 dark:via-slate-800 dark:to-indigo-900 flex items-center justify-center">
-        <div className="bg-white/20 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-2xl shadow-glass p-8">
+        <div className="bg-white/20 dark:bg-white/5 backdrop-blur-xl border border-red-300/30 dark:border-red-700/30 rounded-2xl shadow-glass p-8 max-w-md w-full mx-4">
           <div className="text-center">
-            <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Fehler beim Laden</h3>
-            <p className="text-gray-600 dark:text-gray-400 mb-4">{error}</p>
+            <div className="w-16 h-16 bg-red-100/70 dark:bg-red-900/30 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <AlertCircle className="w-8 h-8 text-red-600 dark:text-red-400" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Fehler beim Laden</h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">{String(queryError)}</p>
             <button
-              onClick={loadCIMData}
-              className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-medium rounded-xl shadow-glass hover:shadow-lg transition-all duration-300"
+              onClick={() => refetch()}
+              className="px-6 py-3 bg-gradient-to-r from-blue-500/80 to-purple-600/80 hover:from-blue-600/90 hover:to-purple-700/90 text-white rounded-xl font-medium shadow-glass transition-all duration-200 backdrop-blur-sm border border-white/20"
             >
               Erneut versuchen
             </button>
@@ -184,7 +170,7 @@ const CIMOverview: React.FC = () => {
                   </button>
                   
                   <button
-                    onClick={loadCIMData}
+                    onClick={() => refetch()}
                     className="p-2.5 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl shadow-glass hover:shadow-lg transition-all duration-300"
                   >
                     <RefreshCw className="w-4 h-4" />

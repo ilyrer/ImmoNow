@@ -45,8 +45,8 @@ class DocumentsService {
    * GET /documents - Dokumente auflisten
    */
   async listDocuments(params: DocumentListParams): Promise<DocumentListResponse> {
-    const response = await apiClient.get<DocumentListResponse>('/documents', params);
-    return response.data;
+    const response = await apiClient.get<DocumentListResponse>('/documents', { params });
+    return response;
   }
 
   /**
@@ -70,10 +70,7 @@ class DocumentsService {
       headers['Idempotency-Key'] = idempotencyKey;
     }
 
-    const response = await apiClient.request<DocumentResponse>({
-      method: 'POST',
-      url: '/documents/upload',
-      data: formData,
+    const response = await apiClient.post<DocumentResponse>('/documents/upload', formData, {
       headers,
       onUploadProgress: onProgress ? (event) => {
         if (event.lengthComputable) {
@@ -83,7 +80,7 @@ class DocumentsService {
       } : undefined,
     });
 
-    return response.data;
+    return response;
   }
 
   /**
@@ -91,7 +88,7 @@ class DocumentsService {
    */
   async toggleFavorite(id: string): Promise<{ is_favorite: boolean }> {
     const response = await apiClient.put<{ is_favorite: boolean }>(`/documents/${id}/favorite`);
-    return response.data;
+    return response;
   }
 
   /**
@@ -106,7 +103,7 @@ class DocumentsService {
    */
   async listFolders(): Promise<DocumentFolderResponse[]> {
     const response = await apiClient.get<DocumentFolderResponse[]>('/documents/folders');
-    return response.data;
+    return response;
   }
 
   /**
@@ -114,7 +111,7 @@ class DocumentsService {
    */
   async createFolder(payload: CreateFolderRequest): Promise<DocumentFolderResponse> {
     const response = await apiClient.post<DocumentFolderResponse>('/documents/folders', payload);
-    return response.data;
+    return response;
   }
 
   /**
@@ -129,7 +126,7 @@ class DocumentsService {
    */
   async getAnalytics(): Promise<DocumentAnalyticsResponse> {
     const response = await apiClient.get<DocumentAnalyticsResponse>('/documents/analytics');
-    return response.data;
+    return response;
   }
 }
 

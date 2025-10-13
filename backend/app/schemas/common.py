@@ -125,12 +125,23 @@ class ContactResponse(BaseModel):
     email: str
     phone: str
     company: Optional[str] = None
+    category: Optional[str] = None
     status: str
+    priority: Optional[str] = None
+    location: Optional[str] = None
+    avatar: Optional[str] = None
+    
+    # Main budget field (potential_value)
+    budget: Optional[float] = None
+    budget_currency: str
+    
+    # Legacy fields for backward compatibility
     budget_min: Optional[float] = None
     budget_max: Optional[float] = None
-    budget_currency: str
+    
     preferences: Dict[str, Any]
     lead_score: int
+    last_contact: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
     

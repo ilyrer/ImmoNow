@@ -11,8 +11,7 @@ import TopProgressBar from '../common/TopProgressBar';
 import SuccessOverlay from '../common/SuccessOverlay';
 
 // Hooks & Services
-import { useForgotPassword, usePlans, useCheckout } from '../../hooks/useApi';
-import { authService } from '../../api/services';
+import { useLogin, useRegister, useResetPassword } from '../../api/hooks';
 
 // Styles
 import './PremiumLogin.css';
@@ -46,16 +45,9 @@ const LoginPage = ({ onLogin }) => {
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
-  const forgotPw = useForgotPassword();
-  const { data: plansData } = usePlans();
-  const checkout = useCheckout();
-  const plans = (plansData?.plans || []).map(p => ({
-    id: p.id,
-    name: p.id.charAt(0).toUpperCase() + p.id.slice(1),
-    price: (p.price_cents/100).toFixed(2),
-    features: p.features || [],
-    popular: p.id === 'premium' || p.id === 'pro',
-  }));
+  const loginMutation = useLogin();
+  const registerMutation = useRegister();
+  const resetPasswordMutation = useResetPassword();
 
   // Enhanced animations
   const containerVariants = {
@@ -141,7 +133,7 @@ const LoginPage = ({ onLogin }) => {
           role: 'agent' // Backend requires role field
         };
         
-        const data = await authService.register(payload);
+        const data = await registerMutation.mutateAsync(payload);
         if (data?.access_token) localStorage.setItem('access_token', data.access_token);
         if (data?.refresh_token) localStorage.setItem('refresh_token', data.refresh_token);
         
@@ -153,15 +145,6 @@ const LoginPage = ({ onLogin }) => {
           navigate('/', { replace: true });
         }, 1500);
         toast.success('Welcome to the elite!');
-        
-        try {
-          if (formData.plan) {
-            const res = await checkout.mutateAsync({ plan: formData.plan, billing_cycle: 'monthly' });
-            if (res?.session_url) {
-              window.location.href = res.session_url;
-            }
-          }
-        } catch (_) { /* non-blocking */ }
       } catch (err) {
         const msg = err?.response?.data?.detail || err?.message || 'Registration failed';
         toast.error(String(msg));
@@ -657,7 +640,7 @@ const LoginPage = ({ onLogin }) => {
                             return;
                           }
                           try {
-                            await forgotPw.mutateAsync(email);
+                            await resetPasswordMutation.mutateAsync({ email });
                             toast.success('If an account exists, a reset email has been sent.');
                           } catch (e) {
                             toast.error('Error requesting password reset');

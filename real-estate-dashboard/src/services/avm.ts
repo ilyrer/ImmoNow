@@ -15,7 +15,7 @@ class AVMService {
    */
   async valuate(payload: AvmRequest): Promise<AvmResult> {
     const response = await apiClient.post<AvmResult>('/avm/valuate', payload);
-    return response.data;
+    return response;
   }
 }
 

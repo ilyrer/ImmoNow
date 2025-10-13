@@ -84,7 +84,21 @@ const SettingsPage: React.FC = () => {
   useEffect(() => {
     const savedSettings = localStorage.getItem('userSettings');
     if (savedSettings) {
-      setSettings({ ...settings, ...JSON.parse(savedSettings) });
+      const parsedSettings = JSON.parse(savedSettings);
+      setSettings({ ...settings, ...parsedSettings });
+    }
+    
+    // Load current theme from localStorage without changing it
+    const savedDarkMode = localStorage.getItem('darkMode') === 'true';
+    const savedTheme = savedSettings ? JSON.parse(savedSettings).theme : null;
+    
+    // Set theme state based on what's currently active
+    if (savedTheme) {
+      // Don't change anything, just set the state to match current setting
+      setSettings(prev => ({ ...prev, theme: savedTheme }));
+    } else if (savedDarkMode !== null) {
+      // Fallback to old darkMode setting
+      setSettings(prev => ({ ...prev, theme: savedDarkMode ? 'dark' : 'light' }));
     }
   }, []);
 

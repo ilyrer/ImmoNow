@@ -20,34 +20,39 @@ const LeadConversionWidget: React.FC = () => {
         setIsLoading(true);
         
         // Fetch contacts and analytics data
-        const [contactsResponse, analyticsResponse] = await Promise.all([
-          apiClient.get('/analytics/contacts'),
-          apiClient.get('/analytics/dashboard'),
+        const [contactsResponse, dashboardResponse, propertiesResponse] = await Promise.all([
+          apiClient.get('/api/v1/analytics/contacts'),
+          apiClient.get('/api/v1/analytics/dashboard'),
+          apiClient.get('/api/v1/analytics/properties')
         ]);
 
-        const contacts = contactsResponse.data || {};
-        const analytics = analyticsResponse.data || {};
+        console.log('📊 Contacts Response:', contactsResponse);
+        console.log('📊 Dashboard Response:', dashboardResponse);
+        console.log('📊 Properties Response:', propertiesResponse);
 
-        // Calculate conversion funnel stages
-        const totalLeads = contacts.total_contacts || 120;
-        const qualifiedLeads = contacts.qualified_contacts || Math.round(totalLeads * 0.71);
-        const viewings = analytics.viewings_this_month || Math.round(totalLeads * 0.43);
-        const offers = Math.round(viewings * 0.54); // Estimated
-        const closedDeals = analytics.deals_closed_this_month || Math.round(totalLeads * 0.13);
+        // Extract data correctly (no .data wrapper)
+        const totalLeads = (contactsResponse as any).total_contacts || 0;
+        const qualifiedLeads = Math.round(totalLeads * 0.71); // 71% qualified rate
+        const viewings = (dashboardResponse as any).viewings_this_week || 0;
+        const monthlyViewings = viewings * 4; // Estimate monthly from weekly
+        const offers = Math.round(monthlyViewings * 0.54); // 54% viewing to offer rate
+        const closedDeals = (propertiesResponse as any).sales_this_month || 0;
 
         const stages: ConversionStage[] = [
           { stage: 'Leads', count: totalLeads, percentage: 100, color: 'blue' },
-          { stage: 'Qualifiziert', count: qualifiedLeads, percentage: Math.round((qualifiedLeads / totalLeads) * 100), color: 'green' },
-          { stage: 'Besichtigung', count: viewings, percentage: Math.round((viewings / totalLeads) * 100), color: 'yellow' },
-          { stage: 'Angebot', count: offers, percentage: Math.round((offers / totalLeads) * 100), color: 'orange' },
-          { stage: 'Abschluss', count: closedDeals, percentage: Math.round((closedDeals / totalLeads) * 100), color: 'purple' }
+          { stage: 'Qualifiziert', count: qualifiedLeads, percentage: totalLeads > 0 ? Math.round((qualifiedLeads / totalLeads) * 100) : 0, color: 'green' },
+          { stage: 'Besichtigung', count: monthlyViewings, percentage: totalLeads > 0 ? Math.round((monthlyViewings / totalLeads) * 100) : 0, color: 'yellow' },
+          { stage: 'Angebot', count: offers, percentage: totalLeads > 0 ? Math.round((offers / totalLeads) * 100) : 0, color: 'orange' },
+          { stage: 'Abschluss', count: closedDeals, percentage: totalLeads > 0 ? Math.round((closedDeals / totalLeads) * 100) : 0, color: 'purple' }
         ];
+
+        console.log('✅ Conversion Stages:', stages);
 
         setConversionData(stages);
         setConversionRate(totalLeads > 0 ? Number(((closedDeals / totalLeads) * 100).toFixed(1)) : 0);
-        setMonthlyTarget(analytics.monthly_deals_target || 20);
+        setMonthlyTarget(20);
       } catch (error) {
-        console.error('Error fetching conversion data:', error);
+        console.error('❌ Error fetching conversion data:', error);
         // Fallback to default data
         setConversionData([
           { stage: 'Leads', count: 0, percentage: 100, color: 'blue' },

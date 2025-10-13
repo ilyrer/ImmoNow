@@ -14,10 +14,15 @@ class CreateContactRequest(BaseModel):
     email: str = Field(..., max_length=255)
     phone: str = Field(..., max_length=50)
     company: Optional[str] = Field(None, max_length=255)
-    budget_min: Optional[float] = Field(None, ge=0)
-    budget_max: Optional[float] = Field(None, ge=0)
+    category: Optional[str] = Field(None, max_length=100)
+    status: str = Field("Lead", max_length=50)
+    priority: Optional[str] = Field("medium", max_length=20)
+    location: Optional[str] = Field(None, max_length=255)
+    avatar: Optional[str] = None
+    budget: Optional[float] = Field(None, ge=0)
     budget_currency: str = Field("EUR", max_length=3)
     preferences: Dict[str, Any] = Field(default_factory=dict)
+    last_contact: Optional[datetime] = None
 
 
 class UpdateContactRequest(BaseModel):
@@ -26,12 +31,16 @@ class UpdateContactRequest(BaseModel):
     email: Optional[str] = Field(None, max_length=255)
     phone: Optional[str] = Field(None, max_length=50)
     company: Optional[str] = Field(None, max_length=255)
+    category: Optional[str] = Field(None, max_length=100)
     status: Optional[str] = None
-    budget_min: Optional[float] = Field(None, ge=0)
-    budget_max: Optional[float] = Field(None, ge=0)
+    priority: Optional[str] = None
+    location: Optional[str] = None
+    avatar: Optional[str] = None
+    budget: Optional[float] = Field(None, ge=0)
     budget_currency: Optional[str] = Field(None, max_length=3)
     preferences: Optional[Dict[str, Any]] = None
     lead_score: Optional[int] = Field(None, ge=0, le=100)
+    last_contact: Optional[datetime] = None
 
 
 class ContactListResponse(BaseModel):

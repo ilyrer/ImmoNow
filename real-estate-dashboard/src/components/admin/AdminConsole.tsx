@@ -13,7 +13,7 @@ import RolesTab from './tabs/RolesTab';
 import PayrollTab from './tabs/PayrollTab';
 import DocumentsTab from './tabs/DocumentsTab';
 import AuditTab from './tabs/AuditTab';
-import OrganizationTab from './tabs/OrganizationTab';
+import { OrganizationTab } from './tabs/OrganizationTab';
 
 type AdminTab = 'employees' | 'roles' | 'payroll' | 'documents' | 'audit' | 'organization';
 

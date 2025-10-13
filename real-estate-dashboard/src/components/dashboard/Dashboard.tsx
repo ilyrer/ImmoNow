@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, ComposedChart, BarChart, Bar } from 'recharts';
 import { motion } from 'framer-motion';
-// Use centralized API services
-import { propertyService, measuresService, dashboardAnalyticsService } from '../../api/services';
+// Use new API hooks
+import { useDashboardAnalytics, useProperties } from '../../api/hooks';
+import { apiClient } from '../../lib/api/client';
 import { PropertyDistributionChart, StatusOverviewChart } from './charts';
 
 // API-gestützte Dashboard-Daten (werden via useEffect geladen)
@@ -160,16 +161,16 @@ const Dashboard: React.FC = () => {
     let mounted = true;
     (async () => {
       try {
-        // Real analytics
-  const [overview, performance, propertyAnalytics, latestProps] = await Promise.all([
-          dashboardAnalyticsService.getOverview(),
-          dashboardAnalyticsService.getPerformance({ period_days: 90 }),
-          dashboardAnalyticsService.getPropertyAnalytics(),
-          dashboardAnalyticsService.getLatestPropertiesSimple(6),
+        // Real analytics - using new API hooks
+        const [overview, performance, propertyAnalytics, latestProps] = await Promise.all([
+          apiClient.get('/api/v1/analytics/dashboard'),
+          apiClient.get('/api/v1/analytics/performance'),
+          apiClient.get('/api/v1/analytics/properties'),
+          apiClient.get('/api/v1/properties?limit=6'),
         ]);
         if (!mounted) return;
         // Map performance: synthesize to previous shape for cards/charts
-        const perfSeries = (performance?.data?.daily_trends || []).map((d: any) => ({
+        const perfSeries = ((performance as any)?.data?.daily_trends || []).map((d: any) => ({
           name: d.date,
           anfragen: d.contacts || 0,
           besichtigungen: d.properties || 0,
@@ -179,7 +180,7 @@ const Dashboard: React.FC = () => {
         setPerformanceData(perfSeries);
 
         // KPIs from overview/performance
-        const summary = performance?.data?.summary || overview?.data?.performance_trends || {};
+        const summary = (performance as any)?.data?.summary || (overview as any)?.data?.performance_trends || {};
         setKpi({
           anfragen: Number(summary.new_contacts ?? 0),
           besichtigungen: Number(summary.new_properties ?? 0),
@@ -188,13 +189,13 @@ const Dashboard: React.FC = () => {
         });
 
         // Property type/status distributions
-        const typeDist = dashboardAnalyticsService.mapPropertyTypesToChart(propertyAnalytics?.data?.by_type || []);
-        const statusDist = dashboardAnalyticsService.mapStatusToChart(propertyAnalytics?.data?.by_status || []);
+        const typeDist = (propertyAnalytics as any)?.data?.by_type || [];
+        const statusDist = (propertyAnalytics as any)?.data?.by_status || [];
         setPropertyTypeData(typeDist);
         setStatusData(statusDist);
 
         // Activity: synthesize simple weekly bars from overview.recent_activities counts
-        const recent = Array.isArray(overview?.data?.recent_activities) ? overview.data.recent_activities : [];
+        const recent = Array.isArray((overview as any)?.data?.recent_activities) ? (overview as any).data.recent_activities : [];
         const byDay = new Map<string, { name: string; besucher: number; anfragen: number }>();
         for (const a of recent) {
           const day = (a.timestamp || '').slice(0, 10) || 'N/A';
@@ -206,8 +207,8 @@ const Dashboard: React.FC = () => {
 
         // Measures: fetch from real measures endpoint (active first page)
         try {
-          const mres = await measuresService.list({ is_active: true, page: 1, size: 5 });
-          const rows = (mres?.metrics || mres?.items || []).map((m: any) => ({
+          const mres = await apiClient.get('/api/v1/tasks?is_active=true&page=1&size=5');
+          const rows = ((mres as any)?.metrics || (mres as any)?.items || []).map((m: any) => ({
             id: m.id,
             title: m.display_name || m.name,
             status: m.is_active ? 'In Umsetzung' : 'Erledigt',
@@ -225,7 +226,7 @@ const Dashboard: React.FC = () => {
         setProperties(latestProps as any);
 
         // Status options derived from stats
-        setPropertyStatusOptions(dashboardAnalyticsService.buildStatusOptions(statusDist));
+        setPropertyStatusOptions(statusDist.map((s: any) => ({ value: s.name, label: s.name, color: '#3B82F6' })));
 
   // removed unused market/trend local state
       } catch (e) {
@@ -281,7 +282,7 @@ const Dashboard: React.FC = () => {
     
     try {
       // Update using centralized property service
-      await propertyService.updateStatus(String(propertyId), newStatus);
+      await apiClient.put(`/api/v1/properties/${propertyId}`, { status: newStatus });
       
       // Aktualisiere den Status in der lokalen State
       setProperties(prevProperties => 
