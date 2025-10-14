@@ -4,12 +4,19 @@ Audit Service
 from typing import Optional, Dict, Any
 from datetime import datetime
 from django.db import models
+import logging
+from asgiref.sync import sync_to_async
 
 from app.db.models import AuditLog, User
+
+logger = logging.getLogger(__name__)
 
 
 class AuditService:
     """Audit service for logging actions"""
+    
+    def __init__(self, tenant_id: str):
+        self.tenant_id = tenant_id
     
     @staticmethod
     def audit_action(
@@ -44,6 +51,28 @@ class AuditService:
         )
         
         return audit_log
+    
+    async def log_llm_request(self, audit_log: 'LLMAuditLog'):
+        """Log LLM request for audit trail"""
+        try:
+            await sync_to_async(AuditLog.objects.create)(
+                tenant_id=self.tenant_id,
+                user_id=audit_log.user_id,
+                action='llm_request',
+                resource_type='llm',
+                resource_id=audit_log.request_id or 'unknown',
+                details={
+                    'request_type': audit_log.request_type,
+                    'model': audit_log.model,
+                    'tokens_used': audit_log.tokens_used,
+                    'prompt_length': len(audit_log.prompt),
+                    'response_length': len(audit_log.response)
+                },
+                ip_address='127.0.0.1',  # Will be set by middleware
+                user_agent='LLM-Service'
+            )
+        except Exception as e:
+            logger.error(f"Failed to log LLM request: {str(e)}")
     
     @staticmethod
     def get_audit_logs(

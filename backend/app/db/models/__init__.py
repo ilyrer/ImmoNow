@@ -21,6 +21,12 @@ __all__ = [
     'UserProfile',
     'DocumentFolder',
     'Document',
+    'DocumentVersion',
+    'SocialAccount',
+    'SocialPost',
+    'Permission',
+    'Role',
+    'FeatureFlag',
     'Task',
     'TaskLabel',
     'TaskComment',
@@ -48,6 +54,7 @@ class UserProfile(models.Model):
         ('employee', 'Employee'),
         ('customer', 'Customer'),
     ])
+    roles = models.ManyToManyField('Role', related_name='users', blank=True)  # RBAC roles
     avatar = models.URLField(blank=True, null=True)
     is_active = models.BooleanField(default=True)
     last_login = models.DateTimeField(blank=True, null=True)
@@ -124,6 +131,7 @@ class Document(models.Model):
     VISIBILITY_CHOICES = [
         ('public', 'Public'),
         ('private', 'Private'),
+        ('team', 'Team'),
         ('restricted', 'Restricted'),
     ]
     
@@ -140,6 +148,9 @@ class Document(models.Model):
     mime_type = models.CharField(max_length=100)
     url = models.URLField()
     thumbnail_url = models.URLField(blank=True, null=True)
+    checksum = models.CharField(max_length=64, blank=True, null=True)  # SHA256 hash
+    search_vector = models.TextField(blank=True, null=True)  # For full-text search
+    ocr_text = models.TextField(blank=True, null=True)  # OCR extracted text
     property_id = models.UUIDField(blank=True, null=True)
     property_title = models.CharField(max_length=255, blank=True, null=True)
     contact_id = models.UUIDField(blank=True, null=True)
@@ -169,6 +180,165 @@ class Document(models.Model):
     
     def __str__(self):
         return self.title
+
+
+class DocumentVersion(models.Model):
+    """Document version model for versioning"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    document = models.ForeignKey(Document, on_delete=models.CASCADE, related_name='versions')
+    version_number = models.IntegerField()
+    file_url = models.URLField()
+    file_size = models.BigIntegerField()
+    checksum = models.CharField(max_length=64)  # SHA256 hash
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    change_notes = models.TextField(blank=True, null=True)
+    
+    class Meta:
+        db_table = 'document_versions'
+        indexes = [
+            models.Index(fields=['document', 'version_number']),
+            models.Index(fields=['document', 'created_at']),
+        ]
+        unique_together = ['document', 'version_number']
+    
+    def __str__(self):
+        return f"{self.document.title} v{self.version_number}"
+
+
+# Social Media Models
+class SocialAccount(models.Model):
+    """Social media account model"""
+    PLATFORM_CHOICES = [
+        ('facebook', 'Facebook'),
+        ('linkedin', 'LinkedIn'),
+        ('twitter', 'Twitter'),
+        ('instagram', 'Instagram'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='social_accounts')
+    platform = models.CharField(max_length=20, choices=PLATFORM_CHOICES)
+    account_id = models.CharField(max_length=255)  # Platform-specific account ID
+    account_name = models.CharField(max_length=255)
+    access_token = models.TextField()  # Encrypted token
+    refresh_token = models.TextField(blank=True, null=True)  # Encrypted refresh token
+    token_expires_at = models.DateTimeField(blank=True, null=True)
+    is_active = models.BooleanField(default=True)
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_sync_at = models.DateTimeField(blank=True, null=True)
+    
+    class Meta:
+        db_table = 'social_accounts'
+        indexes = [
+            models.Index(fields=['tenant', 'platform']),
+            models.Index(fields=['tenant', 'is_active']),
+        ]
+        unique_together = ['tenant', 'platform', 'account_id']
+    
+    def __str__(self):
+        return f"{self.platform}: {self.account_name}"
+
+
+class SocialPost(models.Model):
+    """Social media post model"""
+    STATUS_CHOICES = [
+        ('draft', 'Draft'),
+        ('scheduled', 'Scheduled'),
+        ('published', 'Published'),
+        ('failed', 'Failed'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='social_posts')
+    account = models.ForeignKey(SocialAccount, on_delete=models.CASCADE, related_name='posts')
+    content = models.TextField()
+    media_urls = models.JSONField(default=list, blank=True)  # List of media URLs
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+    scheduled_at = models.DateTimeField(blank=True, null=True)
+    published_at = models.DateTimeField(blank=True, null=True)
+    platform_post_id = models.CharField(max_length=255, blank=True, null=True)  # Platform's post ID
+    metrics = models.JSONField(default=dict, blank=True)  # reach, clicks, comments, shares
+    error_message = models.TextField(blank=True, null=True)
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'social_posts'
+        indexes = [
+            models.Index(fields=['tenant', 'status']),
+            models.Index(fields=['tenant', 'scheduled_at']),
+            models.Index(fields=['tenant', 'published_at']),
+            models.Index(fields=['account', 'status']),
+        ]
+    
+    def __str__(self):
+        return f"{self.account.platform}: {self.content[:50]}..."
+
+
+# RBAC Models
+class Permission(models.Model):
+    """Permission model for RBAC"""
+    id = models.AutoField(primary_key=True)
+    name = models.CharField(max_length=100, unique=True)  # e.g. 'properties:read', 'contacts:write'
+    description = models.TextField()
+    category = models.CharField(max_length=50)  # 'properties', 'contacts', 'documents', etc.
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'permissions'
+        indexes = [
+            models.Index(fields=['category']),
+        ]
+    
+    def __str__(self):
+        return self.name
+
+
+class Role(models.Model):
+    """Role model for RBAC"""
+    id = models.AutoField(primary_key=True)
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='roles')
+    name = models.CharField(max_length=100)
+    description = models.TextField()
+    permissions = models.ManyToManyField(Permission, related_name='roles')
+    is_system = models.BooleanField(default=False)  # Admin, Manager, User
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    
+    class Meta:
+        db_table = 'roles'
+        indexes = [
+            models.Index(fields=['tenant', 'is_system']),
+        ]
+        unique_together = ['tenant', 'name']
+    
+    def __str__(self):
+        return f"{self.name} ({self.tenant.name})"
+
+
+class FeatureFlag(models.Model):
+    """Feature flag model"""
+    id = models.AutoField(primary_key=True)
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='feature_flags', blank=True, null=True)  # Null = global
+    name = models.CharField(max_length=100)
+    description = models.TextField()
+    is_enabled = models.BooleanField(default=False)
+    rollout_percentage = models.IntegerField(default=0)  # 0-100
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    
+    class Meta:
+        db_table = 'feature_flags'
+        indexes = [
+            models.Index(fields=['tenant', 'is_enabled']),
+        ]
+        unique_together = ['tenant', 'name']
+    
+    def __str__(self):
+        return f"{self.name} ({self.tenant.name if self.tenant else 'Global'})"
 
 
 # Task Models

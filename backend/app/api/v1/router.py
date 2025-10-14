@@ -20,6 +20,8 @@ from app.api.v1 import (
     finance,
     tenant,
     notifications,
+    llm,
+    admin,
 )
 
 # Create main API router
@@ -44,3 +46,5 @@ api_router.include_router(social.router, prefix="/social", tags=["social"])
 api_router.include_router(finance.router, prefix="/finance", tags=["finance"])
 api_router.include_router(tenant.router, prefix="/tenant", tags=["tenant"])
 api_router.include_router(notifications.router, prefix="/notifications", tags=["notifications"])
+api_router.include_router(llm.router, prefix="/llm", tags=["llm"])
+api_router.include_router(admin.router, prefix="/admin", tags=["admin"])

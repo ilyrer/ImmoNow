@@ -1,19 +1,25 @@
 """
 Documents Service
 """
+import hashlib
+import logging
 from typing import Optional, List, Dict, Any, Tuple
 from datetime import datetime
 from django.db import models
 from django.db.models import Q, Count, Sum
 from asgiref.sync import sync_to_async
 
-from app.db.models import Document, DocumentFolder, Tenant, User
+from app.db.models import Document, DocumentFolder, DocumentVersion, Tenant, User
 from app.schemas.documents import (
     DocumentResponse, DocumentFolderResponse, DocumentAnalyticsResponse,
-    UploadMetadataRequest, CreateFolderRequest, UpdateDocumentRequest
+    UploadMetadataRequest, CreateFolderRequest, UpdateDocumentRequest,
+    DocumentVersionResponse, DocumentSearchRequest, DocumentVisibilityUpdateRequest,
+    CreateVersionRequest
 )
 from app.core.errors import NotFoundError, ValidationError
 from app.services.audit import AuditService
+
+logger = logging.getLogger(__name__)
 
 
 class DocumentsService:
@@ -21,6 +27,210 @@ class DocumentsService:
     
     def __init__(self, tenant_id: str):
         self.tenant_id = tenant_id
+        self.audit_service = AuditService(tenant_id)
+    
+    def calculate_checksum(self, file_content: bytes) -> str:
+        """Calculate SHA256 checksum for file content"""
+        return hashlib.sha256(file_content).hexdigest()
+    
+    async def search_documents(
+        self,
+        search_request: DocumentSearchRequest,
+        offset: int = 0,
+        limit: int = 20
+    ) -> Tuple[List[DocumentResponse], int]:
+        """Search documents using full-text search"""
+        
+        queryset = Document.objects.filter(tenant_id=self.tenant_id)
+        
+        # Build search query
+        search_query = Q()
+        
+        # Search in title, description, tags
+        search_query |= Q(title__icontains=search_request.query)
+        search_query |= Q(description__icontains=search_request.query)
+        search_query |= Q(tags__icontains=search_request.query)
+        
+        # Include OCR text if requested
+        if search_request.include_ocr:
+            search_query |= Q(ocr_text__icontains=search_request.query)
+        
+        queryset = queryset.filter(search_query)
+        
+        # Apply additional filters
+        if search_request.folder_id:
+            queryset = queryset.filter(folder_id=search_request.folder_id)
+        
+        if search_request.document_type:
+            queryset = queryset.filter(type=search_request.document_type)
+        
+        if search_request.category:
+            queryset = queryset.filter(category=search_request.category)
+        
+        # Get total count
+        total = await sync_to_async(queryset.count)()
+        
+        # Apply pagination and ordering
+        documents = await sync_to_async(list)(
+            queryset.order_by('-created_at')[offset:offset + limit]
+        )
+        
+        # Convert to response models
+        document_responses = []
+        for doc in documents:
+            document_responses.append(DocumentResponse.model_validate(doc))
+        
+        return document_responses, total
+    
+    async def create_document_version(
+        self,
+        document_id: str,
+        file_url: str,
+        file_size: int,
+        checksum: str,
+        user_id: str,
+        change_notes: Optional[str] = None
+    ) -> DocumentVersionResponse:
+        """Create a new version of a document"""
+        
+        # Get document
+        document = await sync_to_async(Document.objects.get)(
+            id=document_id,
+            tenant_id=self.tenant_id
+        )
+        
+        # Get next version number
+        latest_version = await sync_to_async(
+            DocumentVersion.objects.filter(document=document)
+            .order_by('-version_number')
+            .first
+        )()
+        
+        next_version = (latest_version.version_number + 1) if latest_version else 1
+        
+        # Create version
+        version = await sync_to_async(DocumentVersion.objects.create)(
+            document=document,
+            version_number=next_version,
+            file_url=file_url,
+            file_size=file_size,
+            checksum=checksum,
+            created_by_id=user_id,
+            change_notes=change_notes
+        )
+        
+        # Update document with new file info
+        await sync_to_async(document.__setattr__)('url', file_url)
+        await sync_to_async(document.__setattr__)('size', file_size)
+        await sync_to_async(document.__setattr__)('checksum', checksum)
+        await sync_to_async(document.__setattr__)('version', next_version)
+        await sync_to_async(document.save)()
+        
+        return DocumentVersionResponse.model_validate(version)
+    
+    async def get_document_versions(
+        self,
+        document_id: str
+    ) -> List[DocumentVersionResponse]:
+        """Get all versions of a document"""
+        
+        # Verify document exists and user has access
+        await sync_to_async(Document.objects.get)(
+            id=document_id,
+            tenant_id=self.tenant_id
+        )
+        
+        versions = await sync_to_async(list)(
+            DocumentVersion.objects.filter(document_id=document_id)
+            .order_by('-version_number')
+        )
+        
+        return [DocumentVersionResponse.model_validate(v) for v in versions]
+    
+    async def get_document_version(
+        self,
+        document_id: str,
+        version_id: str
+    ) -> DocumentVersionResponse:
+        """Get a specific version of a document"""
+        
+        # Verify document exists and user has access
+        await sync_to_async(Document.objects.get)(
+            id=document_id,
+            tenant_id=self.tenant_id
+        )
+        
+        version = await sync_to_async(DocumentVersion.objects.get)(
+            id=version_id,
+            document_id=document_id
+        )
+        
+        return DocumentVersionResponse.model_validate(version)
+    
+    async def update_document_visibility(
+        self,
+        document_id: str,
+        visibility_request: DocumentVisibilityUpdateRequest,
+        user_id: str
+    ) -> DocumentResponse:
+        """Update document visibility"""
+        
+        document = await sync_to_async(Document.objects.get)(
+            id=document_id,
+            tenant_id=self.tenant_id
+        )
+        
+        old_visibility = document.visibility
+        await sync_to_async(document.__setattr__)('visibility', visibility_request.visibility.value)
+        await sync_to_async(document.save)()
+        
+        # Log visibility change
+        await self.audit_service.audit_action(
+            user_id=user_id,
+            action='update_visibility',
+            resource_type='document',
+            resource_id=document_id,
+            old_values={'visibility': old_visibility},
+            new_values={'visibility': visibility_request.visibility.value}
+        )
+        
+        return DocumentResponse.model_validate(document)
+    
+    async def trigger_ocr_processing(
+        self,
+        document_id: str,
+        user_id: str
+    ) -> Dict[str, Any]:
+        """Trigger OCR processing for a document (stub implementation)"""
+        
+        document = await sync_to_async(Document.objects.get)(
+            id=document_id,
+            tenant_id=self.tenant_id
+        )
+        
+        # In a real implementation, this would:
+        # 1. Download the file from storage
+        # 2. Send it to an OCR service (e.g., Google Vision API, Azure Computer Vision)
+        # 3. Store the extracted text in document.ocr_text
+        # 4. Update search_vector for full-text search
+        
+        # For now, return a stub response
+        logger.info(f"OCR processing triggered for document {document_id}")
+        
+        # Log OCR request
+        await self.audit_service.audit_action(
+            user_id=user_id,
+            action='trigger_ocr',
+            resource_type='document',
+            resource_id=document_id,
+            description='OCR processing triggered'
+        )
+        
+        return {
+            "status": "processing",
+            "message": "OCR processing has been triggered. This is a stub implementation.",
+            "estimated_completion": "2-5 minutes"
+        }
     
     async def get_documents(
         self,

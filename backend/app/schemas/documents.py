@@ -42,6 +42,9 @@ class DocumentResponse(BaseModel):
     download_count: int
     folder_id: Optional[int] = None
     folder_name: Optional[str] = None
+    checksum: Optional[str] = None
+    search_vector: Optional[str] = None
+    ocr_text: Optional[str] = None
     
     model_config = ConfigDict(from_attributes=True)
     
@@ -96,6 +99,40 @@ class CreateFolderRequest(BaseModel):
     description: Optional[str] = Field(None, max_length=500)
     color: Optional[str] = Field(None, pattern=r'^#[0-9A-Fa-f]{6}$')
     icon: Optional[str] = Field(None, max_length=50)
+
+
+class DocumentVersionResponse(BaseModel):
+    """Document version response model"""
+    id: str
+    document_id: str
+    version_number: int
+    file_url: str
+    file_size: int
+    checksum: str
+    created_by: str
+    created_at: datetime
+    change_notes: Optional[str] = None
+    
+    model_config = ConfigDict(from_attributes=True)
+
+
+class DocumentSearchRequest(BaseModel):
+    """Document search request"""
+    query: str = Field(..., min_length=1, max_length=255)
+    folder_id: Optional[int] = None
+    document_type: Optional[str] = None
+    category: Optional[str] = None
+    include_ocr: bool = Field(default=True, description="Include OCR text in search")
+
+
+class DocumentVisibilityUpdateRequest(BaseModel):
+    """Document visibility update request"""
+    visibility: DocumentVisibility = Field(..., description="New visibility setting")
+
+
+class CreateVersionRequest(BaseModel):
+    """Create document version request"""
+    change_notes: Optional[str] = Field(None, max_length=500)
 
 
 class DocumentAnalyticsResponse(BaseModel):

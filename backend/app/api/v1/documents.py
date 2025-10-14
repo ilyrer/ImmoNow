@@ -4,6 +4,8 @@ Documents API Endpoints
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Query
 from fastapi.responses import JSONResponse
+import hashlib
+from datetime import datetime
 
 from app.api.deps import (
     require_read_scope, require_write_scope, require_delete_scope,
@@ -14,7 +16,8 @@ from app.core.errors import ValidationError, NotFoundError, ConflictError
 from app.schemas.documents import (
     DocumentResponse, DocumentListResponse, DocumentFolderResponse,
     CreateFolderRequest, DocumentAnalyticsResponse, UploadMetadataRequest,
-    UpdateDocumentRequest, FavoriteToggleResponse
+    UpdateDocumentRequest, FavoriteToggleResponse, DocumentVersionResponse,
+    DocumentSearchRequest, DocumentVisibilityUpdateRequest, CreateVersionRequest
 )
 from app.schemas.common import PaginatedResponse
 from app.core.pagination import PaginationParams, get_pagination_offset, validate_sort_field
@@ -24,9 +27,133 @@ from app.services.storage_s3 import StorageService
 router = APIRouter()
 
 
+@router.get("/search", response_model=PaginatedResponse[DocumentResponse])
+async def search_documents(
+    search_request: DocumentSearchRequest = Depends(),
+    pagination: PaginationParams = Depends(),
+    current_user: TokenData = Depends(require_read_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Search documents using full-text search"""
+    
+    offset = get_pagination_offset(pagination.page, pagination.size)
+    
+    documents_service = DocumentsService(tenant_id)
+    documents, total = await documents_service.search_documents(
+        search_request=search_request,
+        offset=offset,
+        limit=pagination.size
+    )
+    
+    return PaginatedResponse.create(
+        items=documents,
+        total=total,
+        page=pagination.page,
+        size=pagination.size
+    )
+
+
+@router.get("/{document_id}/versions", response_model=List[DocumentVersionResponse])
+async def get_document_versions(
+    document_id: str,
+    current_user: TokenData = Depends(require_read_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Get all versions of a document"""
+    
+    documents_service = DocumentsService(tenant_id)
+    versions = await documents_service.get_document_versions(document_id)
+    
+    return versions
+
+
+@router.get("/{document_id}/versions/{version_id}", response_model=DocumentVersionResponse)
+async def get_document_version(
+    document_id: str,
+    version_id: str,
+    current_user: TokenData = Depends(require_read_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Get a specific version of a document"""
+    
+    documents_service = DocumentsService(tenant_id)
+    version = await documents_service.get_document_version(document_id, version_id)
+    
+    return version
+
+
+@router.post("/{document_id}/versions", response_model=DocumentVersionResponse, status_code=status.HTTP_201_CREATED)
+async def create_document_version(
+    document_id: str,
+    file: UploadFile = File(...),
+    change_notes: Optional[str] = None,
+    current_user: TokenData = Depends(require_write_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Create a new version of a document"""
+    
+    # Validate file
+    if not file.filename:
+        raise ValidationError("No file provided")
+    
+    # Calculate checksum
+    file_content = await file.read()
+    checksum = hashlib.sha256(file_content).hexdigest()
+    
+    # Upload file to storage (stub - in real implementation, use StorageService)
+    file_url = f"https://storage.example.com/documents/{document_id}/v{datetime.utcnow().timestamp()}/{file.filename}"
+    
+    documents_service = DocumentsService(tenant_id)
+    version = await documents_service.create_document_version(
+        document_id=document_id,
+        file_url=file_url,
+        file_size=len(file_content),
+        checksum=checksum,
+        user_id=current_user.user_id,
+        change_notes=change_notes
+    )
+    
+    return version
+
+
+@router.put("/{document_id}/visibility", response_model=DocumentResponse)
+async def update_document_visibility(
+    document_id: str,
+    visibility_request: DocumentVisibilityUpdateRequest,
+    current_user: TokenData = Depends(require_write_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Update document visibility"""
+    
+    documents_service = DocumentsService(tenant_id)
+    document = await documents_service.update_document_visibility(
+        document_id=document_id,
+        visibility_request=visibility_request,
+        user_id=current_user.user_id
+    )
+    
+    return document
+
+
+@router.post("/{document_id}/ocr", response_model=dict)
+async def trigger_ocr_processing(
+    document_id: str,
+    current_user: TokenData = Depends(require_write_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Trigger OCR processing for a document"""
+    
+    documents_service = DocumentsService(tenant_id)
+    result = await documents_service.trigger_ocr_processing(
+        document_id=document_id,
+        user_id=current_user.user_id
+    )
+    
+    return result
+
+
 @router.get("", response_model=PaginatedResponse[DocumentResponse])
 async def get_documents(
-    pagination: PaginationParams = Depends(),
     search: Optional[str] = Query(None, description="Search term"),
     folder_id: Optional[int] = Query(None, description="Folder ID filter"),
     document_type: Optional[str] = Query(None, description="Document type filter"),
