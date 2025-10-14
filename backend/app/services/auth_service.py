@@ -164,21 +164,12 @@ class AuthService:
         if User.objects.filter(email=request.email).exists():
             raise ConflictError(f"User with email {request.email} already exists")
         
-        # Create tenant
-        tenant_slug = slugify(request.tenant_name)
-        
-        # Ensure unique slug
-        base_slug = tenant_slug
-        counter = 1
-        while Tenant.objects.filter(slug=tenant_slug).exists():
-            tenant_slug = f"{base_slug}-{counter}"
-            counter += 1
-        
-        tenant = Tenant.objects.create(
-            name=request.tenant_name,
-            slug=tenant_slug,
-            email=request.company_email or request.email,
-            phone=request.company_phone,
+        # Find or create tenant using company info
+        # This prevents duplicate tenants with the same name or email
+        tenant, tenant_created = Tenant.get_or_create_by_company_info(
+            company_name=request.tenant_name,
+            company_email=request.company_email or request.email,
+            phone=request.phone if not request.company_phone else request.company_phone,
             plan=request.plan,
             billing_cycle=request.billing_cycle,
             subscription_status='active',
@@ -186,18 +177,19 @@ class AuthService:
             subscription_start_date=timezone.now()
         )
         
-        # Set limits based on plan
-        plan_limits = {
-            'free': {'max_users': 2, 'max_properties': 5, 'storage_limit_gb': 1},
-            'basic': {'max_users': 5, 'max_properties': 25, 'storage_limit_gb': 10},
-            'professional': {'max_users': 20, 'max_properties': 100, 'storage_limit_gb': 50},
-            'enterprise': {'max_users': 100, 'max_properties': 1000, 'storage_limit_gb': 500},
-        }
-        limits = plan_limits.get(request.plan, plan_limits['free'])
-        tenant.max_users = limits['max_users']
-        tenant.max_properties = limits['max_properties']
-        tenant.storage_limit_gb = limits['storage_limit_gb']
-        tenant.save()
+        # Set limits based on plan (only if tenant was newly created)
+        if tenant_created:
+            plan_limits = {
+                'free': {'max_users': 2, 'max_properties': 5, 'storage_limit_gb': 1},
+                'basic': {'max_users': 5, 'max_properties': 25, 'storage_limit_gb': 10},
+                'professional': {'max_users': 20, 'max_properties': 100, 'storage_limit_gb': 50},
+                'enterprise': {'max_users': 100, 'max_properties': 1000, 'storage_limit_gb': 500},
+            }
+            limits = plan_limits.get(request.plan, plan_limits['free'])
+            tenant.max_users = limits['max_users']
+            tenant.max_properties = limits['max_properties']
+            tenant.storage_limit_gb = limits['storage_limit_gb']
+            tenant.save()
         
         # Create user
         user = User.objects.create(
@@ -244,8 +236,14 @@ class AuthService:
         user.last_login = timezone.now()
         user.save()
         
+        # Create appropriate welcome message
+        if tenant_created:
+            message = f"Registration successful! Welcome to your new organization: {tenant.name}"
+        else:
+            message = f"Registration successful! You have been added to {tenant.name}"
+        
         return RegisterResponse(
-            message=f"Registration successful! Welcome to {tenant.name}",
+            message=message,
             user=UserResponse.from_orm(user),
             tenant=TenantInfo.from_orm(tenant),
             access_token=access_token,

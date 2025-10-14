@@ -89,6 +89,56 @@ class User(AbstractBaseUser):
     def get_short_name(self):
         """Return short name"""
         return self.first_name
+    
+    # Django Admin required methods
+    def has_perm(self, perm, obj=None):
+        """Return True if the user has the specified permission."""
+        if self.is_active and self.is_superuser:
+            return True
+        return False
+    
+    def has_module_perms(self, app_label):
+        """Return True if the user has any permissions in the given app label."""
+        if self.is_active and self.is_superuser:
+            return True
+        return False
+    
+    @property
+    def is_authenticated(self):
+        """Always return True for authenticated users."""
+        return True
+    
+    @property
+    def is_anonymous(self):
+        """Always return False for authenticated users."""
+        return False
+    
+    def get_primary_tenant(self):
+        """Get the primary tenant for this user"""
+        try:
+            return self.tenant_memberships.filter(is_active=True).first().tenant
+        except AttributeError:
+            return None
+    
+    def assign_to_tenant(self, tenant, role='agent', **permissions):
+        """Assign user to a tenant with specific role and permissions"""
+        from .tenant import TenantUser
+        
+        tenant_user, created = TenantUser.objects.get_or_create(
+            user=self,
+            tenant=tenant,
+            defaults={
+                'role': role,
+                'can_manage_properties': permissions.get('can_manage_properties', True),
+                'can_manage_documents': permissions.get('can_manage_documents', True),
+                'can_manage_users': permissions.get('can_manage_users', False),
+                'can_view_analytics': permissions.get('can_view_analytics', True),
+                'can_export_data': permissions.get('can_export_data', False),
+                'is_active': True,
+                'joined_at': timezone.now()
+            }
+        )
+        return tenant_user, created
 
 
 class TenantUser(models.Model):

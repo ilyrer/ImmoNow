@@ -13,7 +13,7 @@ class Tenant(models.Model):
     Tenant Model - Repräsentiert eine Organisation/Firma
     """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    name = models.CharField(max_length=255, help_text="Name der Organisation")
+    name = models.CharField(max_length=255, unique=True, help_text="Name der Organisation")
     slug = models.SlugField(max_length=100, unique=True, help_text="URL-freundlicher Identifier")
     
     # Kontakt Info
@@ -105,3 +105,38 @@ class Tenant(models.Model):
         if self.subscription_end_date and self.subscription_end_date < django_timezone.now():
             return False
         return True
+    
+    @classmethod
+    def get_or_create_by_company_info(cls, company_name, company_email, **extra_fields):
+        """
+        Finde oder erstelle einen Tenant basierend auf Firmenname und Email
+        Verhindert Duplikate durch unique constraints
+        """
+        try:
+            # Versuche zuerst nach Name zu finden
+            tenant = cls.objects.get(name=company_name)
+            return tenant, False
+        except cls.DoesNotExist:
+            try:
+                # Falls nicht gefunden, versuche nach Email zu finden
+                tenant = cls.objects.get(email=company_email)
+                return tenant, False
+            except cls.DoesNotExist:
+                # Erstelle neuen Tenant
+                from django.utils.text import slugify
+                slug = slugify(company_name)
+                
+                # Stelle sicher, dass der Slug eindeutig ist
+                counter = 1
+                original_slug = slug
+                while cls.objects.filter(slug=slug).exists():
+                    slug = f"{original_slug}-{counter}"
+                    counter += 1
+                
+                tenant = cls.objects.create(
+                    name=company_name,
+                    email=company_email,
+                    slug=slug,
+                    **extra_fields
+                )
+                return tenant, True
