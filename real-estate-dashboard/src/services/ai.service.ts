@@ -1,9 +1,9 @@
-import OpenAI from 'openai';
-
-const openai = new OpenAI({
-  apiKey: process.env.REACT_APP_OPENAI_API_KEY,
-  dangerouslyAllowBrowser: true
-});
+/**
+ * AI Service - Wrapper für LLM Service
+ * ALLE AI-Anfragen gehen jetzt über den Backend LLM-Endpunkt
+ * Kein direktes OpenAI mehr - alles läuft über DeepSeek V3.1 via OpenRouter
+ */
+import { LLMService } from './llm.service';
 
 export interface AITaskSuggestion {
   priority: 'hoch' | 'mittel' | 'niedrig';
@@ -45,68 +45,16 @@ export class AIService {
     teamContext: string
   ): Promise<AITaskSuggestion> {
     try {
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4",
-        messages: [
-          {
-            role: "system",
-            content: "Du bist ein erfahrener Immobilienmakler und Projektmanager. Analysiere Aufgaben und gib Empfehlungen für Priorität, Zeitaufwand und Deadline. Antworte im JSON-Format."
-          },
-          {
-            role: "user",
-            content: `Analysiere folgende Aufgabe im Immobilienvertrieb:
-              Titel: ${taskTitle}
-              Beschreibung: ${taskDescription}
-              Team-Kontext: ${teamContext}
-              
-              Gib eine strukturierte Empfehlung im folgenden JSON-Format zurück:
-              {
-                "priority": "hoch|mittel|niedrig",
-                "estimatedTime": "geschätzter Zeitaufwand",
-                "suggestedDeadline": "YYYY-MM-DD",
-                "assigneeRecommendation": "Empfohlener Bearbeiter basierend auf der Aufgabe",
-                "title": "optimierter Aufgabentitel",
-                "description": "optimierte Beschreibung"
-              }`
-          }
-        ],
-        response_format: { type: "json_object" }
-      });
-
-      const response = completion.choices[0].message.content || '{}';
-      const parsedResponse = JSON.parse(response) as {
-        priority?: string;
-        estimatedTime?: string;
-        suggestedDeadline?: string;
-        assigneeRecommendation?: string;
-        title?: string;
-        description?: string;
-      };
+      // Nutze den zentralen LLM Service
+      const result = await LLMService.analyzeTask(`${taskTitle}: ${taskDescription}\nTeam: ${teamContext}`);
       
-      // Validiere die Antwort
-      if (!parsedResponse.priority || !parsedResponse.estimatedTime || !parsedResponse.suggestedDeadline) {
-        throw new Error('Unvollständige KI-Antwort');
-      }
-
-      // Normalisiere die Priorität
-      const priority = parsedResponse.priority.toLowerCase();
-      if (!['hoch', 'mittel', 'niedrig'].includes(priority)) {
-        throw new Error('Ungültige Priorität in KI-Antwort');
-      }
-
-      // Formatiere das Datum
-      const deadline = new Date(parsedResponse.suggestedDeadline);
-      if (isNaN(deadline.getTime())) {
-        throw new Error('Ungültiges Datum in KI-Antwort');
-      }
-
       return {
-        priority: priority as 'hoch' | 'mittel' | 'niedrig',
-        estimatedTime: parsedResponse.estimatedTime,
-        suggestedDeadline: parsedResponse.suggestedDeadline,
-        assigneeRecommendation: parsedResponse.assigneeRecommendation || undefined,
-        title: parsedResponse.title || taskTitle,
-        description: parsedResponse.description || taskDescription
+        priority: result.priority,
+        estimatedTime: result.estimatedTime,
+        suggestedDeadline: result.suggestedDeadline,
+        assigneeRecommendation: 'Team-Mitglied', // TODO: Intelligente Zuweisung
+        title: result.title,
+        description: result.description
       };
     } catch (error) {
       console.error('Fehler bei der KI-Analyse:', error);
@@ -134,52 +82,15 @@ export class AIService {
     }
   ): Promise<AIPropertyDescription> {
     try {
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4",
-        messages: [
-          {
-            role: "system",
-            content: "Du bist ein erfahrener Immobilienmakler mit Expertise in der Erstellung überzeugender Immobilienbeschreibungen. Antworte im JSON-Format."
-          },
-          {
-            role: "user",
-            content: `Erstelle eine professionelle Immobilienbeschreibung für:
-              Typ: ${propertyDetails.type}
-              Größe: ${propertyDetails.size}m²
-              Zimmer: ${propertyDetails.rooms}
-              Lage: ${propertyDetails.location}
-              Ausstattung: ${propertyDetails.features.join(', ')}
-              Zustand: ${propertyDetails.condition}
-              Preis: ${propertyDetails.price}€
-              
-              Erstelle eine Antwort im folgenden JSON-Format:
-              {
-                "title": "aufmerksamkeitsstarker Titel",
-                "description": "überzeugende Beschreibung",
-                "highlights": ["wichtigste Merkmale"],
-                "marketingPoints": ["besondere Verkaufsargumente"],
-                "suggestedPrice": "optimierter Preis"
-              }`
-          }
-        ],
-        response_format: { type: "json_object" }
-      });
-
-      const response = completion.choices[0].message.content || '{}';
-      const parsedResponse = JSON.parse(response) as {
-        title: string;
-        description: string;
-        highlights: string[];
-        marketingPoints: string[];
-        suggestedPrice: string;
-      };
+      // Nutze den zentralen LLM Service
+      const result = await LLMService.generatePropertyDescription(propertyDetails);
       
       return {
-        title: parsedResponse.title,
-        description: parsedResponse.description,
-        highlights: parsedResponse.highlights,
-        marketingPoints: parsedResponse.marketingPoints,
-        suggestedPrice: parsedResponse.suggestedPrice
+        title: result.title,
+        description: result.description,
+        highlights: result.highlights,
+        marketingPoints: result.marketingPoints,
+        suggestedPrice: `${propertyDetails.price}€`,
       };
     } catch (error) {
       console.error('Fehler bei der KI-Analyse:', error);
@@ -196,53 +107,46 @@ export class AIService {
     }
   ): Promise<AIChatResponse> {
     try {
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4",
-        messages: [
-          {
-            role: "system",
-            content: `Du bist ein intelligenter KI-Assistent für eine Immobilien-Dashboard-Anwendung. 
-            Du hilfst bei Aufgaben, Immobilienverwaltung, Marktanalysen, Besprechungen und allgemeinen Fragen.
-            
-            Antworte immer auf Deutsch und sei hilfreich, professionell und präzise.
-            
-            Verfügbare Aktionen:
-            - Aufgaben erstellen und verwalten
-            - Immobilienbeschreibungen generieren
-            - Marktanalysen durchführen
-            - Besprechungen planen
-            - Marketing-Content erstellen
-            - Allgemeine Beratung
-            
-            Antworte im JSON-Format mit:
-            {
-              "message": "deine Antwort",
-              "suggestions": ["vorschläge für weitere aktionen"],
-              "actionType": "task|property|meeting|analysis|general",
-              "actionData": {} // optional, zusätzliche Daten für Aktionen
-            }`
-          },
-          {
-            role: "user",
-            content: `Benutzeranfrage: ${message}
-            
-            Kontext:
-            - Benutzer: ${context.user?.email || 'Unbekannt'}
-            - Aktuelle Seite: ${context.currentPage || 'Dashboard'}
-            - Vorherige Nachrichten: ${context.previousMessages?.length || 0}`
-          }
-        ],
-        response_format: { type: "json_object" }
+      // Nutze den zentralen LLM Service
+      const response = await LLMService.chat(message, {
+        userInfo: context.user,
+        pageContext: context.currentPage,
+        previousMessages: context.previousMessages?.map(msg => ({
+          role: msg.type === 'user' ? 'user' as const : 'assistant' as const,
+          content: msg.content
+        }))
       });
-
-      const response = completion.choices[0].message.content || '{}';
-      const parsedResponse = JSON.parse(response) as AIChatResponse;
+      
+      // Erkenne Intent aus der Nachricht
+      const intent = this.detectIntent(message);
+      
+      // Generiere Vorschläge basierend auf Intent
+      let suggestions: string[] = [];
+      switch (intent.intent) {
+        case 'create_task':
+          suggestions = ['Weitere Aufgabe erstellen', 'Prioritäten setzen', 'Team benachrichtigen'];
+          break;
+        case 'property_help':
+          suggestions = ['Beschreibung generieren', 'Marktpreis analysieren', 'Marketing-Content erstellen'];
+          break;
+        case 'create_meeting':
+          suggestions = ['Agenda erstellen', 'Teilnehmer hinzufügen', 'Notizen vorbereiten'];
+          break;
+        case 'market_analysis':
+          suggestions = ['Detaillierte Analyse', 'Preisempfehlung', 'Wettbewerbsvergleich'];
+          break;
+        case 'marketing_help':
+          suggestions = ['Social Media Post', 'E-Mail-Kampagne', 'Exposé erstellen'];
+          break;
+        default:
+          suggestions = ['Aufgabe erstellen', 'Immobilie analysieren', 'Besprechung planen'];
+      }
       
       return {
-        message: parsedResponse.message || 'Entschuldigung, ich konnte Ihre Anfrage nicht verarbeiten.',
-        suggestions: parsedResponse.suggestions || [],
-        actionType: parsedResponse.actionType || 'general',
-        actionData: parsedResponse.actionData || null
+        message: response.response,
+        suggestions,
+        actionType: intent.intent.replace('create_', '').replace('_help', '') as any,
+        actionData: null
       };
     } catch (error) {
       console.error('Fehler bei der Chat-Verarbeitung:', error);
@@ -264,44 +168,34 @@ export class AIService {
     context: string
   ): Promise<AIMeetingSuggestion> {
     try {
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4",
-        messages: [
-          {
-            role: "system",
-            content: "Du bist ein Experte für Besprechungsplanung im Immobilienbereich. Erstelle strukturierte Besprechungsvorschläge."
-          },
-          {
-            role: "user",
-            content: `Erstelle einen Besprechungsvorschlag für:
-              Thema: ${topic}
-              Teilnehmer: ${participants.join(', ')}
-              Kontext: ${context}
-              
-              Antworte im JSON-Format:
-              {
-                "title": "Besprechungstitel",
-                "agenda": ["Agenda-Punkte"],
-                "participants": ["empfohlene Teilnehmer"],
-                "duration": 60,
-                "preparationTasks": ["Vorbereitungsaufgaben"],
-                "followUpActions": ["Follow-up Aktionen"]
-              }`
-          }
-        ],
-        response_format: { type: "json_object" }
+      // Nutze den zentralen LLM Service
+      const prompt = `Erstelle einen Besprechungsvorschlag für:
+Thema: ${topic}
+Teilnehmer: ${participants.join(', ')}
+Kontext: ${context}
+
+Erstelle:
+1. Einen präzisen Besprechungstitel
+2. Eine strukturierte Agenda (4-6 Punkte)
+3. Dauer in Minuten
+4. 3 Vorbereitungsaufgaben
+5. 3 Follow-up Aktionen`;
+
+      const response = await LLMService.askQuestion({
+        prompt,
+        temperature: 0.5,
+        maxTokens: 800,
       });
 
-      const response = completion.choices[0].message.content || '{}';
-      const parsedResponse = JSON.parse(response) as AIMeetingSuggestion;
+      const lines = response.response.split('\n').filter(l => l.trim());
       
       return {
-        title: parsedResponse.title || `Besprechung: ${topic}`,
-        agenda: parsedResponse.agenda || ['Begrüßung', 'Hauptthema besprechen', 'Nächste Schritte'],
-        participants: parsedResponse.participants || participants,
-        duration: parsedResponse.duration || 60,
-        preparationTasks: parsedResponse.preparationTasks || [],
-        followUpActions: parsedResponse.followUpActions || []
+        title: lines[0] || `Besprechung: ${topic}`,
+        agenda: lines.slice(1, 7),
+        participants: participants,
+        duration: 60,
+        preparationTasks: lines.slice(7, 10),
+        followUpActions: lines.slice(10, 13)
       };
     } catch (error) {
       console.error('Fehler bei der Besprechungsplanung:', error);
@@ -329,51 +223,16 @@ export class AIService {
     competitiveAnalysis: string;
   }> {
     try {
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4",
-        messages: [
-          {
-            role: "system",
-            content: "Du bist ein Experte für Immobilienmarktanalysen und Preisentwicklungen mit jahrelanger Erfahrung."
-          },
-          {
-            role: "user",
-            content: `Führe eine umfassende Marktanalyse durch für:
-              Standort: ${location}
-              Immobilientyp: ${propertyType}
-              Historische Daten: ${JSON.stringify(historicalData)}
-              
-              Erstelle eine detaillierte Analyse mit:
-              1. Konkrete Preisempfehlung
-              2. Aktuelle Markttrends
-              3. Besondere Verkaufsargumente
-              4. Mögliche Risiken
-              5. Marktprognose für die nächsten 12 Monate
-              6. Wettbewerbsanalyse
-              
-              Antworte im JSON-Format.`
-          }
-        ],
-        response_format: { type: "json_object" }
-      });
-
-      const response = completion.choices[0].message.content || '{}';
-      const parsedResponse = JSON.parse(response);
+      // Nutze den zentralen LLM Service
+      const result = await LLMService.analyzeMarket(location, propertyType);
       
       return {
-        priceRecommendation: parsedResponse.priceRecommendation || "Marktgerechte Preisempfehlung wird analysiert...",
-        marketTrend: parsedResponse.marketTrend || "Stabile Marktentwicklung mit leichtem Aufwärtstrend",
-        sellingPoints: parsedResponse.sellingPoints || [
-          "Attraktive Lage",
-          "Gute Infrastruktur",
-          "Wertstabile Investition"
-        ],
-        risks: parsedResponse.risks || [
-          "Allgemeine Marktvolatilität",
-          "Zinsentwicklung beobachten"
-        ],
-        forecast: parsedResponse.forecast || "Positive Entwicklung für die nächsten 12 Monate erwartet",
-        competitiveAnalysis: parsedResponse.competitiveAnalysis || "Moderate Konkurrenz im Marktsegment"
+        priceRecommendation: result.priceRecommendation,
+        marketTrend: result.marketTrend,
+        sellingPoints: result.sellingPoints,
+        risks: result.risks,
+        forecast: "Positive Entwicklung für die nächsten 12 Monate erwartet",
+        competitiveAnalysis: "Moderate Konkurrenz im Marktsegment"
       };
     } catch (error) {
       console.error('Fehler bei der Marktanalyse:', error);
@@ -402,50 +261,21 @@ export class AIService {
     socialMediaPost?: string;
   }> {
     try {
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4",
-        messages: [
-          {
-            role: "system",
-            content: "Du bist ein erfahrener Marketing-Experte für Immobilien mit Spezialisierung auf verschiedene Kanäle und Zielgruppen."
-          },
-          {
-            role: "user",
-            content: `Erstelle professionellen Marketing-Content für:
-              Immobilie: ${JSON.stringify(propertyDetails)}
-              Zielgruppe: ${targetAudience}
-              Marketing-Kanal: ${marketingChannel}
-              
-              Erstelle umfassenden Content mit:
-              1. Aufmerksamkeitsstarke Überschrift
-              2. Überzeugende Beschreibung
-              3. Wichtigste Verkaufsargumente
-              4. Starker Call-to-Action
-              5. Relevante Hashtags (für Social Media)
-              6. E-Mail Betreffzeile
-              7. Social Media Post
-              
-              Antworte im JSON-Format.`
-          }
-        ],
-        response_format: { type: "json_object" }
-      });
-
-      const response = completion.choices[0].message.content || '{}';
-      const parsedResponse = JSON.parse(response);
+      // Nutze den zentralen LLM Service
+      const result = await LLMService.generateMarketingContent(
+        propertyDetails.type || 'Immobilie',
+        targetAudience,
+        marketingChannel
+      );
       
       return {
-        headline: parsedResponse.headline || "Traumimmobilie gefunden!",
-        description: parsedResponse.description || "Entdecken Sie diese einzigartige Immobilie...",
-        keyPoints: parsedResponse.keyPoints || [
-          "Moderne Ausstattung",
-          "Perfekte Lage",
-          "Faire Preisgestaltung"
-        ],
-        callToAction: parsedResponse.callToAction || "Vereinbaren Sie jetzt Ihre Besichtigung!",
-        hashtags: parsedResponse.hashtags || ["#Immobilien", "#Traumhaus", "#Verkauf"],
-        emailSubject: parsedResponse.emailSubject || "Ihre neue Traumimmobilie wartet auf Sie!",
-        socialMediaPost: parsedResponse.socialMediaPost || "🏠 Neue Traumimmobilie verfügbar! Jetzt besichtigen!"
+        headline: result.headline,
+        description: result.description,
+        keyPoints: result.hashtags.slice(0, 3), // Verwende erste 3 Hashtags als Keypoints
+        callToAction: result.callToAction,
+        hashtags: result.hashtags,
+        emailSubject: `${result.headline} - ${result.callToAction}`,
+        socialMediaPost: `${result.headline}\n\n${result.description}\n\n${result.callToAction}\n\n${result.hashtags.join(' ')}`
       };
     } catch (error) {
       console.error('Fehler bei der Content-Generierung:', error);

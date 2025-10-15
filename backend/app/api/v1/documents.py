@@ -154,6 +154,7 @@ async def trigger_ocr_processing(
 
 @router.get("", response_model=PaginatedResponse[DocumentResponse])
 async def get_documents(
+    pagination: PaginationParams = Depends(),
     search: Optional[str] = Query(None, description="Search term"),
     folder_id: Optional[int] = Query(None, description="Folder ID filter"),
     document_type: Optional[str] = Query(None, description="Document type filter"),
@@ -212,12 +213,35 @@ async def upload_document(
 ):
     """Upload a new document"""
     
+    import json
+    import logging
+    logger = logging.getLogger(__name__)
+    
     try:
-        import json
+        logger.info(f"📤 Upload request received")
+        logger.info(f"📄 File: {file.filename}")
+        logger.info(f"📋 Metadata string: {metadata}")
+        
         metadata_dict = json.loads(metadata)
+        logger.info(f"✅ Parsed metadata: {metadata_dict}")
+        
         upload_metadata = UploadMetadataRequest(**metadata_dict)
-    except (json.JSONDecodeError, ValidationError) as e:
-        raise ValidationError(f"Invalid metadata: {str(e)}")
+        logger.info(f"✅ Validated metadata: {upload_metadata}")
+    except json.JSONDecodeError as e:
+        logger.error(f"❌ JSON decode error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid JSON in metadata: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(f"❌ Validation error: {str(e)}")
+        logger.error(f"❌ Error type: {type(e).__name__}")
+        import traceback
+        logger.error(f"❌ Traceback: {traceback.format_exc()}")
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid metadata: {str(e)}"
+        )
     
     # Validate file
     if not file.filename:

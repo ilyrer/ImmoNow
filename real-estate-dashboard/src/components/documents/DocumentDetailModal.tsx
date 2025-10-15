@@ -477,6 +477,11 @@ const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({ document, onC
     return iconMap[type] || iconMap.other;
   };
 
+  // Null check
+  if (!document) {
+    return null;
+  }
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white dark:bg-gray-800 rounded-xl w-full max-w-4xl mx-4 max-h-[90vh] overflow-hidden">

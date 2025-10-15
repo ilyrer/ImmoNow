@@ -1,16 +1,6 @@
 import React, { useState } from 'react';
 import { DocumentFolder } from '../../types/document';
-
-// Mock hook with proper return type
-const useCreateDocumentFolder = () => {
-  return {
-    mutateAsync: async (data: any) => {
-      console.log('Mock create document folder:', data);
-      return Promise.resolve({ id: '1', name: data.name, parentId: data.parentId });
-    },
-    isPending: false
-  };
-};
+import { useCreateFolder } from '../../api/hooks';
 
 interface DocumentFolderTreeProps {
   folders: DocumentFolder[];
@@ -118,7 +108,7 @@ const DocumentFolderTree: React.FC<DocumentFolderTreeProps> = ({
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(['verkauf', 'marketing']));
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState('');
-  const createFolder = useCreateDocumentFolder();
+  const createFolder = useCreateFolder();
 
   const handleToggleExpanded = (folderId: string) => {
     setExpandedFolders(prev => {
@@ -267,7 +257,10 @@ const DocumentFolderTree: React.FC<DocumentFolderTreeProps> = ({
               <button
                 disabled={!newName.trim() || createFolder.isPending}
                 onClick={async () => {
-                  await createFolder.mutateAsync({ name: newName.trim(), parent: selectedFolder });
+                  await createFolder.mutateAsync({ 
+                    name: newName.trim(), 
+                    parent_id: selectedFolder ? parseInt(selectedFolder) : undefined 
+                  });
                   setNewName('');
                   setShowCreate(false);
                 }}

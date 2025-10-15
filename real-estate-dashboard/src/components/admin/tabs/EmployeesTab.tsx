@@ -12,57 +12,32 @@ import {
   UserCheck,
   Users as UsersIcon,
 } from 'lucide-react';
-// TODO: Implement real API hooks
-import type { Employee } from '../../../types/admin';
 import { GlassCard, GlassButton, Badge, EmptyState, LoadingSpinner } from '../GlassUI';
 import EmployeeDrawer from '../drawers/EmployeeDrawer';
-
-// Mock hooks for backward compatibility
-const useEmployeesMock = () => ({
-  employees: [
-    {
-      id: '1',
-      name: 'Max Mustermann',
-      email: 'max@example.com',
-      status: 'active' as const,
-      role: 'admin',
-      roleId: 'admin',
-      team: 'management',
-      lastLogin: new Date().toISOString()
-    }
-  ],
-  loading: false,
-  updateEmployee: async (id: string, data: any) => {
-    console.warn('Mock updateEmployee called');
-    return { success: true };
-  },
-  bulkUpdateRole: async (ids: string[], role: string) => {
-    console.warn('Mock bulkUpdateRole called');
-    return { success: true };
-  },
-  bulkUpdateTeam: async (ids: string[], team: string) => {
-    console.warn('Mock bulkUpdateTeam called');
-    return { success: true };
-  }
-});
-
-const useRolesMock = () => ({
-  roles: [
-    { id: 'admin', name: 'Admin', displayName: 'Admin' },
-    { id: 'manager', name: 'Manager', displayName: 'Manager' },
-    { id: 'agent', name: 'Agent', displayName: 'Agent' }
-  ]
-});
+import { useAdminUsers, useUpdateUserRoles, AdminUser } from '../../../api/adminHooks';
+import type { Employee } from '../../../types/admin';
 
 const EmployeesTab: React.FC = () => {
-  const { employees, loading, updateEmployee, bulkUpdateRole, bulkUpdateTeam } = useEmployeesMock();
-  const { roles } = useRolesMock();
+  const { data: users = [], isLoading: loading, error } = useAdminUsers();
+  const updateUserRolesMutation = useUpdateUserRoles();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [selectedEmployees, setSelectedEmployees] = useState<Set<string>>(new Set());
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // Convert AdminUser to Employee format for compatibility
+  const employees = users.map(user => ({
+    id: user.id,
+    name: `${user.first_name} ${user.last_name}`,
+    email: user.email,
+    status: user.is_active ? 'active' as const : 'inactive' as const,
+    role: user.roles[0]?.name || 'user',
+    roleId: user.roles[0]?.id.toString() || 'user',
+    team: 'management', // TODO: Add team field to backend
+    lastLogin: user.last_login
+  }));
 
   const filteredEmployees = employees.filter((emp) => {
     const matchesSearch =
@@ -91,21 +66,32 @@ const EmployeesTab: React.FC = () => {
   };
 
   const handleBulkActivate = () => {
-    Array.from(selectedEmployees).forEach(id => {
-      updateEmployee(id, { status: 'active' });
-    });
+    // TODO: Implement bulk activate functionality
+    console.log('Bulk activate:', Array.from(selectedEmployees));
     setSelectedEmployees(new Set());
   };
 
   const handleBulkDeactivate = () => {
-    Array.from(selectedEmployees).forEach(id => {
-      updateEmployee(id, { status: 'inactive' });
-    });
+    // TODO: Implement bulk deactivate functionality
+    console.log('Bulk deactivate:', Array.from(selectedEmployees));
     setSelectedEmployees(new Set());
   };
 
-  const handleEditEmployee = (emp: Employee) => {
-    setSelectedEmployee(emp);
+  const handleEditEmployee = (emp: any) => {
+    const user = users.find(u => u.id === emp.id);
+    if (user) {
+      // Convert AdminUser to Employee format for EmployeeDrawer
+      const employeeData = {
+        id: user.id,
+        name: `${user.first_name} ${user.last_name}`,
+        email: user.email,
+        roleId: user.roles[0]?.id.toString() || 'user',
+        team: 'management', // TODO: Add team field to backend
+        status: user.is_active ? 'active' as const : 'inactive' as const,
+        lastLogin: user.last_login
+      };
+      setSelectedEmployee(employeeData);
+    }
     setDrawerOpen(true);
   };
 
@@ -115,7 +101,8 @@ const EmployeesTab: React.FC = () => {
   };
 
   const getRoleName = (roleId: string) => {
-    return roles.find(r => r.id === roleId)?.displayName || 'Unbekannt';
+    const user = users.find(u => u.id === roleId);
+    return user?.roles[0]?.name || 'Unbekannt';
   };
 
   const formatLastLogin = (lastLogin?: string) => {
@@ -301,7 +288,10 @@ const EmployeesTab: React.FC = () => {
                           <Edit className="w-4 h-4 text-gray-600 dark:text-gray-400" />
                         </button>
                         <button
-                          onClick={() => updateEmployee(emp.id, { status: emp.status === 'active' ? 'inactive' : 'active' })}
+                          onClick={() => {
+                            // TODO: Implement user status toggle
+                            console.log('Toggle user status:', emp.id, emp.status);
+                          }}
                           className="p-2 rounded-lg hover:bg-gray-200/50 dark:hover:bg-gray-700/50 transition-colors"
                           title={emp.status === 'active' ? 'Deaktivieren' : 'Aktivieren'}
                         >

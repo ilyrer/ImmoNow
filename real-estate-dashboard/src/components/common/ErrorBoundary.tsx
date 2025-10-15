@@ -5,7 +5,7 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { Card } from './Card';
 import { Button } from './Button';
-import { ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import { ExclamationTriangleIcon } from '@heroicons/react/24/solid';
 
 interface Props {
   children: ReactNode;

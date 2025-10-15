@@ -251,11 +251,16 @@ export interface CreateFolderRequest {
 }
 
 export interface UploadMetadataRequest {
-  title: string;
-  document_type: DocumentType;
+  title?: string;
+  type: string;  // Backend uses 'type' not 'document_type'
+  category: string;  // Required by backend
   folder_id?: number;
   property_id?: string;
-  metadata?: { [key: string]: any };
+  contact_id?: string;
+  tags?: string[];
+  visibility?: string;
+  description?: string;
+  expiry_date?: string;
 }
 
 export interface UpdateDocumentRequest {

@@ -1,41 +1,28 @@
 import React, { useState } from 'react';
 import { Activity, Filter, AlertCircle, CheckCircle, AlertTriangle } from 'lucide-react';
-// TODO: Implement real API hooks
 import { GlassCard, GlassButton, Badge } from '../GlassUI';
-
-// Mock hook for backward compatibility
-const useAuditLogMock = () => {
-  const [filters, setFilters] = useState({
-    dateRange: 'all',
-    result: 'all',
-    user: 'all',
-    module: 'all',
-    dateFrom: '',
-    dateTo: ''
-  });
-
-  const logs = [
-    {
-      id: '1',
-      user: 'admin@example.com',
-      ipAddress: '192.168.1.1',
-      module: 'auth',
-      action: 'login',
-      result: 'ok',
-      timestamp: new Date().toISOString(),
-      details: 'Successful login'
-    }
-  ];
-
-  return {
-    logs,
-    filters,
-    setFilters
-  };
-};
+import { 
+  useAdminAuditLogs,
+  AdminAuditLog 
+} from '../../../api/adminHooks';
 
 const AuditTab: React.FC = () => {
-  const { logs, filters, setFilters } = useAuditLogMock();
+  const [filters, setFilters] = useState({
+    resource_type: '',
+    user_id: '',
+    page: 1,
+    size: 20
+  });
+
+  const { data: auditData, isLoading, error } = useAdminAuditLogs({
+    page: filters.page,
+    size: filters.size,
+    resource_type: filters.resource_type || undefined,
+    user_id: filters.user_id || undefined
+  });
+
+  const logs = auditData?.items || [];
+  const total = auditData?.total || 0;
 
   const getResultBadge = (result: string) => {
     switch (result) {
@@ -51,117 +38,214 @@ const AuditTab: React.FC = () => {
   };
 
   const formatTimestamp = (timestamp: string) => {
-    return new Date(timestamp).toLocaleString('de-DE');
+    const date = new Date(timestamp);
+    return date.toLocaleString('de-DE');
   };
+
+  const handleFilterChange = (key: string, value: string) => {
+    setFilters(prev => ({
+      ...prev,
+      [key]: value,
+      page: 1 // Reset to first page when filters change
+    }));
+  };
+
+  const handlePageChange = (newPage: number) => {
+    setFilters(prev => ({
+      ...prev,
+      page: newPage
+    }));
+  };
+
+  if (isLoading) {
+    return (
+      <GlassCard className="p-8">
+        <div className="flex items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+        </div>
+      </GlassCard>
+    );
+  }
+
+  if (error) {
+    return (
+      <GlassCard className="p-8">
+        <div className="text-center">
+          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+            Fehler beim Laden der Audit-Logs
+          </h3>
+          <p className="text-gray-600 dark:text-gray-400">
+            Es ist ein Fehler aufgetreten. Bitte versuchen Sie es später erneut.
+          </p>
+        </div>
+      </GlassCard>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      {/* Filters */}
+      {/* Header */}
       <GlassCard className="p-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="flex items-center justify-between">
           <div>
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+              Audit-Protokolle
+            </h3>
+            <p className="text-gray-600 dark:text-gray-400">
+              Überwachen Sie alle Systemaktivitäten und Benutzeraktionen
+            </p>
+          </div>
+          <div className="text-sm text-gray-600 dark:text-gray-400">
+            {total} Einträge gefunden
+          </div>
+        </div>
+      </GlassCard>
+
+      {/* Filters */}
+      <GlassCard className="p-4">
+        <div className="flex gap-4">
+          <div className="flex-1">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Benutzer
+              Ressourcentyp
             </label>
             <input
               type="text"
-              placeholder="Suchen..."
-              value={filters.user}
-              onChange={(e) => setFilters({ ...filters, user: e.target.value })}
-              className="w-full px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-white/50 dark:bg-gray-800/50"
+              placeholder="z.B. user, property, document"
+              value={filters.resource_type}
+              onChange={(e) => handleFilterChange('resource_type', e.target.value)}
+              className="w-full px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm"
             />
           </div>
-          <div>
+          
+          <div className="flex-1">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Modul
-            </label>
-            <select
-              value={filters.module}
-              onChange={(e) => setFilters({ ...filters, module: e.target.value })}
-              className="w-full px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-white/50 dark:bg-gray-800/50"
-            >
-              <option value="">Alle Module</option>
-              <option value="properties">Properties</option>
-              <option value="contacts">Contacts</option>
-              <option value="admin">Admin</option>
-              <option value="documents">Documents</option>
-              <option value="system">System</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Von Datum
+              Benutzer-ID
             </label>
             <input
-              type="date"
-              value={filters.dateFrom}
-              onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
-              className="w-full px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-white/50 dark:bg-gray-800/50"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Bis Datum
-            </label>
-            <input
-              type="date"
-              value={filters.dateTo}
-              onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
-              className="w-full px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-white/50 dark:bg-gray-800/50"
+              type="text"
+              placeholder="Benutzer-ID eingeben"
+              value={filters.user_id}
+              onChange={(e) => handleFilterChange('user_id', e.target.value)}
+              className="w-full px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm"
             />
           </div>
         </div>
       </GlassCard>
 
-      {/* Audit Logs */}
+      {/* Audit Logs Table */}
       <GlassCard className="overflow-hidden">
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-          <div>
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white">Aktivitätsprotokolle</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{logs.length} Einträge</p>
+        {logs.length === 0 ? (
+          <div className="p-8 text-center">
+            <Activity className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+              Keine Audit-Logs gefunden
+            </h3>
+            <p className="text-gray-600 dark:text-gray-400">
+              Es wurden keine Aktivitäten mit den aktuellen Filtern gefunden.
+            </p>
           </div>
-          <GlassButton variant="secondary" icon={Filter}>
-            Export
-          </GlassButton>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50/50 dark:bg-gray-800/50 sticky top-0">
-              <tr>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">Benutzer</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">Aktion</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">Modul</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">Details</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">Zeitstempel</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">Ergebnis</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {logs.map(log => (
-                <tr key={log.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/50">
-                  <td className="px-6 py-4">
-                    <div className="font-medium text-gray-900 dark:text-white">{log.user}</div>
-                    {log.ipAddress && (
-                      <div className="text-xs text-gray-500 dark:text-gray-400">{log.ipAddress}</div>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 text-gray-700 dark:text-gray-300 font-mono text-sm">{log.action}</td>
-                  <td className="px-6 py-4">
-                    <Badge variant="info">{log.module}</Badge>
-                  </td>
-                  <td className="px-6 py-4 text-gray-600 dark:text-gray-400 text-sm max-w-xs truncate">
-                    {log.details}
-                  </td>
-                  <td className="px-6 py-4 text-gray-600 dark:text-gray-400 text-sm whitespace-nowrap">
-                    {formatTimestamp(log.timestamp)}
-                  </td>
-                  <td className="px-6 py-4">{getResultBadge(log.result)}</td>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50/50 dark:bg-gray-800/50 backdrop-blur-sm sticky top-0 z-10">
+                <tr>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+                    Zeitstempel
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+                    Benutzer
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+                    Aktion
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+                    Ressource
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+                    IP-Adresse
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">
+                    Beschreibung
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                {logs.map((log: AdminAuditLog) => (
+                  <tr
+                    key={log.id}
+                    className="hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-colors"
+                  >
+                    <td className="px-6 py-4 text-gray-600 dark:text-gray-400 text-sm">
+                      {formatTimestamp(log.timestamp)}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="font-semibold text-gray-900 dark:text-white">
+                        {log.user_name}
+                      </div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">
+                        {log.user_id}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-gray-700 dark:text-gray-300">
+                      {log.action}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-gray-700 dark:text-gray-300">
+                        {log.resource_type}
+                      </div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">
+                        {log.resource_id}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      {getResultBadge('ok')} {/* Mock result - would come from backend */}
+                    </td>
+                    <td className="px-6 py-4 text-gray-600 dark:text-gray-400 text-sm">
+                      {log.ip_address}
+                    </td>
+                    <td className="px-6 py-4 text-gray-600 dark:text-gray-400 text-sm">
+                      {log.description || '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </GlassCard>
+
+      {/* Pagination */}
+      {total > filters.size && (
+        <GlassCard className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-gray-600 dark:text-gray-400">
+              Seite {filters.page} von {Math.ceil(total / filters.size)}
+            </div>
+            <div className="flex gap-2">
+              <GlassButton
+                onClick={() => handlePageChange(filters.page - 1)}
+                disabled={filters.page <= 1}
+                variant="secondary"
+                size="sm"
+              >
+                Zurück
+              </GlassButton>
+              <GlassButton
+                onClick={() => handlePageChange(filters.page + 1)}
+                disabled={filters.page >= Math.ceil(total / filters.size)}
+                variant="secondary"
+                size="sm"
+              >
+                Weiter
+              </GlassButton>
+            </div>
+          </div>
+        </GlassCard>
+      )}
     </div>
   );
 };

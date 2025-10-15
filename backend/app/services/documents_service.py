@@ -298,8 +298,8 @@ class DocumentsService:
         else:
             queryset = queryset.order_by("-created_at")
         
-        total = queryset.count()
-        documents = list(queryset[offset:offset + limit])
+        total = await sync_to_async(queryset.count)()
+        documents = await sync_to_async(list)(queryset[offset:offset + limit])
         
         return [DocumentResponse.model_validate(doc) for doc in documents], total
     
@@ -311,9 +311,9 @@ class DocumentsService:
     ) -> DocumentResponse:
         """Create a new document"""
         
-        user = User.objects.get(id=uploaded_by_id)
+        user = await sync_to_async(User.objects.get)(id=uploaded_by_id)
         
-        document = Document.objects.create(
+        document = await sync_to_async(Document.objects.create)(
             tenant_id=self.tenant_id,
             name=file_info['filename'],
             original_name=file_info['original_name'],
@@ -335,7 +335,7 @@ class DocumentsService:
         )
         
         # Audit log
-        AuditService.audit_action(
+        await sync_to_async(AuditService.audit_action)(
             user=user,
             action="create",
             resource_type="document",
@@ -349,7 +349,7 @@ class DocumentsService:
         """Toggle document favorite status"""
         
         try:
-            document = Document.objects.get(
+            document = await sync_to_async(Document.objects.get)(
                 id=document_id, 
                 tenant_id=self.tenant_id
             )
@@ -357,7 +357,7 @@ class DocumentsService:
             raise NotFoundError("Document not found")
         
         document.is_favorite = not document.is_favorite
-        document.save()
+        await sync_to_async(document.save)()
         
         return document.is_favorite
     
@@ -365,17 +365,17 @@ class DocumentsService:
         """Delete a document"""
         
         try:
-            document = Document.objects.get(
+            document = await sync_to_async(Document.objects.get)(
                 id=document_id, 
                 tenant_id=self.tenant_id
             )
         except Document.DoesNotExist:
             raise NotFoundError("Document not found")
         
-        user = User.objects.get(id=user_id)
+        user = await sync_to_async(User.objects.get)(id=user_id)
         
         # Audit log
-        AuditService.audit_action(
+        await sync_to_async(AuditService.audit_action)(
             user=user,
             action="delete",
             resource_type="document",
@@ -383,21 +383,49 @@ class DocumentsService:
             old_values={"title": document.title, "type": document.type}
         )
         
-        document.delete()
+        await sync_to_async(document.delete)()
     
     async def get_folders(self) -> List[DocumentFolderResponse]:
         """Get document folders"""
         
-        folders = DocumentFolder.objects.filter(tenant_id=self.tenant_id)
+        folders = await sync_to_async(list)(
+            DocumentFolder.objects.filter(tenant_id=self.tenant_id).select_related('created_by')
+        )
         
         # Build folder tree
         folder_dict = {}
         root_folders = []
         
+        # Convert Django models to Pydantic models
         for folder in folders:
-            folder_dict[folder.id] = DocumentFolderResponse.model_validate(folder)
-            folder_dict[folder.id].subfolders = []
+            # Get document count for this folder
+            document_count = await sync_to_async(
+                Document.objects.filter(folder_id=folder.id, tenant_id=self.tenant_id).count
+            )()
+            
+            # Build path
+            path = folder.name
+            if folder.parent_id and folder.parent_id in folder_dict:
+                parent_path = folder_dict[folder.parent_id].path
+                path = f"{parent_path}/{folder.name}"
+            
+            folder_response = DocumentFolderResponse(
+                id=folder.id,
+                name=folder.name,
+                description=folder.description,
+                parent_id=folder.parent_id,
+                path=path,
+                color=folder.color,
+                icon=folder.icon or 'ri-folder-line',
+                is_system=folder.is_system,
+                created_by=str(folder.created_by.id) if folder.created_by else '',
+                created_at=folder.created_at,
+                document_count=document_count,
+                subfolders=[]
+            )
+            folder_dict[folder.id] = folder_response
         
+        # Build tree structure
         for folder in folders:
             if folder.parent_id:
                 if folder.parent_id in folder_dict:
@@ -414,20 +442,20 @@ class DocumentsService:
     ) -> DocumentFolderResponse:
         """Create a new folder"""
         
-        user = User.objects.get(id=created_by_id)
+        user = await sync_to_async(User.objects.get)(id=created_by_id)
         
-        folder = DocumentFolder.objects.create(
+        folder = await sync_to_async(DocumentFolder.objects.create)(
             tenant_id=self.tenant_id,
             name=folder_data.name,
             description=folder_data.description,
             parent_id=folder_data.parent_folder_id,
             color=folder_data.color or '#3B82F6',
-            icon=folder_data.icon,
+            icon=folder_data.icon or 'ri-folder-line',
             created_by=user
         )
         
         # Audit log
-        AuditService.audit_action(
+        await sync_to_async(AuditService.audit_action)(
             user=user,
             action="create",
             resource_type="folder",
@@ -435,13 +463,41 @@ class DocumentsService:
             new_values={"name": folder.name}
         )
         
-        return DocumentFolderResponse.model_validate(folder)
+        # Build path
+        path = folder.name
+        if folder.parent_id:
+            try:
+                parent = await sync_to_async(DocumentFolder.objects.get)(id=folder.parent_id)
+                path = f"{parent.path}/{folder.name}" if hasattr(parent, 'path') and parent.path else folder.name
+            except DocumentFolder.DoesNotExist:
+                pass
+        
+        # Get document count
+        document_count = await sync_to_async(
+            Document.objects.filter(folder_id=folder.id, tenant_id=self.tenant_id).count
+        )()
+        
+        # Return response with all required fields
+        return DocumentFolderResponse(
+            id=folder.id,
+            name=folder.name,
+            description=folder.description,
+            parent_id=folder.parent_id,
+            path=path,
+            color=folder.color,
+            icon=folder.icon or 'ri-folder-line',
+            is_system=folder.is_system,
+            created_by=str(user.id),
+            created_at=folder.created_at,
+            document_count=document_count,
+            subfolders=[]
+        )
     
     async def delete_folder(self, folder_id: int, user_id: str) -> None:
         """Delete a folder"""
         
         try:
-            folder = DocumentFolder.objects.get(
+            folder = await sync_to_async(DocumentFolder.objects.get)(
                 id=folder_id, 
                 tenant_id=self.tenant_id
             )
@@ -449,14 +505,14 @@ class DocumentsService:
             raise NotFoundError("Folder not found")
         
         # Check if folder has documents
-        document_count = Document.objects.filter(folder_id=folder_id).count()
+        document_count = await sync_to_async(Document.objects.filter(folder_id=folder_id).count)()
         if document_count > 0:
             raise ValidationError("Cannot delete folder with documents")
         
-        user = User.objects.get(id=user_id)
+        user = await sync_to_async(User.objects.get)(id=user_id)
         
         # Audit log
-        AuditService.audit_action(
+        await sync_to_async(AuditService.audit_action)(
             user=user,
             action="delete",
             resource_type="folder",
@@ -464,35 +520,47 @@ class DocumentsService:
             old_values={"name": folder.name}
         )
         
-        folder.delete()
+        await sync_to_async(folder.delete)()
     
     async def get_analytics(self) -> DocumentAnalyticsResponse:
         """Get document analytics"""
         
         queryset = Document.objects.filter(tenant_id=self.tenant_id)
         
-        total_documents = queryset.count()
-        total_folders = DocumentFolder.objects.filter(tenant_id=self.tenant_id).count()
-        total_views = queryset.aggregate(total=Sum('view_count'))['total'] or 0
-        favorite_documents = queryset.filter(is_favorite=True).count()
+        total_documents = await sync_to_async(queryset.count)()
+        total_folders = await sync_to_async(DocumentFolder.objects.filter(tenant_id=self.tenant_id).count)()
+        
+        # Total views
+        total_views_result = await sync_to_async(
+            lambda: queryset.aggregate(total=Sum('view_count'))
+        )()
+        total_views = total_views_result['total'] or 0
+        
+        favorite_documents = await sync_to_async(queryset.filter(is_favorite=True).count)()
         
         # Views this month
         from datetime import datetime, timedelta
         month_start = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        views_this_month = queryset.filter(
-            uploaded_at__gte=month_start
-        ).aggregate(total=Sum('view_count'))['total'] or 0
+        views_this_month_result = await sync_to_async(
+            lambda: queryset.filter(uploaded_at__gte=month_start).aggregate(total=Sum('view_count'))
+        )()
+        views_this_month = views_this_month_result['total'] or 0
         
         # Storage used
-        storage_used = queryset.aggregate(total=Sum('size'))['total'] or 0
+        storage_used_result = await sync_to_async(
+            lambda: queryset.aggregate(total=Sum('size'))
+        )()
+        storage_used = storage_used_result['total'] or 0
         
         # Most viewed documents
-        most_viewed = queryset.order_by('-view_count')[:5].values(
-            'id', 'title', 'view_count', 'download_count'
-        )
+        most_viewed = await sync_to_async(
+            lambda: list(queryset.order_by('-view_count')[:5].values('id', 'title', 'view_count', 'download_count'))
+        )()
         
         # Document counts by type
-        counts_by_type = queryset.values('type').annotate(count=Count('id'))
+        counts_by_type = await sync_to_async(
+            lambda: list(queryset.values('type').annotate(count=Count('id')))
+        )()
         counts = {item['type']: item['count'] for item in counts_by_type}
         
         return DocumentAnalyticsResponse(
@@ -504,7 +572,7 @@ class DocumentsService:
             shared_documents=0,  # TODO: Implement sharing
             storage_used=storage_used,
             storage_limit=None,  # TODO: Implement storage limits
-            most_viewed_documents=list(most_viewed),
+            most_viewed_documents=most_viewed,
             counts=counts,
             charts={},  # TODO: Implement charts
             recent_activities=[]  # TODO: Implement recent activities

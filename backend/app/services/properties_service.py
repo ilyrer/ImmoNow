@@ -13,6 +13,7 @@ from app.db.models import Property, Address, ContactPerson, PropertyFeatures, Pr
 from app.schemas.properties import (
     PropertyResponse, CreatePropertyRequest, UpdatePropertyRequest,
     Address as AddressSchema, ContactPerson as ContactPersonSchema,
+    ContactPersonCreate,
     PropertyFeatures as PropertyFeaturesSchema, PropertyImage as PropertyImageSchema,
     PropertyDocument as PropertyDocumentSchema
 )
@@ -164,12 +165,13 @@ class PropertiesService:
             
             # Create contact person if provided
             if property_data.contact_person:
+                cp = property_data.contact_person
                 ContactPerson.objects.create(
                     property=property_obj,
-                    name=property_data.contact_person.name,
-                    email=property_data.contact_person.email,
-                    phone=property_data.contact_person.phone,
-                    role=property_data.contact_person.role
+                    name=cp.name,  # Already built by validator from first_name + last_name
+                    email=cp.email,
+                    phone=cp.phone,
+                    role=cp.role
                 )
             
             # Create features if provided

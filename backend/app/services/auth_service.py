@@ -213,6 +213,7 @@ class AuthService:
             can_manage_users=True,
             can_view_analytics=True,
             can_export_data=True,
+            scopes=['read', 'write', 'delete'],
             is_active=True,
             joined_at=timezone.now()
         )
@@ -407,3 +408,32 @@ class AuthService:
             "token_type": "bearer",
             "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60
         }
+    
+    @staticmethod
+    async def get_user_by_google_id(google_id: str) -> Optional[User]:
+        """Get user by Google ID"""
+        try:
+            user = await sync_to_async(User.objects.get)(google_id=google_id)
+            return user
+        except User.DoesNotExist:
+            return None
+    
+    @staticmethod
+    async def get_user_by_email(email: str) -> Optional[User]:
+        """Get user by email"""
+        try:
+            user = await sync_to_async(User.objects.get)(email=email)
+            return user
+        except User.DoesNotExist:
+            return None
+    
+    @staticmethod
+    async def link_google_account(user_id: str, google_id: str) -> bool:
+        """Link Google account to existing user"""
+        try:
+            user = await sync_to_async(User.objects.get)(id=user_id)
+            user.google_id = google_id
+            await sync_to_async(user.save)()
+            return True
+        except User.DoesNotExist:
+            return False

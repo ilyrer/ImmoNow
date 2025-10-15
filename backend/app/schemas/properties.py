@@ -3,7 +3,7 @@ Property Schemas
 """
 from typing import Optional, List, Dict, Any
 from datetime import datetime
-from pydantic import BaseModel, Field, ConfigDict, field_serializer, field_validator
+from pydantic import BaseModel, Field, ConfigDict, field_serializer, field_validator, model_validator
 
 from app.schemas.common import PropertyType, UserResponse
 
@@ -30,6 +30,40 @@ class ContactPerson(BaseModel):
     role: str
     
     model_config = ConfigDict(from_attributes=True)
+
+
+class ContactPersonCreate(BaseModel):
+    """Contact person creation model - flexible input"""
+    # Support both formats: name OR (first_name + last_name)
+    name: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    email: str
+    phone: str
+    role: Optional[str] = "Ansprechpartner"
+    
+    @model_validator(mode='before')
+    @classmethod
+    def build_name_from_parts(cls, values):
+        """Build name from first_name and last_name if name is not provided"""
+        if isinstance(values, dict):
+            # If name is already provided, use it
+            if values.get('name'):
+                return values
+            
+            # Build name from first_name and last_name
+            first_name = str(values.get('first_name', '')).strip()
+            last_name = str(values.get('last_name', '')).strip()
+            
+            if first_name or last_name:
+                full_name = f"{first_name} {last_name}".strip()
+                values['name'] = full_name if full_name else "Unbekannt"
+            else:
+                values['name'] = "Unbekannt"
+        
+        return values
+    
+    model_config = ConfigDict(extra='ignore')
 
 
 class PropertyFeatures(BaseModel):
@@ -185,7 +219,7 @@ class CreatePropertyRequest(BaseModel):
     tags: Optional[List[str]] = Field(default_factory=list)
     
     address: Optional[Address] = None
-    contact_person: Optional[ContactPerson] = None
+    contact_person: Optional[ContactPersonCreate] = None
     features: Optional[PropertyFeatures] = None
     
     @field_validator('living_area', 'total_area', 'plot_area', 'rooms', 'bedrooms', 'bathrooms', 'floors', 'year_built', mode='before')
@@ -239,7 +273,7 @@ class UpdatePropertyRequest(BaseModel):
     tags: Optional[List[str]] = None
     
     address: Optional[Address] = None
-    contact_person: Optional[ContactPerson] = None
+    contact_person: Optional[ContactPersonCreate] = None
     features: Optional[PropertyFeatures] = None
 
 

@@ -118,3 +118,77 @@ async def llm_health_check(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=f"LLM service unavailable: {str(e)}"
         )
+
+
+@router.post("/test")
+async def test_llm_no_auth(request: LLMRequest):
+    """
+    Test endpoint without authentication - nur für Development!
+    ACHTUNG: In Production sollte dieser Endpunkt entfernt oder geschützt werden!
+    """
+    
+    try:
+        # Verwende Test-Tenant
+        llm_service = LLMService(tenant_id="test-tenant")
+        request_id = str(uuid.uuid4())
+        
+        response = await llm_service.ask_question(
+            request=request,
+            user_id="test-user",
+            request_id=request_id
+        )
+        
+        return response
+        
+    except ValidationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except ServiceError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal server error: {str(e)}"
+        )
+
+
+@router.post("/test_dashboard")
+async def test_dashboard_no_auth(request: DashboardQARequest):
+    """
+    Test endpoint für Dashboard Q&A ohne authentication - nur für Development!
+    ACHTUNG: In Production sollte dieser Endpunkt entfernt oder geschützt werden!
+    """
+    
+    try:
+        # Verwende Test-Tenant
+        llm_service = LLMService(tenant_id="test-tenant")
+        request_id = str(uuid.uuid4())
+        
+        response = await llm_service.ask_dashboard_question(
+            request=request,
+            user_id="test-user",
+            request_id=request_id
+        )
+        
+        return response
+        
+    except ValidationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except ServiceError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal server error: {str(e)}"
+        )

@@ -14,7 +14,9 @@ import json
 from dotenv import load_dotenv
 
 # Load environment variables
-load_dotenv("env.local")
+# Try .env first, then env.local as fallback
+load_dotenv(".env")  # Load .env if it exists
+load_dotenv("env.local")  # Load env.local if it exists (overrides .env)
 
 # Custom JSON Encoder for datetime objects
 class CustomJSONEncoder(json.JSONEncoder):

@@ -14,7 +14,7 @@ import {
   TrashIcon,
   PencilIcon,
   DocumentDuplicateIcon,
-} from '@heroicons/react/24/outline';
+} from '@heroicons/react/24/solid';
 import { DocumentFolder } from '../../types/document';
 
 interface DocumentFolderTreeViewProps {

@@ -1,23 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
-import apiService from '../../services/api.service';
-
-// Mock uploadDocument method
-const uploadDocument = async (form: FormData, options?: { onProgress?: (progress: number) => void }) => {
-  console.log('Mock upload document:', form);
-  if (options?.onProgress) {
-    // Simulate progress
-    for (let i = 0; i <= 100; i += 10) {
-      setTimeout(() => options.onProgress!(i), i * 100);
-    }
-  }
-  return Promise.resolve({ id: '1', url: 'mock-url' });
-};
-
-// Extend apiService with uploadDocument method
-const extendedApiService = {
-  ...apiService,
-  uploadDocument
-};
+import { useUploadDocument } from '../../api/hooks';
+import { toast } from 'react-hot-toast';
+import { DocumentType } from '../../api/types.gen';
 
 interface UploadFile {
   file: File;
@@ -42,6 +26,60 @@ const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
   const [uploads, setUploads] = useState<UploadFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadMutation = useUploadDocument();
+
+  const uploadFile = async (upload: UploadFile, index: number) => {
+    const updateUpload = (updates: Partial<UploadFile>) => {
+      setUploads(prev => prev.map((u, i) => 
+        i === index ? { ...u, ...updates } : u
+      ));
+    };
+
+    updateUpload({ status: 'uploading' });
+
+    try {
+      // Prepare metadata for backend
+      const metadata = {
+        title: upload.file.name,
+        type: 'document',  // Backend expects 'type' not 'document_type'
+        category: 'other',  // Required field - valid values: legal, marketing, technical, financial, administrative, other
+        folder_id: folderId ? parseInt(folderId) : undefined,
+        tags: [],
+        visibility: 'private',  // Valid values: public, private, restricted
+      };
+
+      // Simulate progress
+      const progressInterval = setInterval(() => {
+        setUploads(prev => prev.map((u, i) => {
+          if (i === index && u.progress < 90) {
+            return { ...u, progress: u.progress + 10 };
+          }
+          return u;
+        }));
+      }, 200);
+
+      // Upload file
+      await uploadMutation.mutateAsync({ 
+        file: upload.file, 
+        metadata 
+      });
+
+      clearInterval(progressInterval);
+
+      updateUpload({ 
+        status: 'completed', 
+        progress: 100 
+      });
+
+      toast.success(`${upload.file.name} erfolgreich hochgeladen!`);
+    } catch (error) {
+      updateUpload({ 
+        status: 'error', 
+        error: error instanceof Error ? error.message : 'Upload fehlgeschlagen'
+      });
+      toast.error(`Fehler beim Hochladen von ${upload.file.name}`);
+    }
+  };
 
   const handleFileSelect = useCallback((files: FileList | File[]) => {
     const fileArray = Array.from(files);
@@ -55,40 +93,9 @@ const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
     
     // Start uploading files
     newUploads.forEach((upload, index) => {
-      uploadFile(upload, index);
+      uploadFile(upload, uploads.length + index);
     });
-  }, []);
-
-  const uploadFile = async (upload: UploadFile, index: number) => {
-    const updateUpload = (updates: Partial<UploadFile>) => {
-      setUploads(prev => prev.map((u, i) => 
-        i === index ? { ...u, ...updates } : u
-      ));
-    };
-
-    updateUpload({ status: 'uploading' });
-
-    try {
-      const form = new FormData();
-      form.append('file', upload.file);
-      form.append('folderId', folderId || '');
-      form.append('tags', JSON.stringify([]));
-
-      const res = await extendedApiService.uploadDocument(form, {
-        onProgress: (p: number) => updateUpload({ progress: p }),
-      });
-
-      updateUpload({ 
-        status: 'completed', 
-        progress: 100 
-      });
-    } catch (error) {
-      updateUpload({ 
-        status: 'error', 
-        error: error instanceof Error ? error.message : 'Upload failed'
-      });
-    }
-  };
+  }, [uploads.length]);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();

@@ -13,7 +13,7 @@ import {
   ExclamationTriangleIcon,
   ChartBarIcon,
   CalendarDaysIcon,
-} from '@heroicons/react/24/outline';
+} from '@heroicons/react/24/solid';
 import { Document, DocumentAnalytics } from '../../types/document';
 
 interface DocumentAnalyticsDashboardProps {
@@ -24,9 +24,20 @@ interface DocumentAnalyticsDashboardProps {
 
 const DocumentAnalyticsDashboard: React.FC<DocumentAnalyticsDashboardProps> = ({
   analytics,
-  documents,
+  documents = [],
   className = '',
 }) => {
+  // Ensure analytics has default values
+  const safeAnalytics = {
+    totalDocuments: analytics?.totalDocuments ?? 0,
+    totalFolders: analytics?.totalFolders ?? 0,
+    totalViews: analytics?.totalViews ?? 0,
+    viewsThisMonth: analytics?.viewsThisMonth ?? 0,
+    favoriteDocuments: analytics?.favoriteDocuments ?? 0,
+    sharedDocuments: analytics?.sharedDocuments ?? 0,
+    storageUsed: analytics?.storageUsed ?? 0,
+  };
+
   // Calculate additional metrics from documents
   const calculatedMetrics = useMemo(() => {
     const now = new Date();
@@ -88,7 +99,8 @@ const DocumentAnalyticsDashboard: React.FC<DocumentAnalyticsDashboardProps> = ({
     return `${size.toFixed(unitIndex > 0 ? 1 : 0)} ${units[unitIndex]}`;
   };
 
-  const formatNumber = (num: number): string => {
+  const formatNumber = (num: number | undefined): string => {
+    if (num === undefined || num === null) return '0';
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
     if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
     return num.toString();
@@ -121,7 +133,7 @@ const DocumentAnalyticsDashboard: React.FC<DocumentAnalyticsDashboardProps> = ({
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-400">Gesamte Dokumente</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {formatNumber(analytics.totalDocuments)}
+                {formatNumber(safeAnalytics.totalDocuments)}
               </p>
               <p className="text-xs text-green-600 dark:text-green-400">
                 +{calculatedMetrics.thisMonthDocs} diesen Monat
@@ -139,7 +151,7 @@ const DocumentAnalyticsDashboard: React.FC<DocumentAnalyticsDashboardProps> = ({
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-400">Ordner</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {analytics.totalFolders}
+                {safeAnalytics.totalFolders}
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400">
                 Organisation
@@ -160,7 +172,7 @@ const DocumentAnalyticsDashboard: React.FC<DocumentAnalyticsDashboardProps> = ({
                 {formatFileSize(calculatedMetrics.totalSize)}
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                {analytics.storageUsed ? `${((calculatedMetrics.totalSize / analytics.storageUsed) * 100).toFixed(1)}% von Limit` : 'Unbegrenzt'}
+                {safeAnalytics.storageUsed > 0 ? `von ${formatFileSize(safeAnalytics.storageUsed)}` : 'Unbegrenzt'}
               </p>
             </div>
             <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-full">
@@ -175,10 +187,10 @@ const DocumentAnalyticsDashboard: React.FC<DocumentAnalyticsDashboardProps> = ({
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-400">Aufrufe gesamt</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {formatNumber(analytics.totalViews)}
+                {formatNumber(safeAnalytics.totalViews)}
               </p>
               <p className="text-xs text-blue-600 dark:text-blue-400">
-                {analytics.viewsThisMonth} diesen Monat
+                {safeAnalytics.totalViews} gesamt
               </p>
             </div>
             <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-full">
@@ -223,7 +235,7 @@ const DocumentAnalyticsDashboard: React.FC<DocumentAnalyticsDashboardProps> = ({
                 Favorisierte Dokumente
               </span>
               <span className="font-semibold text-gray-900 dark:text-white">
-                {analytics.favoriteDocuments}
+                {safeAnalytics.favoriteDocuments}
               </span>
             </div>
 
@@ -232,7 +244,7 @@ const DocumentAnalyticsDashboard: React.FC<DocumentAnalyticsDashboardProps> = ({
                 Geteilte Dokumente
               </span>
               <span className="font-semibold text-gray-900 dark:text-white">
-                {analytics.sharedDocuments}
+                {safeAnalytics.sharedDocuments}
               </span>
             </div>
           </div>
@@ -307,7 +319,7 @@ const DocumentAnalyticsDashboard: React.FC<DocumentAnalyticsDashboardProps> = ({
             .sort(([,a], [,b]) => b - a)
             .slice(0, 8)
             .map(([type, count]) => {
-              const percentage = (count / analytics.totalDocuments) * 100;
+              const percentage = safeAnalytics.totalDocuments > 0 ? (count / safeAnalytics.totalDocuments) * 100 : 0;
               return (
                 <div key={type} className="flex items-center">
                   <div className="w-24 text-sm text-gray-600 dark:text-gray-400 truncate">
@@ -341,17 +353,17 @@ const DocumentAnalyticsDashboard: React.FC<DocumentAnalyticsDashboardProps> = ({
       </div>
 
       {/* Top Performers */}
-      {analytics.mostViewedDocuments && analytics.mostViewedDocuments.length > 0 && (
+      {documents && documents.length > 0 && (
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-              Meistgesehene Dokumente
+              Neueste Dokumente
             </h3>
             <EyeIcon className="w-5 h-5 text-gray-500 dark:text-gray-400" />
           </div>
 
           <div className="space-y-3">
-            {analytics.mostViewedDocuments.slice(0, 5).map((doc: any, index: number) => (
+            {documents.slice(0, 5).map((doc: any, index: number) => (
               <div key={doc.id} className="flex items-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded">
                 <div className="w-6 h-6 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mr-3">
                   <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">

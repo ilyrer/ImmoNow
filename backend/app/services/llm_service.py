@@ -1,13 +1,12 @@
 """
-LLM Service for Qwen/OpenRouter Integration
+LLM Service for DeepSeek V3.1/OpenRouter Integration
 """
 import os
 import asyncio
 import logging
 from typing import Optional, Dict, Any
 from datetime import datetime, timedelta
-import httpx
-from cryptography.fernet import Fernet
+from openai import AsyncOpenAI
 
 from app.core.settings import settings
 from app.core.errors import ValidationError, ServiceError
@@ -18,18 +17,27 @@ logger = logging.getLogger(__name__)
 
 
 class LLMService:
-    """Service for handling LLM requests via OpenRouter"""
+    """Service for handling LLM requests via OpenRouter with DeepSeek V3.1"""
     
     def __init__(self, tenant_id: str):
         self.tenant_id = tenant_id
         self.openrouter_api_key = os.getenv('OPENROUTER_API_KEY')
         self.openrouter_base_url = os.getenv('OPENROUTER_BASE', 'https://openrouter.ai/api/v1')
-        self.openrouter_model = os.getenv('OPENROUTER_MODEL', 'qwen/qwen-2.5-72b-instruct')
-        self.timeout = int(os.getenv('OPENROUTER_TIMEOUT', '30'))
+        self.openrouter_model = os.getenv('OPENROUTER_MODEL', 'deepseek/deepseek-chat-v3.1:free')
+        self.timeout = int(os.getenv('OPENROUTER_TIMEOUT', '60'))
         self.max_tokens = int(os.getenv('OPENROUTER_MAX_TOKENS', '2048'))
+        self.site_url = os.getenv('SITE_URL', 'https://immonow.com')
+        self.site_name = os.getenv('SITE_NAME', 'ImmoNow Dashboard')
         
         if not self.openrouter_api_key:
             raise ServiceError("OpenRouter API key not configured")
+        
+        # Initialize AsyncOpenAI client
+        self.client = AsyncOpenAI(
+            base_url=self.openrouter_base_url,
+            api_key=self.openrouter_api_key,
+            timeout=self.timeout
+        )
         
         self.audit_service = AuditService(tenant_id)
         
@@ -69,55 +77,69 @@ class LLMService:
         max_tokens: int = 2048,
         temperature: float = 0.7
     ) -> Dict[str, Any]:
-        """Make request to OpenRouter API with retry logic"""
+        """Make request to OpenRouter API using OpenAI client with retry logic"""
         
-        headers = {
-            "Authorization": f"Bearer {self.openrouter_api_key}",
-            "Content-Type": "application/json",
-            "HTTP-Referer": "https://immonow.com",
-            "X-Title": "ImmoNow Dashboard"
-        }
-        
-        payload = {
-            "model": self.openrouter_model,
-            "messages": messages,
-            "max_tokens": max_tokens,
-            "temperature": temperature,
-            "stream": False
-        }
-        
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
-            for attempt in range(3):  # 3 retry attempts
-                try:
-                    response = await client.post(
-                        f"{self.openrouter_base_url}/chat/completions",
-                        headers=headers,
-                        json=payload
-                    )
-                    
-                    if response.status_code == 200:
-                        return response.json()
-                    elif response.status_code == 429:  # Rate limited
-                        wait_time = 2 ** attempt  # Exponential backoff
-                        logger.warning(f"Rate limited, waiting {wait_time}s before retry {attempt + 1}")
-                        await asyncio.sleep(wait_time)
-                        continue
-                    else:
-                        logger.error(f"OpenRouter API error: {response.status_code} - {response.text}")
-                        raise ServiceError(f"OpenRouter API error: {response.status_code}")
-                        
-                except httpx.TimeoutException:
+        for attempt in range(3):  # 3 retry attempts
+            try:
+                # Make request using OpenAI client
+                completion = await self.client.chat.completions.create(
+                    model=self.openrouter_model,
+                    messages=messages,
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                    extra_headers={
+                        "HTTP-Referer": self.site_url,
+                        "X-Title": self.site_name
+                    },
+                    extra_body={}
+                )
+                
+                # Convert response to dict format
+                return {
+                    "choices": [
+                        {
+                            "message": {
+                                "role": completion.choices[0].message.role,
+                                "content": completion.choices[0].message.content
+                            },
+                            "finish_reason": completion.choices[0].finish_reason
+                        }
+                    ],
+                    "usage": {
+                        "prompt_tokens": completion.usage.prompt_tokens,
+                        "completion_tokens": completion.usage.completion_tokens,
+                        "total_tokens": completion.usage.total_tokens
+                    },
+                    "model": completion.model,
+                    "id": completion.id
+                }
+                
+            except Exception as e:
+                error_msg = str(e)
+                
+                # Check if rate limited
+                if "429" in error_msg or "rate_limit" in error_msg.lower():
+                    wait_time = 2 ** attempt  # Exponential backoff
+                    logger.warning(f"Rate limited, waiting {wait_time}s before retry {attempt + 1}")
+                    await asyncio.sleep(wait_time)
+                    if attempt == 2:  # Last attempt
+                        raise ServiceError("Rate limit exceeded after retries")
+                    continue
+                
+                # Check if timeout
+                if "timeout" in error_msg.lower():
                     logger.warning(f"OpenRouter request timeout, attempt {attempt + 1}")
                     if attempt == 2:  # Last attempt
                         raise ServiceError("OpenRouter request timeout after retries")
                     await asyncio.sleep(2 ** attempt)
                     continue
-                except Exception as e:
-                    logger.error(f"OpenRouter request error: {str(e)}")
-                    if attempt == 2:  # Last attempt
-                        raise ServiceError(f"OpenRouter request failed: {str(e)}")
-                    await asyncio.sleep(2 ** attempt)
-                    continue
+                
+                # Other errors
+                logger.error(f"OpenRouter request error: {error_msg}")
+                if attempt == 2:  # Last attempt
+                    raise ServiceError(f"OpenRouter request failed: {error_msg}")
+                await asyncio.sleep(2 ** attempt)
+                continue
         
         raise ServiceError("OpenRouter request failed after all retries")
     

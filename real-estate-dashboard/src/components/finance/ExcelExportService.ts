@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import { FinancingResult, formatCurrency } from './PDFExportService';
 
 // Interface für Excel-Export Parameter
@@ -84,54 +84,93 @@ const createParameterData = (params: ExcelExportParams) => {
 };
 
 // Styling für Excel-Worksheets
-const styleWorksheet = (worksheet: XLSX.WorkSheet, range: string) => {
+const styleWorksheet = (worksheet: ExcelJS.Worksheet) => {
   // Header-Stil für die erste Zeile
-  if (!worksheet['!rows']) worksheet['!rows'] = [];
-  worksheet['!rows'][0] = { hpt: 20, hpx: 20 };
+  const headerRow = worksheet.getRow(1);
+  headerRow.height = 20;
+  headerRow.font = { bold: true };
+  headerRow.fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FFE6F3FF' }
+  };
   
   // Spaltenbreiten setzen
-  const colWidths = [
-    { wch: 25 }, // Parameter/Jahr
-    { wch: 15 }, // Wert/Rate
-    { wch: 15 }, // Einheit/Zinsen
-    { wch: 15 }, // Tilgung
-    { wch: 15 }, // Restschuld
-    { wch: 15 }, // Kumuliert
-    { wch: 15 }, // Kumuliert
-    { wch: 12 }  // Fortschritt
+  worksheet.columns = [
+    { width: 25 }, // Parameter/Jahr
+    { width: 15 }, // Wert/Rate
+    { width: 15 }, // Einheit/Zinsen
+    { width: 15 }, // Tilgung
+    { width: 15 }, // Restschuld
+    { width: 15 }, // Kumuliert
+    { width: 15 }, // Kumuliert
+    { width: 12 }  // Fortschritt
   ];
-  worksheet['!cols'] = colWidths.slice(0, Object.keys(worksheet).filter(key => key.match(/^[A-Z]/)).length);
 };
 
 // Haupt-Excel Export Funktion
 export const generateFinancingExcel = async (params: ExcelExportParams): Promise<void> => {
   try {
-    const workbook = XLSX.utils.book_new();
+    const workbook = new ExcelJS.Workbook();
+    
+    // Workbook Properties setzen
+    workbook.creator = 'ImmoNow by cryvenix';
+    workbook.lastModifiedBy = 'ImmoNow by cryvenix';
+    workbook.created = new Date();
+    workbook.modified = new Date();
+    workbook.title = 'Finanzierungsplan ImmoNow by cryvenix';
+    workbook.subject = 'Immobilienfinanzierung';
     
     // 1. Übersicht Sheet
+    const overviewSheet = workbook.addWorksheet('Übersicht');
     const overviewData = createOverviewData(params);
     const parameterData = createParameterData(params);
     const combinedOverview = [...overviewData, { Parameter: '', Wert: '', Einheit: '' }, ...parameterData];
     
-    const overviewSheet = XLSX.utils.json_to_sheet(combinedOverview);
-    styleWorksheet(overviewSheet, 'A1:C20');
-    XLSX.utils.book_append_sheet(workbook, overviewSheet, 'Übersicht');
+    // Headers hinzufügen
+    overviewSheet.addRow(['Parameter', 'Wert', 'Einheit']);
+    
+    // Daten hinzufügen
+    combinedOverview.forEach(row => {
+      overviewSheet.addRow([row.Parameter, row.Wert, row.Einheit]);
+    });
+    
+    styleWorksheet(overviewSheet);
     
     // 2. Jährlicher Tilgungsplan Sheet
+    const yearlySheet = workbook.addWorksheet('Tilgungsplan (jährlich)');
     const yearlyData = createYearlyScheduleData(params.results);
-    const yearlySheet = XLSX.utils.json_to_sheet(yearlyData);
-    styleWorksheet(yearlySheet, `A1:H${yearlyData.length + 1}`);
-    XLSX.utils.book_append_sheet(workbook, yearlySheet, 'Tilgungsplan (jährlich)');
+    
+    // Headers hinzufügen
+    const yearlyHeaders = Object.keys(yearlyData[0] || {});
+    yearlySheet.addRow(yearlyHeaders);
+    
+    // Daten hinzufügen
+    yearlyData.forEach(row => {
+      yearlySheet.addRow(Object.values(row));
+    });
+    
+    styleWorksheet(yearlySheet);
     
     // 3. Monatlicher Tilgungsplan Sheet (nur bei Laufzeiten bis 30 Jahre)
     if (params.results.amortizationSchedule.length <= 360) {
+      const monthlySheet = workbook.addWorksheet('Tilgungsplan (monatlich)');
       const monthlyData = createMonthlyScheduleData(params.results);
-      const monthlySheet = XLSX.utils.json_to_sheet(monthlyData);
-      styleWorksheet(monthlySheet, `A1:H${monthlyData.length + 1}`);
-      XLSX.utils.book_append_sheet(workbook, monthlySheet, 'Tilgungsplan (monatlich)');
+      
+      // Headers hinzufügen
+      const monthlyHeaders = Object.keys(monthlyData[0] || {});
+      monthlySheet.addRow(monthlyHeaders);
+      
+      // Daten hinzufügen
+      monthlyData.forEach(row => {
+        monthlySheet.addRow(Object.values(row));
+      });
+      
+      styleWorksheet(monthlySheet);
     }
     
     // 4. Zusammenfassung Sheet
+    const summarySheet = workbook.addWorksheet('Zusammenfassung');
     const summaryData = [
       { Kategorie: 'Finanzierung', Betrag: params.results.loanAmount, Anteil: ((params.results.loanAmount / params.results.totalCost) * 100).toFixed(1) + '%' },
       { Kategorie: 'Zinsen', Betrag: params.results.totalInterest, Anteil: ((params.results.totalInterest / params.results.totalCost) * 100).toFixed(1) + '%' },
@@ -139,20 +178,27 @@ export const generateFinancingExcel = async (params: ExcelExportParams): Promise
       { Kategorie: 'Nebenkosten', Betrag: params.additionalCosts, Anteil: ((params.additionalCosts / params.results.totalCost) * 100).toFixed(1) + '%' }
     ];
     
-    const summarySheet = XLSX.utils.json_to_sheet(summaryData);
-    styleWorksheet(summarySheet, 'A1:C5');
-    XLSX.utils.book_append_sheet(workbook, summarySheet, 'Zusammenfassung');
+    // Headers hinzufügen
+    summarySheet.addRow(['Kategorie', 'Betrag', 'Anteil']);
     
-    // Workbook Properties setzen
-    workbook.Props = {
-      Title: 'Finanzierungsplan ImmoNow by cryvenix',
-      Subject: 'Immobilienfinanzierung',
-      Author: 'ImmoNow by cryvenix',
-      CreatedDate: new Date()
-    };
+    // Daten hinzufügen
+    summaryData.forEach(row => {
+      summarySheet.addRow([row.Kategorie, row.Betrag, row.Anteil]);
+    });
+    
+    styleWorksheet(summarySheet);
     
     // Excel-Datei speichern
-    XLSX.writeFile(workbook, `Finanzierungsplan_ImmoNow_${new Date().toISOString().split('T')[0]}.xlsx`);
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Finanzierungsplan_ImmoNow_${new Date().toISOString().split('T')[0]}.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
     
   } catch (error) {
     console.error('Fehler beim Excel-Export:', error);

@@ -52,6 +52,9 @@ class User(AbstractBaseUser):
     phone = models.CharField(max_length=50, blank=True, null=True)
     avatar = models.URLField(blank=True, null=True)
     
+    # OAuth
+    google_id = models.CharField(max_length=255, blank=True, null=True, unique=True)
+    
     # Auth Settings
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
@@ -168,6 +171,9 @@ class TenantUser(models.Model):
     can_manage_users = models.BooleanField(default=False)
     can_view_analytics = models.BooleanField(default=True)
     can_export_data = models.BooleanField(default=False)
+    
+    # Scopes for fine-grained permissions
+    scopes = models.JSONField(default=list, blank=True, help_text="List of permission scopes")
     
     # Status
     is_active = models.BooleanField(default=True)
