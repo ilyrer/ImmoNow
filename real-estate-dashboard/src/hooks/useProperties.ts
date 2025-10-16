@@ -134,45 +134,23 @@ export const useCreateProperty = () => {
 export const useUpdateProperty = () => {
   const queryClient = useQueryClient();
   
-  return useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: UpdatePropertyPayload }) =>
-      propertiesService.updateProperty(id, payload),
-    
-    // Optimistic Update
-    onMutate: async ({ id, payload }) => {
-      // Cancel outgoing refetches
-      await queryClient.cancelQueries({ queryKey: propertyKeys.detail(id) });
-      
-      // Snapshot previous value
-      const previousProperty = queryClient.getQueryData<PropertyResponse>(propertyKeys.detail(id));
-      
-      // Optimistically update
-      if (previousProperty) {
-        queryClient.setQueryData<PropertyResponse>(propertyKeys.detail(id), (old) => {
-          if (!old) return old;
-          return {
-            ...old,
-            ...payload,
-            updated_at: new Date().toISOString(),
-          } as PropertyResponse;
-        });
-      }
-      
-      return { previousProperty };
+  return useMutation<
+    PropertyResponse, // Return type
+    Error, // Error type
+    { id: string; payload: UpdatePropertyPayload } // Variables type
+  >({
+    mutationFn: async ({ id, payload }) => {
+      return await propertiesService.updateProperty(id, payload);
     },
     
     onSuccess: (data, { id }) => {
-      // Update mit echten Daten
-      queryClient.setQueryData(propertyKeys.detail(id), data);
+      if (data) {
+        queryClient.setQueryData(propertyKeys.detail(id), data);
+      }
       queryClient.invalidateQueries({ queryKey: propertyKeys.lists() });
-      toast.success('Immobilie erfolgreich aktualisiert!');
     },
     
-    onError: (error: any, { id }, context) => {
-      // Rollback on error
-      if (context?.previousProperty) {
-        queryClient.setQueryData(propertyKeys.detail(id), context.previousProperty);
-      }
+    onError: (error: any) => {
       const message = error?.response?.data?.detail || 'Fehler beim Aktualisieren der Immobilie';
       toast.error(message);
     },

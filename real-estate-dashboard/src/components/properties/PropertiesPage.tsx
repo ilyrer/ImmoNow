@@ -3,9 +3,9 @@
  * KEINE MOCKDATEN!
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { 
   Home, Plus, Grid, List, Filter, Search, X, 
   Bed, Bath, Square, MapPin, Euro, Calendar,
@@ -19,7 +19,8 @@ import {
   useProperties, 
   useDeleteProperty, 
   useTogglePropertyFavorite,
-  usePrefetchProperty 
+  usePrefetchProperty,
+  useBulkPropertyAction
 } from '../../hooks/useProperties';
 import { PropertyListParams } from '../../services/properties';
 
@@ -40,29 +41,63 @@ interface PropertiesPageProps {
 const PropertiesPage: React.FC<PropertiesPageProps> = ({ user }) => {
   const navigate = useNavigate();
   const prefetchProperty = usePrefetchProperty();
+  const [searchParams, setSearchParams] = useSearchParams();
   
   // State
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showFilters, setShowFilters] = useState(false);
   const [selectedProperties, setSelectedProperties] = useState<string[]>([]);
   
+  // Initialize filters from URL params
+  const getInitialFilters = (): PropertyListParams => {
+    return {
+      page: parseInt(searchParams.get('page') || '1'),
+      size: parseInt(searchParams.get('size') || '20'),
+      search: searchParams.get('search') || '',
+      property_type: searchParams.get('property_type') || undefined,
+      status: searchParams.get('status') || undefined,
+      price_min: searchParams.get('price_min') ? Number(searchParams.get('price_min')) : undefined,
+      price_max: searchParams.get('price_max') ? Number(searchParams.get('price_max')) : undefined,
+      rooms_min: searchParams.get('rooms_min') ? Number(searchParams.get('rooms_min')) : undefined,
+      rooms_max: searchParams.get('rooms_max') ? Number(searchParams.get('rooms_max')) : undefined,
+      bedrooms_min: searchParams.get('bedrooms_min') ? Number(searchParams.get('bedrooms_min')) : undefined,
+      bedrooms_max: searchParams.get('bedrooms_max') ? Number(searchParams.get('bedrooms_max')) : undefined,
+      bathrooms_min: searchParams.get('bathrooms_min') ? Number(searchParams.get('bathrooms_min')) : undefined,
+      bathrooms_max: searchParams.get('bathrooms_max') ? Number(searchParams.get('bathrooms_max')) : undefined,
+      living_area_min: searchParams.get('living_area_min') ? Number(searchParams.get('living_area_min')) : undefined,
+      living_area_max: searchParams.get('living_area_max') ? Number(searchParams.get('living_area_max')) : undefined,
+      plot_area_min: searchParams.get('plot_area_min') ? Number(searchParams.get('plot_area_min')) : undefined,
+      plot_area_max: searchParams.get('plot_area_max') ? Number(searchParams.get('plot_area_max')) : undefined,
+      year_built_min: searchParams.get('year_built_min') ? Number(searchParams.get('year_built_min')) : undefined,
+      year_built_max: searchParams.get('year_built_max') ? Number(searchParams.get('year_built_max')) : undefined,
+      energy_class: searchParams.get('energy_class') || undefined,
+      heating_type: searchParams.get('heating_type') || undefined,
+      sort_by: (searchParams.get('sort_by') as any) || 'created_at',
+      sort_order: (searchParams.get('sort_order') as any) || 'desc',
+    };
+  };
+  
   // Filter State
-  const [filters, setFilters] = useState<PropertyListParams>({
-    page: 1,
-    size: 20,
-    search: '',
-    property_type: undefined,
-    status: undefined,
-    price_min: undefined,
-    price_max: undefined,
-    sort_by: 'created_at',
-    sort_order: 'desc',
-  });
+  const [filters, setFilters] = useState<PropertyListParams>(getInitialFilters());
 
   // API Query
   const { data: propertiesData, isLoading, error, refetch } = useProperties(filters);
   const deleteMutation = useDeleteProperty();
   const toggleFavoriteMutation = useTogglePropertyFavorite();
+  const bulkActionMutation = useBulkPropertyAction();
+
+  // Sync filters to URL
+  useEffect(() => {
+    const params = new URLSearchParams();
+    
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== '' && value !== null) {
+        params.set(key, String(value));
+      }
+    });
+    
+    setSearchParams(params, { replace: true });
+  }, [filters, setSearchParams]);
 
   // Memoized Properties
   const properties = useMemo(() => {
@@ -126,9 +161,74 @@ const PropertiesPage: React.FC<PropertiesPageProps> = ({ user }) => {
       status: undefined,
       price_min: undefined,
       price_max: undefined,
+      rooms_min: undefined,
+      rooms_max: undefined,
+      bedrooms_min: undefined,
+      bedrooms_max: undefined,
+      bathrooms_min: undefined,
+      bathrooms_max: undefined,
+      living_area_min: undefined,
+      living_area_max: undefined,
+      plot_area_min: undefined,
+      plot_area_max: undefined,
+      year_built_min: undefined,
+      year_built_max: undefined,
+      energy_class: undefined,
+      heating_type: undefined,
       sort_by: 'created_at',
       sort_order: 'desc',
     });
+  };
+
+  // Bulk Operations
+  const handleSelectAll = () => {
+    if (selectedProperties.length === properties.length) {
+      setSelectedProperties([]);
+    } else {
+      setSelectedProperties(properties.map(p => p.id));
+    }
+  };
+
+  const handleToggleSelect = (id: string) => {
+    setSelectedProperties(prev =>
+      prev.includes(id) ? prev.filter(pid => pid !== id) : [...prev, id]
+    );
+  };
+
+  const handleBulkDelete = async () => {
+    if (!window.confirm(`Möchten Sie ${selectedProperties.length} Immobilien wirklich löschen?`)) return;
+    
+    try {
+      await bulkActionMutation.mutateAsync({ action: 'delete', propertyIds: selectedProperties });
+      setSelectedProperties([]);
+      refetch();
+    } catch (error) {
+      toast.error('Fehler beim Löschen');
+    }
+  };
+
+  const handleBulkPublish = async () => {
+    if (!window.confirm(`Möchten Sie ${selectedProperties.length} Immobilien veröffentlichen?`)) return;
+    
+    try {
+      await bulkActionMutation.mutateAsync({ action: 'publish', propertyIds: selectedProperties });
+      setSelectedProperties([]);
+      refetch();
+    } catch (error) {
+      toast.error('Fehler beim Veröffentlichen');
+    }
+  };
+
+  const handleBulkArchive = async () => {
+    if (!window.confirm(`Möchten Sie ${selectedProperties.length} Immobilien archivieren?`)) return;
+    
+    try {
+      await bulkActionMutation.mutateAsync({ action: 'archive', propertyIds: selectedProperties });
+      setSelectedProperties([]);
+      refetch();
+    } catch (error) {
+      toast.error('Fehler beim Archivieren');
+    }
   };
 
   const hasActiveFilters = useMemo(() => {
@@ -137,7 +237,21 @@ const PropertiesPage: React.FC<PropertiesPageProps> = ({ user }) => {
       filters.property_type ||
       filters.status ||
       filters.price_min ||
-      filters.price_max
+      filters.price_max ||
+      filters.rooms_min ||
+      filters.rooms_max ||
+      filters.bedrooms_min ||
+      filters.bedrooms_max ||
+      filters.bathrooms_min ||
+      filters.bathrooms_max ||
+      filters.living_area_min ||
+      filters.living_area_max ||
+      filters.plot_area_min ||
+      filters.plot_area_max ||
+      filters.year_built_min ||
+      filters.year_built_max ||
+      filters.energy_class ||
+      filters.heating_type
     );
   }, [filters]);
 
@@ -200,6 +314,7 @@ const PropertiesPage: React.FC<PropertiesPageProps> = ({ user }) => {
               </h1>
               <p className="text-gray-600 dark:text-gray-400">
                 {pagination ? `${pagination.total} Immobilien gefunden` : 'Laden...'}
+                {selectedProperties.length > 0 && ` • ${selectedProperties.length} ausgewählt`}
               </p>
             </div>
             
@@ -211,6 +326,62 @@ const PropertiesPage: React.FC<PropertiesPageProps> = ({ user }) => {
               <span className="font-semibold">Neue Immobilie</span>
             </button>
           </div>
+
+          {/* Bulk Action Bar */}
+          <AnimatePresence>
+            {selectedProperties.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-xl"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <span className="text-sm font-medium text-gray-900 dark:text-white">
+                      {selectedProperties.length} Immobilie(n) ausgewählt
+                    </span>
+                    <button
+                      onClick={handleSelectAll}
+                      className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                    >
+                      {selectedProperties.length === properties.length ? 'Keine auswählen' : 'Alle auswählen'}
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleBulkPublish}
+                      disabled={bulkActionMutation.isPending}
+                      className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm rounded-lg transition-all disabled:opacity-50"
+                    >
+                      Veröffentlichen
+                    </button>
+                    <button
+                      onClick={handleBulkArchive}
+                      disabled={bulkActionMutation.isPending}
+                      className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white text-sm rounded-lg transition-all disabled:opacity-50"
+                    >
+                      Archivieren
+                    </button>
+                    <button
+                      onClick={handleBulkDelete}
+                      disabled={bulkActionMutation.isPending}
+                      className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm rounded-lg transition-all disabled:opacity-50"
+                    >
+                      {bulkActionMutation.isPending ? 'Wird gelöscht...' : 'Löschen'}
+                    </button>
+                    <button
+                      onClick={() => setSelectedProperties([])}
+                      className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-all"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Search & Filters */}
           <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl shadow-lg border border-white/20 dark:border-gray-700/50 p-6">
@@ -363,16 +534,193 @@ const PropertiesPage: React.FC<PropertiesPageProps> = ({ user }) => {
                       />
                     </div>
 
-                    {/* Area Min */}
+                    {/* Rooms Max */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Min. Fläche (m²)
+                        Max. Zimmer
                       </label>
                       <input
                         type="number"
-                        placeholder="Min. Fläche"
+                        placeholder="Max. Zimmer"
+                        value={filters.rooms_max || ''}
+                        onChange={(e) => handleFilterChange('rooms_max', e.target.value ? Number(e.target.value) : undefined)}
+                        className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                      />
+                    </div>
+
+                    {/* Living Area Min */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Min. Wohnfläche (m²)
+                      </label>
+                      <input
+                        type="number"
+                        placeholder="Min. Wohnfläche"
                         value={filters.living_area_min || ''}
                         onChange={(e) => handleFilterChange('living_area_min', e.target.value ? Number(e.target.value) : undefined)}
+                        className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                      />
+                    </div>
+
+                    {/* Living Area Max */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Max. Wohnfläche (m²)
+                      </label>
+                      <input
+                        type="number"
+                        placeholder="Max. Wohnfläche"
+                        value={filters.living_area_max || ''}
+                        onChange={(e) => handleFilterChange('living_area_max', e.target.value ? Number(e.target.value) : undefined)}
+                        className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                      />
+                    </div>
+
+                    {/* Bedrooms Min */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Min. Schlafzimmer
+                      </label>
+                      <input
+                        type="number"
+                        placeholder="Min. Schlafzimmer"
+                        value={filters.bedrooms_min || ''}
+                        onChange={(e) => handleFilterChange('bedrooms_min', e.target.value ? Number(e.target.value) : undefined)}
+                        className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                      />
+                    </div>
+
+                    {/* Bedrooms Max */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Max. Schlafzimmer
+                      </label>
+                      <input
+                        type="number"
+                        placeholder="Max. Schlafzimmer"
+                        value={filters.bedrooms_max || ''}
+                        onChange={(e) => handleFilterChange('bedrooms_max', e.target.value ? Number(e.target.value) : undefined)}
+                        className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                      />
+                    </div>
+
+                    {/* Bathrooms Min */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Min. Badezimmer
+                      </label>
+                      <input
+                        type="number"
+                        placeholder="Min. Badezimmer"
+                        value={filters.bathrooms_min || ''}
+                        onChange={(e) => handleFilterChange('bathrooms_min', e.target.value ? Number(e.target.value) : undefined)}
+                        className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                      />
+                    </div>
+
+                    {/* Bathrooms Max */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Max. Badezimmer
+                      </label>
+                      <input
+                        type="number"
+                        placeholder="Max. Badezimmer"
+                        value={filters.bathrooms_max || ''}
+                        onChange={(e) => handleFilterChange('bathrooms_max', e.target.value ? Number(e.target.value) : undefined)}
+                        className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                      />
+                    </div>
+
+                    {/* Year Built Min */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Baujahr von
+                      </label>
+                      <input
+                        type="number"
+                        placeholder="Min. Baujahr"
+                        value={filters.year_built_min || ''}
+                        onChange={(e) => handleFilterChange('year_built_min', e.target.value ? Number(e.target.value) : undefined)}
+                        className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                      />
+                    </div>
+
+                    {/* Year Built Max */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Baujahr bis
+                      </label>
+                      <input
+                        type="number"
+                        placeholder="Max. Baujahr"
+                        value={filters.year_built_max || ''}
+                        onChange={(e) => handleFilterChange('year_built_max', e.target.value ? Number(e.target.value) : undefined)}
+                        className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                      />
+                    </div>
+
+                    {/* Plot Area Min */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Min. Grundstücksfläche (m²)
+                      </label>
+                      <input
+                        type="number"
+                        placeholder="Min. Grundstück"
+                        value={filters.plot_area_min || ''}
+                        onChange={(e) => handleFilterChange('plot_area_min', e.target.value ? Number(e.target.value) : undefined)}
+                        className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                      />
+                    </div>
+
+                    {/* Plot Area Max */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Max. Grundstücksfläche (m²)
+                      </label>
+                      <input
+                        type="number"
+                        placeholder="Max. Grundstück"
+                        value={filters.plot_area_max || ''}
+                        onChange={(e) => handleFilterChange('plot_area_max', e.target.value ? Number(e.target.value) : undefined)}
+                        className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                      />
+                    </div>
+
+                    {/* Energy Class */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Energieklasse
+                      </label>
+                      <select
+                        value={filters.energy_class || ''}
+                        onChange={(e) => handleFilterChange('energy_class', e.target.value || undefined)}
+                        className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                      >
+                        <option value="">Alle Klassen</option>
+                        <option value="A+">A+</option>
+                        <option value="A">A</option>
+                        <option value="B">B</option>
+                        <option value="C">C</option>
+                        <option value="D">D</option>
+                        <option value="E">E</option>
+                        <option value="F">F</option>
+                        <option value="G">G</option>
+                        <option value="H">H</option>
+                      </select>
+                    </div>
+
+                    {/* Heating Type */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Heizungsart
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="z.B. Gas, Öl, Wärmepumpe"
+                        value={filters.heating_type || ''}
+                        onChange={(e) => handleFilterChange('heating_type', e.target.value || undefined)}
                         className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                       />
                     </div>

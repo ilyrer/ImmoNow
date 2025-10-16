@@ -36,6 +36,14 @@ export interface PropertyListParams extends PaginationParams, SortParams {
   year_built_max?: number;
   features?: string[];
   tags?: string[];
+  bedrooms_min?: number;
+  bedrooms_max?: number;
+  bathrooms_min?: number;
+  bathrooms_max?: number;
+  plot_area_min?: number;
+  plot_area_max?: number;
+  energy_class?: string;
+  heating_type?: string;
 }
 
 class PropertiesService {

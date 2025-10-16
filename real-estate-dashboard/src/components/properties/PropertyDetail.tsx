@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useProperties, useUpdateProperty, QUERY_KEYS } from '../../hooks/useApi';
-import { useProperty, usePropertyMetrics } from '../../hooks/useProperties';
+import { QUERY_KEYS } from '../../hooks/useApi';
+import { useProperty, usePropertyMetrics, propertyKeys, useUpdateProperty } from '../../hooks/useProperties';
 import { useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
+import { UpdatePropertyPayload } from '../../types/property';
 import { 
   ArrowLeft, Edit2, Save, X, MapPin, Euro, Home, Calendar, 
   TrendingUp, Eye, MessageSquare, Users, Clock, Tag, Star,
@@ -17,6 +18,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import ExposeTab from './ExposeTab';
 import PublishTab from './PublishTab';
 import EnergyEfficiencyTab from './EnergyEfficiencyTab';
+import MediaManager from './MediaManager';
 
 interface Property {
   id: string;
@@ -110,6 +112,7 @@ const PropertyDetail: React.FC = () => {
     { id: 'overview', label: 'Übersicht', icon: Home },
     { id: 'details', label: 'Details', icon: FileText },
     { id: 'features', label: 'Ausstattung', icon: Star },
+    { id: 'media', label: 'Medien', icon: FileText },
     { id: 'energy', label: 'Energieeffizienz', icon: Zap },
     { id: 'location', label: 'Lage', icon: MapPin },
     { id: 'expose', label: 'Exposé', icon: FileText },
@@ -232,20 +235,121 @@ const PropertyDetail: React.FC = () => {
     
     setIsSaving(true);
     try {
-      // Map UI status back to API status
+      // Map UI structure to API structure
       const apiStatus = mapStatusToApi(editingProperty.status);
+      const apiType = editingProperty.type === 'apartment' ? 'apartment' : 
+                      editingProperty.type === 'house' ? 'house' : 'commercial';
       
-      await (updateMutation.mutateAsync as any)({
+      // Sammle alle Werte aus editingProperty
+      const bedroomsValue = editingProperty.features?.bedrooms 
+        ? Number(editingProperty.features.bedrooms) 
+        : undefined;
+      const bathroomsValue = editingProperty.features?.bathrooms 
+        ? Number(editingProperty.features.bathrooms) 
+        : undefined;
+      const energyClassValue = editingProperty.energyClass?.efficiency || undefined;
+      const heatingTypeValue = editingProperty.features?.heatingType || undefined;
+      const yearBuiltValue = editingProperty.buildYear 
+        ? Number(editingProperty.buildYear) 
+        : undefined;
+      const livingAreaValue = editingProperty.areas?.living || editingProperty.features?.area || undefined;
+      const floorsValue = editingProperty.features?.floor ? Number(editingProperty.features.floor) : undefined;
+      
+      // Build API payload - flache Felder für Property Model
+      const payload: any = {
+        title: editingProperty.title,
+        description: editingProperty.description,
+        status: apiStatus,
+        property_type: apiType,
+        price: editingProperty.price,
+        location: editingProperty.address?.city || editingProperty.location,
+      };
+
+      // Flache Felder setzen
+      if (livingAreaValue !== undefined && livingAreaValue !== null) {
+        payload.living_area = Number(livingAreaValue);
+      }
+      if (editingProperty.areas?.plot) {
+        payload.plot_area = editingProperty.areas.plot;
+      }
+      if (editingProperty.areas?.usable) {
+        payload.total_area = editingProperty.areas.usable;
+      }
+      if (editingProperty.features?.bedrooms) {
+        payload.rooms = Number(editingProperty.features.bedrooms);
+      }
+      if (bathroomsValue !== undefined && bathroomsValue !== null) {
+        payload.bathrooms = Number(bathroomsValue);
+      }
+      if (bedroomsValue !== undefined && bedroomsValue !== null) {
+        payload.bedrooms = Number(bedroomsValue);
+      }
+      if (floorsValue !== undefined && floorsValue !== null) {
+        payload.floors = Number(floorsValue);
+      }
+      if (heatingTypeValue) {
+        payload.heating_type = heatingTypeValue;
+      }
+      if (energyClassValue) {
+        payload.energy_class = energyClassValue;
+      }
+      if (yearBuiltValue) {
+        payload.year_built = Number(yearBuiltValue);
+      }
+
+      // Features Objekt für PropertyFeatures Model
+      payload.features = {
+        bedrooms: bedroomsValue || null,
+        bathrooms: bathroomsValue || null,
+        year_built: yearBuiltValue || null,
+        energy_class: energyClassValue || null,
+        heating_type: heatingTypeValue || null,
+        parking_spaces: editingProperty.features?.parking ? Number(editingProperty.features.parking) : null,
+        balcony: false,
+        garden: false,
+        elevator: false,
+      };
+
+      // Map address
+      if (editingProperty.address) {
+        payload.address = {
+          street: editingProperty.address.street || '',
+          city: editingProperty.address.city || '',
+          zip_code: editingProperty.address.zipCode || '',
+          postal_code: editingProperty.address.zipCode || '',
+          state: editingProperty.address.state || '',
+          country: editingProperty.address.country || 'Deutschland',
+        };
+      }
+
+      // Map location description and additional info
+      if (editingProperty.locationDescription) {
+        payload.location_description = editingProperty.locationDescription;
+      }
+      if (editingProperty.equipmentDescription) {
+        payload.equipment_description = editingProperty.equipmentDescription;
+      }
+      if (editingProperty.additionalInfo) {
+        payload.additional_info = editingProperty.additionalInfo;
+      }
+      
+      // Führe Update aus
+      await updateMutation.mutateAsync({
         id: editingProperty.id,
-        payload: { ...editingProperty, status: apiStatus } as any,
+        payload: payload as UpdatePropertyPayload,
       });
       
-      setProperty(editingProperty);
+      // Warte kurz, damit die Query-Invalidierung wirkt
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Refetch die Property-Daten um sicherzustellen, dass wir die neuesten Daten haben
+      await queryClient.refetchQueries({ queryKey: propertyKeys.detail(editingProperty.id) });
+      
       setIsEditing(false);
-      queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.properties] });
-      toast.success('Immobilie erfolgreich aktualisiert');
+      setEditingProperty(null);
+      toast.success('Immobilie erfolgreich aktualisiert!');
     } catch (error) {
-      console.error('Save error:', error);
+      console.error('❌ Save error:', error);
       toast.error('Fehler beim Speichern');
     } finally {
       setIsSaving(false);
@@ -505,40 +609,196 @@ const PropertyDetail: React.FC = () => {
                       Objektübersicht
                     </h3>
 
+                    {/* Basic Info - Editable */}
+                    {isEditing && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Titel
+                          </label>
+                          <input
+                            type="text"
+                            value={editingProperty?.title || ''}
+                            onChange={(e) => updateEditingProperty('title', e.target.value)}
+                            className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Objektart
+                          </label>
+                          <select
+                            value={editingProperty?.type || 'house'}
+                            onChange={(e) => updateEditingProperty('type', e.target.value)}
+                            className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          >
+                            <option value="apartment">Wohnung</option>
+                            <option value="house">Haus</option>
+                            <option value="commercial">Gewerbe</option>
+                          </select>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Key Metrics Grid */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                       <div className="p-6 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl border border-blue-200 dark:border-blue-700 hover:shadow-lg transition-all">
                         <Euro className="w-10 h-10 text-blue-600 dark:text-blue-400 mb-3" />
-                        <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
-                          {property.price.toLocaleString('de-DE')} €
-                        </div>
+                        {isEditing ? (
+                          <input
+                            type="number"
+                            value={editingProperty?.price || ''}
+                            onChange={(e) => updateEditingProperty('price', Number(e.target.value))}
+                            className="w-full text-2xl font-bold bg-transparent border-b border-blue-300 dark:border-blue-600 text-gray-900 dark:text-white mb-1 focus:outline-none focus:border-blue-500"
+                          />
+                        ) : (
+                          <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
+                            {property.price.toLocaleString('de-DE')} €
+                          </div>
+                        )}
                         <div className="text-sm text-gray-500 dark:text-gray-400">Kaufpreis</div>
                       </div>
 
                       <div className="p-6 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-2xl border border-purple-200 dark:border-purple-700 hover:shadow-lg transition-all">
                         <Ruler className="w-10 h-10 text-purple-600 dark:text-purple-400 mb-3" />
-                        <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
-                          {property.features.area} m²
-                        </div>
+                        {isEditing ? (
+                          <input
+                            type="number"
+                            value={editingProperty?.features?.area || ''}
+                            onChange={(e) => updateEditingProperty('features.area', e.target.value)}
+                            className="w-full text-2xl font-bold bg-transparent border-b border-purple-300 dark:border-purple-600 text-gray-900 dark:text-white mb-1 focus:outline-none focus:border-purple-500"
+                          />
+                        ) : (
+                          <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
+                            {property.features.area} m²
+                          </div>
+                        )}
                         <div className="text-sm text-gray-500 dark:text-gray-400">Wohnfläche</div>
                       </div>
 
                       <div className="p-6 bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20 rounded-2xl border border-emerald-200 dark:border-emerald-700 hover:shadow-lg transition-all">
                         <Bed className="w-10 h-10 text-emerald-600 dark:text-emerald-400 mb-3" />
-                        <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
-                          {property.features.bedrooms}
-                        </div>
+                        {isEditing ? (
+                          <input
+                            type="number"
+                            value={editingProperty?.features?.bedrooms || ''}
+                            onChange={(e) => updateEditingProperty('features.bedrooms', e.target.value)}
+                            className="w-full text-2xl font-bold bg-transparent border-b border-emerald-300 dark:border-emerald-600 text-gray-900 dark:text-white mb-1 focus:outline-none focus:border-emerald-500"
+                          />
+                        ) : (
+                          <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
+                            {property.features.bedrooms}
+                          </div>
+                        )}
                         <div className="text-sm text-gray-500 dark:text-gray-400">Zimmer</div>
                       </div>
 
                       <div className="p-6 bg-gradient-to-br from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20 rounded-2xl border border-orange-200 dark:border-orange-700 hover:shadow-lg transition-all">
                         <Bath className="w-10 h-10 text-orange-600 dark:text-orange-400 mb-3" />
-                        <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
-                          {property.features.bathrooms}
-                        </div>
+                        {isEditing ? (
+                          <input
+                            type="number"
+                            value={editingProperty?.features?.bathrooms || ''}
+                            onChange={(e) => updateEditingProperty('features.bathrooms', e.target.value)}
+                            className="w-full text-2xl font-bold bg-transparent border-b border-orange-300 dark:border-orange-600 text-gray-900 dark:text-white mb-1 focus:outline-none focus:border-orange-500"
+                          />
+                        ) : (
+                          <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
+                            {property.features.bathrooms}
+                          </div>
+                        )}
                         <div className="text-sm text-gray-500 dark:text-gray-400">Badezimmer</div>
                       </div>
                     </div>
+
+                    {/* Additional Fields in Edit Mode */}
+                    {isEditing && (
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Gesamtfläche (m²)
+                          </label>
+                          <input
+                            type="number"
+                            value={editingProperty?.areas?.living || ''}
+                            onChange={(e) => updateEditingProperty('areas.living', Number(e.target.value))}
+                            className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Grundstücksfläche (m²)
+                          </label>
+                          <input
+                            type="number"
+                            value={editingProperty?.areas?.plot || ''}
+                            onChange={(e) => updateEditingProperty('areas.plot', Number(e.target.value))}
+                            className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Baujahr
+                          </label>
+                          <input
+                            type="number"
+                            value={editingProperty?.buildYear || ''}
+                            onChange={(e) => updateEditingProperty('buildYear', Number(e.target.value))}
+                            className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Energieklasse
+                          </label>
+                          <select
+                            value={editingProperty?.energyClass?.efficiency || ''}
+                            onChange={(e) => updateEditingProperty('energyClass.efficiency', e.target.value)}
+                            className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          >
+                            <option value="">Nicht angegeben</option>
+                            <option value="A+">A+</option>
+                            <option value="A">A</option>
+                            <option value="B">B</option>
+                            <option value="C">C</option>
+                            <option value="D">D</option>
+                            <option value="E">E</option>
+                            <option value="F">F</option>
+                            <option value="G">G</option>
+                            <option value="H">H</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Heizungsart
+                          </label>
+                          <input
+                            type="text"
+                            value={editingProperty?.features?.heatingType || ''}
+                            onChange={(e) => updateEditingProperty('features.heatingType', e.target.value)}
+                            className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="z.B. Gas, Öl, Wärmepumpe"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Etagen
+                          </label>
+                          <input
+                            type="number"
+                            value={editingProperty?.features?.floor || ''}
+                            onChange={(e) => updateEditingProperty('features.floor', e.target.value)}
+                            className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+                      </div>
+                    )}
 
                     {/* Description */}
                     <div>
@@ -664,6 +924,16 @@ const PropertyDetail: React.FC = () => {
                       )}
                     </div>
                   </div>
+                )}
+
+                {/* Media Tab */}
+                {activeTab === 'media' && (
+                  <MediaManager
+                    propertyId={property.id}
+                    images={property.images || []}
+                    documents={[]}
+                    onRefresh={() => queryClient.invalidateQueries({ queryKey: propertyKeys.detail(property.id) })}
+                  />
                 )}
 
                 {/* Energy Tab */}

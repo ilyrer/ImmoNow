@@ -37,6 +37,20 @@ class PropertiesService:
         min_price: Optional[float] = None,
         max_price: Optional[float] = None,
         city: Optional[str] = None,
+        rooms_min: Optional[int] = None,
+        rooms_max: Optional[int] = None,
+        bedrooms_min: Optional[int] = None,
+        bedrooms_max: Optional[int] = None,
+        bathrooms_min: Optional[int] = None,
+        bathrooms_max: Optional[int] = None,
+        living_area_min: Optional[int] = None,
+        living_area_max: Optional[int] = None,
+        plot_area_min: Optional[int] = None,
+        plot_area_max: Optional[int] = None,
+        year_built_min: Optional[int] = None,
+        year_built_max: Optional[int] = None,
+        energy_class: Optional[str] = None,
+        heating_type: Optional[str] = None,
         sort_by: Optional[str] = None,
         sort_order: Optional[str] = None
     ) -> Tuple[List[PropertyResponse], int]:
@@ -68,6 +82,51 @@ class PropertiesService:
             
             if city:
                 queryset = queryset.filter(location__icontains=city)
+            
+            # Room filters
+            if rooms_min:
+                queryset = queryset.filter(rooms__gte=rooms_min)
+            
+            if rooms_max:
+                queryset = queryset.filter(rooms__lte=rooms_max)
+            
+            if bedrooms_min:
+                queryset = queryset.filter(bedrooms__gte=bedrooms_min)
+            
+            if bedrooms_max:
+                queryset = queryset.filter(bedrooms__lte=bedrooms_max)
+            
+            if bathrooms_min:
+                queryset = queryset.filter(bathrooms__gte=bathrooms_min)
+            
+            if bathrooms_max:
+                queryset = queryset.filter(bathrooms__lte=bathrooms_max)
+            
+            # Area filters
+            if living_area_min:
+                queryset = queryset.filter(living_area__gte=living_area_min)
+            
+            if living_area_max:
+                queryset = queryset.filter(living_area__lte=living_area_max)
+            
+            if plot_area_min:
+                queryset = queryset.filter(plot_area__gte=plot_area_min)
+            
+            if plot_area_max:
+                queryset = queryset.filter(plot_area__lte=plot_area_max)
+            
+            # Building info filters
+            if year_built_min:
+                queryset = queryset.filter(year_built__gte=year_built_min)
+            
+            if year_built_max:
+                queryset = queryset.filter(year_built__lte=year_built_max)
+            
+            if energy_class:
+                queryset = queryset.filter(energy_class__iexact=energy_class)
+            
+            if heating_type:
+                queryset = queryset.filter(heating_type__icontains=heating_type)
             
             # Apply sorting
             if sort_by:
@@ -229,6 +288,7 @@ class PropertiesService:
             
             # Update fields
             update_data = property_data.model_dump(exclude_unset=True)
+            
             for field, value in update_data.items():
                 if field not in ['address', 'contact_person', 'features']:
                     setattr(property_obj, field, value)
@@ -239,30 +299,46 @@ class PropertiesService:
             if 'address' in update_data and update_data['address']:
                 address_data = update_data['address']
                 address, created = Address.objects.get_or_create(property=property_obj)
-                address.street = address_data['street']
-                address.city = address_data['city']
-                address.zip_code = address_data['zip_code']
-                address.state = address_data['state']
-                address.country = address_data['country']
+                address.street = address_data.get('street', address.street)
+                address.city = address_data.get('city', address.city)
+                address.zip_code = address_data.get('zip_code', address.zip_code)
+                address.postal_code = address_data.get('postal_code', address_data.get('zip_code', address.postal_code))
+                address.state = address_data.get('state', address.state)
+                address.country = address_data.get('country', address.country)
                 address.save()
             
             # Update contact person if provided
             if 'contact_person' in update_data and update_data['contact_person']:
                 contact_data = update_data['contact_person']
                 contact_person, created = ContactPerson.objects.get_or_create(property=property_obj)
-                contact_person.name = contact_data['name']
-                contact_person.email = contact_data['email']
-                contact_person.phone = contact_data['phone']
-                contact_person.role = contact_data['role']
+                contact_person.name = contact_data.get('name', contact_person.name)
+                contact_person.email = contact_data.get('email', contact_person.email)
+                contact_person.phone = contact_data.get('phone', contact_person.phone)
+                contact_person.role = contact_data.get('role', contact_person.role)
                 contact_person.save()
             
-            # Update features if provided
+            # Update features if provided - either from explicit features object OR from flat fields
+            features, created = PropertyFeatures.objects.get_or_create(property=property_obj)
+            
+            # Update from explicit features object if provided
             if 'features' in update_data and update_data['features']:
                 features_data = update_data['features']
-                features, created = PropertyFeatures.objects.get_or_create(property=property_obj)
                 for field, value in features_data.items():
                     setattr(features, field, value)
-                features.save()
+            
+            # Sync from flat fields to features (for backward compatibility)
+            if 'bedrooms' in update_data:
+                features.bedrooms = update_data['bedrooms']
+            if 'bathrooms' in update_data:
+                features.bathrooms = update_data['bathrooms']
+            if 'year_built' in update_data:
+                features.year_built = update_data['year_built']
+            if 'energy_class' in update_data:
+                features.energy_class = update_data['energy_class']
+            if 'heating_type' in update_data:
+                features.heating_type = update_data['heating_type']
+            
+            features.save()
             
             # Audit log
             AuditService.audit_action(
