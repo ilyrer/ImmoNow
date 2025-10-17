@@ -16,6 +16,10 @@ import LoginPage from './components/Auth/LoginPage';
 import SubscriptionManager from './components/Auth/SubscriptionManager';
 import ResetPassword from './components/Auth/ResetPassword';
 import SubscriptionSuccess from './components/billing/SubscriptionSuccess';
+import { BillingPage } from './pages/BillingPage';
+import PlanSelectionPage from './components/Auth/PlanSelectionPage';
+import RegistrationWithPayment from './components/Auth/RegistrationWithPayment';
+import RegistrationComplete from './pages/RegistrationComplete';
 import ModernDocumentsPage from './pages/DocumentsPage.tsx';
 import { RemovedFeatureRedirect } from './components/common/RemovedFeatureRedirect.tsx';
 import KanbanPage from './pages/KanbanPage.tsx';
@@ -38,8 +42,13 @@ function AppContent() {
   const { token, tenantId, setAuth, clearAuth, isAuthenticated } = useAuth();
   const [loading, setLoading] = useState(true);
 
-  const { data: user, isLoading: userLoading, error: userError } = useCurrentUser();
-  const { data: tenantInfo, isLoading: tenantLoading, error: tenantError } = useCurrentTenant();
+  // Nur User-Daten laden wenn authentifiziert
+  const { data: user, isLoading: userLoading, error: userError } = useCurrentUser({
+    enabled: !!token && isAuthenticated
+  });
+  const { data: tenantInfo, isLoading: tenantLoading, error: tenantError } = useCurrentTenant({
+    enabled: !!token && isAuthenticated
+  });
   
   const loginMutation = useLogin();
   const logoutMutation = useLogout();
@@ -171,12 +180,19 @@ function AppContent() {
     );
   }
 
-  // Login-Screen
+  // Login-Screen oder Registration Routes
   if (!isAuthenticated || !token) {
-    console.log('🔐 App: Showing login screen');
+    console.log('🔐 App: Showing login/registration screen');
     return (
       <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
-        <LoginPage onLogin={handleLogin} />
+        <Routes>
+          <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
+          <Route path="/register" element={<PlanSelectionPage />} />
+          <Route path="/register/details" element={<RegistrationWithPayment />} />
+          <Route path="/registration/complete" element={<RegistrationComplete />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        </Routes>
       </div>
     );
   }
@@ -201,7 +217,7 @@ function AppContent() {
           <Route path="/contacts/:id" element={<ContactDetail />} />
           <Route path="/documents" element={<ModernDocumentsPage />} />
           <Route path="/financing" element={<ProfessionalFinancingCalculator />} />
-          <Route path="/subscription" element={<SubscriptionManager onPlanChange={handlePlanChange} />} />
+          <Route path="/subscription" element={<BillingPage />} />
           <Route path="/subscription/success" element={<SubscriptionSuccess />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/investor" element={<InvestorDashboard />} />

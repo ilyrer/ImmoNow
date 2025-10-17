@@ -7,7 +7,6 @@ import { toast } from 'react-hot-toast';
 import AuroraBackgroundClean from './AuroraBackgroundClean';
 import PasswordStrength from './PasswordStrength';
 import PlanSelector from './PlanSelector';
-import RegistrationFlow from './RegistrationFlow';
 import TopProgressBar from '../common/TopProgressBar';
 import SuccessOverlay from '../common/SuccessOverlay';
 
@@ -21,7 +20,6 @@ import './PremiumLogin.css';
 const LoginPage = ({ onLogin }) => {
   const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(true);
-  const [showRegistrationFlow, setShowRegistrationFlow] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
@@ -106,26 +104,9 @@ const LoginPage = ({ onLogin }) => {
     }
   };
 
-  const handleRegistrationComplete = async (payload) => {
-    try {
-      setIsSubmitting(true);
-      const data = await registerMutation.mutateAsync(payload);
-      if (data?.access_token) localStorage.setItem('access_token', data.access_token);
-      if (data?.refresh_token) localStorage.setItem('refresh_token', data.refresh_token);
-      
-      onLogin(data.user);
-      setShowSuccess(true);
-      setTimeout(() => {
-        setShowSuccess(false);
-        navigate('/', { replace: true });
-      }, 1500);
-      toast.success('Welcome to ImmoNow!');
-    } catch (err) {
-      const msg = err?.response?.data?.detail || err?.message || 'Registration failed';
-      toast.error(String(msg));
-    } finally {
-      setIsSubmitting(false);
-    }
+  const handleCreateAccount = () => {
+    // Navigiere zur neuen Payment-First Registration
+    navigate('/register');
   };
 
   const handleInputChange = (e) => {
@@ -228,10 +209,10 @@ const LoginPage = ({ onLogin }) => {
                 className="text-center mb-6"
               >
                 <h2 className="text-2xl font-bold bg-gradient-to-r from-white via-purple-200 to-white bg-clip-text text-transparent mb-2">
-                  {!showRegistrationFlow ? 'Welcome Back' : 'Join the Elite'}
+                  {isLogin ? 'Welcome Back' : 'Join the Elite'}
                 </h2>
                 <p className="text-sm text-purple-200/70 font-light">
-                  {!showRegistrationFlow ? 'Continue your premium journey' : 'Start your transformation today'}
+                  {isLogin ? 'Continue your premium journey' : 'Start your transformation today'}
                 </p>
               </motion.div>
 
@@ -242,9 +223,9 @@ const LoginPage = ({ onLogin }) => {
               >
                 <motion.button
                   type="button"
-                  onClick={() => setShowRegistrationFlow(false)}
+                  onClick={() => setIsLogin(true)}
                   className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all duration-300 ${
-                    !showRegistrationFlow 
+                    isLogin 
                       ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg' 
                       : 'text-purple-200 hover:text-white hover:bg-white/8'
                   }`}
@@ -255,9 +236,9 @@ const LoginPage = ({ onLogin }) => {
                 </motion.button>
                 <motion.button
                   type="button"
-                  onClick={() => setShowRegistrationFlow(true)}
+                  onClick={() => setIsLogin(false)}
                   className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all duration-300 ${
-                    showRegistrationFlow 
+                    !isLogin 
                       ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg' 
                       : 'text-purple-200 hover:text-white hover:bg-white/8'
                   }`}
@@ -270,7 +251,7 @@ const LoginPage = ({ onLogin }) => {
 
               {/* Content */}
               <AnimatePresence mode="wait">
-                {!showRegistrationFlow ? (
+                {isLogin ? (
                   <motion.div
                     key="login"
                     initial={{ opacity: 0, x: 20 }}
@@ -455,11 +436,18 @@ const LoginPage = ({ onLogin }) => {
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -20 }}
                     transition={{ duration: 0.3 }}
+                    className="text-center"
                   >
-                    <RegistrationFlow 
-                      onComplete={handleRegistrationComplete}
-                      onBack={() => setShowRegistrationFlow(false)}
-                    />
+                    <h2 className="text-2xl font-bold text-white mb-6">Create Account</h2>
+                    <p className="text-purple-200 mb-8">
+                      Start your journey with ImmoNow
+                    </p>
+                    <button
+                      onClick={handleCreateAccount}
+                      className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white py-3 px-6 rounded-lg font-medium transition-all duration-300"
+                    >
+                      Get Started
+                    </button>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -468,14 +456,14 @@ const LoginPage = ({ onLogin }) => {
               {/* Footer */}
               <div className="mt-4 text-center">
                 <p className="text-xs text-purple-300/70">
-                  {!showRegistrationFlow ? "Don't have an account?" : 'Already have an account?'}{' '}
+                  {isLogin ? "Don't have an account?" : 'Already have an account?'}{' '}
                   <motion.button
                     type="button"
-                    onClick={() => setShowRegistrationFlow(!showRegistrationFlow)}
+                    onClick={() => setIsLogin(!isLogin)}
                     className="text-purple-200 hover:text-white font-medium transition-colors duration-200"
                     whileHover={{ scale: 1.05 }}
                   >
-                    {!showRegistrationFlow ? 'Create one now' : 'Sign in here'}
+                    {isLogin ? 'Create one now' : 'Sign in here'}
                   </motion.button>
                 </p>
               </div>
@@ -489,6 +477,7 @@ const LoginPage = ({ onLogin }) => {
         show={showSuccess} 
         message="Welcome to ImmoNow!" 
       />
+
     </div>
   );
 };

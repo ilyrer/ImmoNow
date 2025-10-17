@@ -1,13 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { GlobalAIChatbot } from '../AI';
 import SidebarChat from '../Chat/SidebarChat';
 import GlobalHeader from '../common/GlobalHeader';
 import GlobalSidebar from '../common/GlobalSidebar';
 import ChatbotFAB from '../common/ChatbotFAB.tsx';
+import { PaymentModal } from '../billing/PaymentModal';
+import { useTrialStatus } from '../../hooks/useTrialStatus';
 
 const Layout = ({ children, user, onLogout }) => {
   const [chatOpen, setChatOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  
+  // Trial Status Check
+  const { trialStatus } = useTrialStatus();
+
+  // Show Payment Modal wenn Trial abgelaufen
+  useEffect(() => {
+    if (trialStatus?.show_payment_modal) {
+      setShowPaymentModal(true);
+    }
+  }, [trialStatus]);
 
   // Callback-Funktionen für den KI-Chatbot
   const handleCreateTask = (taskData) => {
@@ -62,6 +75,16 @@ const Layout = ({ children, user, onLogout }) => {
 
         {/* New Enhanced Chatbot FAB */}
         <ChatbotFAB />
+        
+        {/* Payment Modal */}
+        {showPaymentModal && (
+          <PaymentModal
+            isOpen={showPaymentModal}
+            onClose={trialStatus?.is_expired ? undefined : () => setShowPaymentModal(false)}
+            isTrialExpired={trialStatus?.is_expired}
+            daysRemaining={trialStatus?.days_remaining}
+          />
+        )}
       </div>
     </div>
   );

@@ -17,6 +17,8 @@ from dotenv import load_dotenv
 # Try .env first, then env.local as fallback
 load_dotenv(".env")  # Load .env if it exists
 load_dotenv("env.local")  # Load env.local if it exists (overrides .env)
+load_dotenv("../env.local")  # Load env.local from parent directory
+load_dotenv("../../env.local")  # Load env.local from grandparent directory
 
 # Custom JSON Encoder for datetime objects
 class CustomJSONEncoder(json.JSONEncoder):

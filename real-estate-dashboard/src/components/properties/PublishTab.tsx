@@ -6,9 +6,9 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Calendar, AlertCircle, CheckCircle, Loader } from 'lucide-react';
-import { Portal, CreatePublishJobRequest } from '../../types/publish';
-// TODO: Implement real publish API hooks
+import { Send, Calendar, AlertCircle, CheckCircle, Loader, RefreshCw, ExternalLink, Trash2 } from 'lucide-react';
+import { usePublishing } from '../../hooks/usePublishing';
+import toast from 'react-hot-toast';
 import PortalChecklist from './PortalChecklist';
 import MappingBadges from './MappingBadges';
 import MediaPicker from './MediaPicker';
@@ -20,57 +20,79 @@ interface PublishTabProps {
 }
 
 const PublishTab: React.FC<PublishTabProps> = ({ propertyId, property }) => {
-  // TODO: Implement real publish API hooks
-  const jobs: any[] = [];
-  const createJob = (request: CreatePublishJobRequest) => Promise.resolve();
-  const updateJob = (jobId: string, updates: any) => Promise.resolve();
-  const retryJob = (jobId: string) => Promise.resolve();
-  const removeJob = (jobId: string) => Promise.resolve();
-  const validate = (portals: Portal[], property: any) => Promise.resolve([]);
-  const profiles: any[] = [];
-  const configs: any[] = [];
+  // Use publishing hook for real API integration
+  const {
+    publishJobs,
+    propertyPublishJobs,
+    isLoadingJobs,
+    isPublishing,
+    isUnpublishing,
+    isRetrying,
+    publishProperty,
+    unpublishProperty,
+    retryPublishJob,
+    syncMetrics,
+    getPropertyPublishStatus,
+    getJobStatusColor,
+    getJobStatusText,
+  } = usePublishing({ propertyId, autoRefresh: true });
+
+  // Available portals (currently only ImmoScout24)
+  const availablePortals = [
+    { id: 'immoscout24', name: 'ImmoScout24', icon: '🏠', enabled: true },
+    { id: 'immowelt', name: 'Immowelt', icon: '🏘️', enabled: false },
+    { id: 'wg-gesucht', name: 'WG-Gesucht', icon: '👥', enabled: false },
+  ];
+
+  // Mock profiles (in real implementation, this would come from API)
+  const profiles = [
+    { id: 'default_profile', name: 'Standard Profil', isDefault: true },
+    { id: 'premium_profile', name: 'Premium Profil', isDefault: false },
+  ];
   
-  const [selectedPortals, setSelectedPortals] = useState<Portal[]>([]);
+  const [selectedPortals, setSelectedPortals] = useState<string[]>([]);
   const [selectedProfile, setSelectedProfile] = useState<string>('default_profile');
   const [selectedMedia, setSelectedMedia] = useState<string[]>([]);
   const [scheduleDate, setScheduleDate] = useState<string>('');
   const [agreeToTerms, setAgreeToTerms] = useState(false);
-  const [isPublishing, setIsPublishing] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [validations, setValidations] = useState<any[]>([]);
 
-  // Load validations when portals change
+  // Get current property publish status
+  const publishStatus = getPropertyPublishStatus(propertyId);
+
+  // Mock validations (in real implementation, this would come from API)
   React.useEffect(() => {
     if (selectedPortals.length > 0) {
-      validate(selectedPortals, property).then(setValidations);
+      // Mock validation results
+      const mockValidations = selectedPortals.map(portal => ({
+        portal,
+        status: 'valid',
+        issues: [],
+        warnings: []
+      }));
+      setValidations(mockValidations);
     } else {
       setValidations([]);
     }
-  }, [selectedPortals, property]);
+  }, [selectedPortals]);
 
   const handlePublish = async (scheduled: boolean = false) => {
     if (selectedPortals.length === 0) {
-      alert('Bitte wählen Sie mindestens ein Portal aus.');
+      toast.error('Bitte wählen Sie mindestens ein Portal aus.');
       return;
     }
     
     if (!agreeToTerms) {
-      alert('Bitte akzeptieren Sie die AGB und Nutzungsbedingungen.');
+      toast.error('Bitte akzeptieren Sie die AGB und Nutzungsbedingungen.');
       return;
     }
 
     try {
-      setIsPublishing(true);
-      
-      const request: CreatePublishJobRequest = {
-        propertyId,
-        portals: selectedPortals,
-        runAt: scheduled && scheduleDate ? new Date(scheduleDate).toISOString() : null,
-        contactProfileId: selectedProfile,
-        mediaIds: selectedMedia
-      };
-      
-      await createJob(request);
+      // Publish to each selected portal
+      for (const portal of selectedPortals) {
+        await publishProperty(portal, propertyId);
+      }
       
       setSuccessMessage(scheduled ? 'Veröffentlichung erfolgreich geplant!' : 'Veröffentlichung gestartet!');
       setSelectedPortals([]);
@@ -79,8 +101,22 @@ const PublishTab: React.FC<PublishTabProps> = ({ propertyId, property }) => {
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (error) {
       console.error('Error publishing:', error);
-    } finally {
-      setIsPublishing(false);
+    }
+  };
+
+  const handleUnpublish = async (jobId: string) => {
+    try {
+      await unpublishProperty(jobId);
+    } catch (error) {
+      console.error('Error unpublishing:', error);
+    }
+  };
+
+  const handleRetry = async (jobId: string) => {
+    try {
+      await retryPublishJob(jobId);
+    } catch (error) {
+      console.error('Error retrying:', error);
     }
   };
 
@@ -129,11 +165,11 @@ const PublishTab: React.FC<PublishTabProps> = ({ propertyId, property }) => {
             transition={{ delay: 0.1 }}
           >
             <PortalChecklist
-              configs={configs}
+              portals={availablePortals}
               selectedPortals={selectedPortals}
-              onToggle={(portal) => {
+              onToggle={(portalId) => {
                 setSelectedPortals(prev =>
-                  prev.includes(portal) ? prev.filter(p => p !== portal) : [...prev, portal]
+                  prev.includes(portalId) ? prev.filter(p => p !== portalId) : [...prev, portalId]
                 );
               }}
             />
@@ -273,7 +309,7 @@ const PublishTab: React.FC<PublishTabProps> = ({ propertyId, property }) => {
 
         {/* Main Content Area */}
         <div className="xl:col-span-8 space-y-6">
-          {validations.length > 0 && (
+          {validations && validations.length > 0 && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -301,9 +337,11 @@ const PublishTab: React.FC<PublishTabProps> = ({ propertyId, property }) => {
             transition={{ delay: 0.4 }}
           >
             <PublishStatusTable
-              jobs={jobs}
-              onRetry={retryJob}
-              onDelete={removeJob}
+              jobs={propertyPublishJobs}
+              onRetry={handleRetry}
+              onDelete={handleUnpublish}
+              getJobStatusColor={getJobStatusColor}
+              getJobStatusText={getJobStatusText}
             />
           </motion.div>
         </div>

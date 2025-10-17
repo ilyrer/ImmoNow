@@ -14,6 +14,7 @@ from django.db import transaction
 from asgiref.sync import sync_to_async
 
 from app.db.models import User, Tenant, TenantUser
+from app.core.billing_config import PLAN_LIMITS
 
 
 def slugify(text: str) -> str:
@@ -170,26 +171,25 @@ class AuthService:
             company_name=request.tenant_name,
             company_email=request.company_email or request.email,
             phone=request.phone if not request.company_phone else request.company_phone,
-            plan=request.plan,
+            plan='free',  # Alle neuen Registrierungen starten mit Free Trial
             billing_cycle=request.billing_cycle,
-            subscription_status='active',
+            subscription_status='trialing',  # Startet im Trial-Modus
             is_active=True,
             subscription_start_date=timezone.now()
         )
         
         # Set limits based on plan (only if tenant was newly created)
         if tenant_created:
-            plan_limits = {
-                'free': {'max_users': 2, 'max_properties': 5, 'storage_limit_gb': 1},
-                'basic': {'max_users': 5, 'max_properties': 25, 'storage_limit_gb': 10},
-                'professional': {'max_users': 20, 'max_properties': 100, 'storage_limit_gb': 50},
-                'enterprise': {'max_users': 100, 'max_properties': 1000, 'storage_limit_gb': 500},
-            }
-            limits = plan_limits.get(request.plan, plan_limits['free'])
-            tenant.max_users = limits['max_users']
-            tenant.max_properties = limits['max_properties']
-            tenant.storage_limit_gb = limits['storage_limit_gb']
+            # Verwende die neuen PLAN_LIMITS aus billing_config
+            limits = PLAN_LIMITS.get('free', PLAN_LIMITS['free'])
+            tenant.max_users = limits['users']
+            tenant.max_properties = limits['properties']
+            tenant.storage_limit_gb = limits['storage_gb']
             tenant.save()
+            
+            # HINWEIS: Keine automatische BillingAccount-Erstellung mehr
+            # BillingAccount wird nur noch via /registration/complete erstellt (nach Payment)
+            print(f"✅ AuthService: Tenant created without BillingAccount (Payment-First Flow)")
         
         # Create user
         user = User.objects.create(

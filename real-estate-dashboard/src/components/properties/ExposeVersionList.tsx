@@ -18,14 +18,18 @@ import {
   Clock,
   Loader
 } from 'lucide-react';
-import { ExposeVersion, ExposeQuality } from '../../types/expose';
+import { ExposeVersionData } from '../../services/expose';
 
 interface ExposeVersionListProps {
-  versions: ExposeVersion[];
+  versions: ExposeVersionData[];
   isLoading: boolean;
-  onSelect: (version: ExposeVersion) => void;
+  onSelect: (version: ExposeVersionData) => void;
   onDelete: (versionId: string) => void;
   onPublish: (versionId: string) => void;
+  onDownloadPDF?: (versionId: string) => void;
+  isDeleting?: boolean;
+  isPublishing?: boolean;
+  isDownloadingPDF?: boolean;
 }
 
 const ExposeVersionList: React.FC<ExposeVersionListProps> = ({
@@ -33,21 +37,27 @@ const ExposeVersionList: React.FC<ExposeVersionListProps> = ({
   isLoading,
   onSelect,
   onDelete,
-  onPublish
+  onPublish,
+  onDownloadPDF,
+  isDeleting = false,
+  isPublishing = false,
+  isDownloadingPDF = false
 }) => {
-  const getQualityColor = (quality: ExposeQuality) => {
-    switch (quality) {
-      case 'high': return 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20';
-      case 'med': return 'text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/20';
-      case 'low': return 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20';
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'published': return 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20';
+      case 'draft': return 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20';
+      case 'archived': return 'text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/20';
+      default: return 'text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/20';
     }
   };
 
-  const getQualityText = (quality: ExposeQuality) => {
-    switch (quality) {
-      case 'high': return 'Hervorragend';
-      case 'med': return 'Gut';
-      case 'low': return 'Verbesserungswürdig';
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'published': return 'Veröffentlicht';
+      case 'draft': return 'Entwurf';
+      case 'archived': return 'Archiviert';
+      default: return 'Unbekannt';
     }
   };
 
@@ -135,41 +145,31 @@ const ExposeVersionList: React.FC<ExposeVersionListProps> = ({
                     <h4 className="text-base font-semibold text-gray-900 dark:text-white truncate">
                       {version.title}
                     </h4>
-                    {version.isPublished && (
-                      <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-full">
-                        <CheckCircle className="h-3 w-3" />
-                        Veröffentlicht
-                      </span>
-                    )}
+                    <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(version.status)}`}>
+                      {version.status === 'published' && <CheckCircle className="h-3 w-3" />}
+                      {version.status === 'draft' && <Clock className="h-3 w-3" />}
+                      {version.status === 'archived' && <AlertCircle className="h-3 w-3" />}
+                      {getStatusText(version.status)}
+                    </span>
                   </div>
 
                   <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mb-3">
-                    {version.body}
+                    {version.content}
                   </p>
 
                   {/* Meta Info */}
                   <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
                     <div className="flex items-center gap-1">
                       <Calendar className="h-3 w-3" />
-                      {formatDate(version.createdAt)}
+                      {formatDate(version.created_at)}
                     </div>
                     <div className="flex items-center gap-1">
                       <FileText className="h-3 w-3" />
-                      {version.wordCount} Wörter
+                      Version {version.version_number}
                     </div>
-                    {version.seoScore && (
-                      <div className="flex items-center gap-1">
-                        <BarChart3 className="h-3 w-3" />
-                        SEO: {version.seoScore}/100
-                      </div>
-                    )}
-                    <div className={`flex items-center gap-1 px-2 py-1 rounded-full ${getQualityColor(version.quality)}`}>
-                      {version.quality === 'high' ? (
-                        <CheckCircle className="h-3 w-3" />
-                      ) : (
-                        <AlertCircle className="h-3 w-3" />
-                      )}
-                      {getQualityText(version.quality)}
+                    <div className="flex items-center gap-1">
+                      <BarChart3 className="h-3 w-3" />
+                      {version.audience} • {version.tone} • {version.language}
                     </div>
                   </div>
                 </div>
@@ -186,15 +186,29 @@ const ExposeVersionList: React.FC<ExposeVersionListProps> = ({
                     <Eye className="h-4 w-4" />
                   </motion.button>
                   
-                  {!version.isPublished && (
+                  {version.status !== 'published' && (
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                       onClick={() => onPublish(version.id)}
-                      className="p-2 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30 rounded-lg transition-all"
+                      disabled={isPublishing}
+                      className="p-2 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30 rounded-lg transition-all disabled:opacity-50"
                       title="Veröffentlichen"
                     >
-                      <CheckCircle className="h-4 w-4" />
+                      {isPublishing ? <Loader className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
+                    </motion.button>
+                  )}
+                  
+                  {onDownloadPDF && (
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => onDownloadPDF(version.id)}
+                      disabled={isDownloadingPDF}
+                      className="p-2 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded-lg transition-all disabled:opacity-50"
+                      title="PDF herunterladen"
+                    >
+                      {isDownloadingPDF ? <Loader className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
                     </motion.button>
                   )}
                   
@@ -206,28 +220,28 @@ const ExposeVersionList: React.FC<ExposeVersionListProps> = ({
                         onDelete(version.id);
                       }
                     }}
-                    className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-all"
+                    disabled={isDeleting}
+                    className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-all disabled:opacity-50"
                     title="Löschen"
                   >
-                    <Trash2 className="h-4 w-4" />
+                    {isDeleting ? <Loader className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                   </motion.button>
                 </div>
               </div>
 
-              {/* Bullets Preview */}
-              {version.bullets.length > 0 && (
+              {/* Keywords Preview */}
+              {version.keywords && version.keywords.length > 0 && (
                 <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    {version.bullets.slice(0, 4).map((bullet, bulletIndex) => (
-                      <div key={bulletIndex} className="flex items-start gap-2 text-xs text-gray-600 dark:text-gray-400">
-                        <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-1.5 flex-shrink-0" />
-                        <span className="line-clamp-1">{bullet}</span>
-                      </div>
+                  <div className="flex flex-wrap gap-2">
+                    {version.keywords.slice(0, 6).map((keyword, keywordIndex) => (
+                      <span key={keywordIndex} className="px-2 py-1 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full">
+                        {keyword}
+                      </span>
                     ))}
-                    {version.bullets.length > 4 && (
-                      <div className="text-xs text-gray-500 dark:text-gray-400 italic">
-                        +{version.bullets.length - 4} weitere
-                      </div>
+                    {version.keywords.length > 6 && (
+                      <span className="text-xs text-gray-500 dark:text-gray-400 italic">
+                        +{version.keywords.length - 6} weitere
+                      </span>
                     )}
                   </div>
                 </div>

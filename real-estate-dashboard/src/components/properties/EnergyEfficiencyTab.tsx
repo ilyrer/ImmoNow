@@ -1,16 +1,82 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Zap, Flame, Leaf, Calendar, TrendingDown, Award, FileText } from 'lucide-react';
+import { Zap, Flame, Leaf, Calendar, TrendingDown, Award, FileText, Save, Download } from 'lucide-react';
+import { useEnergyCertificate } from '../../hooks/useEnergyCertificate';
 
 interface EnergyEfficiencyTabProps {
   property: any;
 }
 
 const EnergyEfficiencyTab: React.FC<EnergyEfficiencyTabProps> = ({ property }) => {
-  const energyClass = property.energyData?.efficiencyClass || property.features?.energyClass || 'C';
-  const energyValue = property.energyData?.energyValue || 85;
-  const co2Emissions = property.energyData?.co2Emissions || 18;
-  const validUntil = property.energyData?.validUntil || '2033';
+  const { 
+    energyData, 
+    isLoading, 
+    updateEnergyData, 
+    isUpdating, 
+    downloadPDF, 
+    isDownloadingPDF 
+  } = useEnergyCertificate(property.id);
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingData, setEditingData] = useState({
+    energy_class: energyData?.energy_class || '',
+    energy_consumption: energyData?.energy_consumption || 0,
+    energy_certificate_type: energyData?.energy_certificate_type || '',
+    energy_certificate_valid_until: energyData?.energy_certificate_valid_until || '',
+    energy_certificate_issue_date: energyData?.energy_certificate_issue_date || '',
+    co2_emissions: energyData?.co2_emissions || 0,
+    heating_type: energyData?.heating_type || '',
+  });
+
+  // Update editing data when energyData changes
+  React.useEffect(() => {
+    if (energyData) {
+      setEditingData({
+        energy_class: energyData.energy_class || '',
+        energy_consumption: energyData.energy_consumption || 0,
+        energy_certificate_type: energyData.energy_certificate_type || '',
+        energy_certificate_valid_until: energyData.energy_certificate_valid_until || '',
+        energy_certificate_issue_date: energyData.energy_certificate_issue_date || '',
+        co2_emissions: energyData.co2_emissions || 0,
+        heating_type: energyData.heating_type || '',
+      });
+    }
+  }, [energyData]);
+
+  const handleSave = () => {
+    updateEnergyData(editingData);
+    setIsEditing(false);
+  };
+
+  const handleCancel = () => {
+    setEditingData({
+      energy_class: energyData?.energy_class || '',
+      energy_consumption: energyData?.energy_consumption || 0,
+      energy_certificate_type: energyData?.energy_certificate_type || '',
+      energy_certificate_valid_until: energyData?.energy_certificate_valid_until || '',
+      energy_certificate_issue_date: energyData?.energy_certificate_issue_date || '',
+      co2_emissions: energyData?.co2_emissions || 0,
+      heating_type: energyData?.heating_type || '',
+    });
+    setIsEditing(false);
+  };
+
+  const handleDownloadPDF = () => {
+    downloadPDF();
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  const energyClass = energyData?.energy_class || 'C';
+  const energyValue = energyData?.energy_consumption || 85;
+  const co2Emissions = energyData?.co2_emissions || 18;
+  const validUntil = energyData?.energy_certificate_valid_until || '2033';
 
   const energyClasses = [
     { grade: 'A+', range: '< 30', color: 'from-emerald-600 to-emerald-500', bgColor: 'bg-emerald-50 dark:bg-emerald-900/20' },
@@ -191,30 +257,154 @@ const EnergyEfficiencyTab: React.FC<EnergyEfficiencyTabProps> = ({ property }) =
         >
           {/* Certificate Info */}
           <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-2xl rounded-2xl shadow-xl border border-white/30 dark:border-gray-700/50 p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
-                <FileText className="h-5 w-5 text-white" />
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+                  <FileText className="h-5 w-5 text-white" />
+                </div>
+                <h4 className="text-lg font-bold text-gray-900 dark:text-white">Zertifikat-Details</h4>
               </div>
-              <h4 className="text-lg font-bold text-gray-900 dark:text-white">Zertifikat-Details</h4>
+              {!isEditing && (
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded-lg transition-colors"
+                >
+                  Bearbeiten
+                </button>
+              )}
             </div>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Ausstellungsdatum</span>
-                <span className="text-sm font-semibold text-gray-900 dark:text-white">01.01.2023</span>
+            
+            {isEditing ? (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Energieklasse
+                  </label>
+                  <select
+                    value={editingData.energy_class}
+                    onChange={(e) => setEditingData({...editingData, energy_class: e.target.value})}
+                    className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Nicht angegeben</option>
+                    <option value="A+">A+</option>
+                    <option value="A">A</option>
+                    <option value="B">B</option>
+                    <option value="C">C</option>
+                    <option value="D">D</option>
+                    <option value="E">E</option>
+                    <option value="F">F</option>
+                    <option value="G">G</option>
+                    <option value="H">H</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Endenergiebedarf (kWh/m²a)
+                  </label>
+                  <input
+                    type="number"
+                    value={editingData.energy_consumption}
+                    onChange={(e) => setEditingData({...editingData, energy_consumption: Number(e.target.value)})}
+                    className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    CO₂-Emissionen (kg/m²a)
+                  </label>
+                  <input
+                    type="number"
+                    value={editingData.co2_emissions}
+                    onChange={(e) => setEditingData({...editingData, co2_emissions: Number(e.target.value)})}
+                    className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Ausweistyp
+                  </label>
+                  <select
+                    value={editingData.energy_certificate_type}
+                    onChange={(e) => setEditingData({...editingData, energy_certificate_type: e.target.value})}
+                    className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Nicht angegeben</option>
+                    <option value="bedarfsausweis">Bedarfsausweis</option>
+                    <option value="verbrauchsausweis">Verbrauchsausweis</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Gültig bis
+                  </label>
+                  <input
+                    type="date"
+                    value={editingData.energy_certificate_valid_until}
+                    onChange={(e) => setEditingData({...editingData, energy_certificate_valid_until: e.target.value})}
+                    className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Heizungsart
+                  </label>
+                  <input
+                    type="text"
+                    value={editingData.heating_type}
+                    onChange={(e) => setEditingData({...editingData, heating_type: e.target.value})}
+                    placeholder="z.B. Gas, Öl, Wärmepumpe"
+                    className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                
+                <div className="flex gap-2 pt-4">
+                  <button
+                    onClick={handleSave}
+                    disabled={isUpdating}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    <Save className="h-4 w-4" />
+                    {isUpdating ? 'Speichern...' : 'Speichern'}
+                  </button>
+                  <button
+                    onClick={handleCancel}
+                    className="flex-1 px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors"
+                  >
+                    Abbrechen
+                  </button>
+                </div>
               </div>
-              <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Gültigkeit</span>
-                <span className="text-sm font-semibold text-gray-900 dark:text-white">10 Jahre</span>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Ausstellungsdatum</span>
+                  <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                    {energyData?.energy_certificate_issue_date || 'Nicht angegeben'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Gültig bis</span>
+                  <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                    {energyData?.energy_certificate_valid_until || 'Nicht angegeben'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Norm</span>
+                  <span className="text-sm font-semibold text-gray-900 dark:text-white">EnEV 2014</span>
+                </div>
+                <div className="flex justify-between items-center py-2">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Ausweistyp</span>
+                  <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                    {energyData?.energy_certificate_type || 'Nicht angegeben'}
+                  </span>
+                </div>
               </div>
-              <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Norm</span>
-                <span className="text-sm font-semibold text-gray-900 dark:text-white">EnEV 2014</span>
-              </div>
-              <div className="flex justify-between items-center py-2">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Ausweistyp</span>
-                <span className="text-sm font-semibold text-gray-900 dark:text-white">Bedarfsausweis</span>
-              </div>
-            </div>
+            )}
           </div>
 
           {/* Category Explanation */}
@@ -238,10 +428,12 @@ const EnergyEfficiencyTab: React.FC<EnergyEfficiencyTabProps> = ({ property }) =
           <motion.button
             whileHover={{ scale: 1.02, y: -2 }}
             whileTap={{ scale: 0.98 }}
-            className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold rounded-2xl shadow-xl flex items-center justify-center gap-3 transition-all duration-300"
+            onClick={handleDownloadPDF}
+            disabled={isDownloadingPDF}
+            className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold rounded-2xl shadow-xl flex items-center justify-center gap-3 transition-all duration-300 disabled:opacity-50"
           >
-            <FileText className="h-5 w-5" />
-            <span>Zertifikat herunterladen</span>
+            <Download className="h-5 w-5" />
+            <span>{isDownloadingPDF ? 'PDF wird generiert...' : 'Zertifikat herunterladen'}</span>
           </motion.button>
         </motion.div>
       </div>

@@ -25,6 +25,12 @@ from app.api.v1 import (
     google_auth,
     payroll,
     employee_documents,
+    energy_certificate,
+    expose,
+    admin_settings,
+    publishing,
+    billing,
+    registration,
 )
 
 # Create main API router
@@ -42,6 +48,8 @@ api_router.include_router(cim.router, prefix="/cim", tags=["cim"])
 api_router.include_router(avm.router, prefix="/avm", tags=["avm"])
 api_router.include_router(appointments.router, prefix="/appointments", tags=["appointments"])
 api_router.include_router(properties.router, prefix="/properties", tags=["properties"])
+api_router.include_router(energy_certificate.router, prefix="/properties", tags=["energy-certificate"])
+api_router.include_router(expose.router, prefix="/properties", tags=["expose"])
 api_router.include_router(contacts.router, prefix="/contacts", tags=["contacts"])
 api_router.include_router(analytics.router, prefix="/analytics", tags=["analytics"])
 api_router.include_router(communications.router, prefix="/communications", tags=["communications"])
@@ -50,7 +58,11 @@ api_router.include_router(tenant.router, prefix="/tenant", tags=["tenant"])
 api_router.include_router(notifications.router, prefix="/notifications", tags=["notifications"])
 api_router.include_router(llm.router, prefix="/llm", tags=["llm"])
 api_router.include_router(admin.router, prefix="/admin", tags=["admin"])
+api_router.include_router(admin_settings.router, prefix="/api/v1", tags=["admin-settings"])
+api_router.include_router(publishing.router, prefix="/api/v1/publishing", tags=["publishing"])
 api_router.include_router(plans.router, prefix="/plans", tags=["plans"])
 api_router.include_router(google_auth.router, prefix="/auth", tags=["google-auth"])
 api_router.include_router(payroll.router, prefix="/payroll", tags=["payroll"])
 api_router.include_router(employee_documents.router, prefix="/admin", tags=["admin-employee-documents"])
+api_router.include_router(billing.router, tags=["billing"])
+api_router.include_router(registration.router, prefix="/registration", tags=["registration"])

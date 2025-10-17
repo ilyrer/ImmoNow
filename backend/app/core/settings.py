@@ -49,6 +49,18 @@ class Settings(BaseSettings):
     
     # Logging
     LOG_LEVEL: str = Field(default="INFO", env="LOG_LEVEL")
+    
+    # Stripe Settings
+    STRIPE_SECRET_KEY: str = Field(default="", env="STRIPE_SECRET_KEY")
+    STRIPE_PUBLISHABLE_KEY: str = Field(default="", env="STRIPE_PUBLISHABLE_KEY")
+    STRIPE_WEBHOOK_SECRET: str = Field(default="", env="STRIPE_WEBHOOK_SECRET")
+    STRIPE_PRICE_FREE: Optional[str] = Field(default=None, env="STRIPE_PRICE_FREE")
+    STRIPE_PRICE_STARTER: Optional[str] = Field(default=None, env="STRIPE_PRICE_STARTER")
+    STRIPE_PRICE_PRO: Optional[str] = Field(default=None, env="STRIPE_PRICE_PRO")
+    STRIPE_PRICE_ENTERPRISE: Optional[str] = Field(default=None, env="STRIPE_PRICE_ENTERPRISE")
+    
+    # Frontend URL
+    FRONTEND_URL: str = Field(default="http://localhost:3000", env="FRONTEND_URL")
 
 
 # Global settings instance

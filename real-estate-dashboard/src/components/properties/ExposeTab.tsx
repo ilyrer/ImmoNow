@@ -17,16 +17,13 @@ import {
   Save,
   AlertCircle,
   CheckCircle,
-  Loader
+  Loader,
+  Download,
+  Trash2,
+  Eye
 } from 'lucide-react';
-import { 
-  ExposeAudience, 
-  ExposeTone, 
-  ExposeLanguage, 
-  ExposeLength,
-  GenerateExposeRequest 
-} from '../../types/expose';
-// TODO: Implement real expose API hooks
+import { useExpose } from '../../hooks/useExpose';
+import { ExposeVersionData } from '../../services/expose';
 import ExposePreview from './ExposePreview';
 import ExposeVersionList from './ExposeVersionList';
 
@@ -35,66 +32,112 @@ interface ExposeTabProps {
 }
 
 const ExposeTab: React.FC<ExposeTabProps> = ({ propertyId }) => {
-  // TODO: Implement real expose API hooks
-  const generateExpose = (request: GenerateExposeRequest) => Promise.resolve();
-  const isGenerating = false;
-  const generateError = null;
-  const versions: any[] = [];
-  const isLoadingVersions = false;
-  const saveVersion = (version: any) => Promise.resolve();
-  const removeVersion = (versionId: string) => Promise.resolve();
-  const publishVersion = (versionId: string) => Promise.resolve();
-  
+  const {
+    exposeData,
+    isLoading,
+    generateExpose,
+    isGenerating,
+    saveExpose,
+    isSaving,
+    deleteExpose,
+    isDeleting,
+    publishExpose,
+    isPublishing,
+    generatePDF,
+    isGeneratingPDF,
+    downloadPDF,
+    isDownloadingPDF,
+    error
+  } = useExpose(propertyId);
+
   // Draft configuration
-  const [audience, setAudience] = useState<ExposeAudience>('kauf');
-  const [tone, setTone] = useState<ExposeTone>('neutral');
-  const [lang, setLang] = useState<ExposeLanguage>('de');
-  const [length, setLength] = useState<ExposeLength>('standard');
-  const [keywords, setKeywords] = useState<string>('');
+  const [audience, setAudience] = useState<'kauf' | 'miete' | 'investor'>('kauf');
+  const [tone, setTone] = useState<'neutral' | 'elegant' | 'kurz'>('neutral');
+  const [language, setLanguage] = useState<'de' | 'en'>('de');
+  const [length, setLength] = useState<'short' | 'standard' | 'long'>('standard');
+  const [keywords, setKeywords] = useState<string[]>([]);
+  const [keywordInput, setKeywordInput] = useState('');
   
   // UI state
-  const [currentPreview, setCurrentPreview] = useState<any>(null);
   const [showPreview, setShowPreview] = useState(false);
+  const [selectedVersion, setSelectedVersion] = useState<ExposeVersionData | null>(null);
+  const [editingVersion, setEditingVersion] = useState<ExposeVersionData | null>(null);
+  const [currentPreview, setCurrentPreview] = useState<any>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const handleGenerate = async () => {
     try {
       setSuccessMessage(null);
       
-      const request: GenerateExposeRequest = {
-        propertyId,
+      generateExpose({
         audience,
         tone,
-        lang,
+        language,
         length,
-        keywords: keywords.split(',').map(k => k.trim()).filter(k => k),
-        includeFinancials: true,
-        includeLocation: true,
-        includeFeatures: true
-      };
-      
-      const version = await generateExpose(request);
-      setCurrentPreview(version);
-      setShowPreview(true);
-      setSuccessMessage('Exposé erfolgreich generiert!');
-      
-      setTimeout(() => setSuccessMessage(null), 3000);
-    } catch (error: any) {
-      console.error('Error generating expose:', error);
+        keywords
+      });
+    } catch (error) {
+      console.error('Generation error:', error);
     }
   };
-  
-  const handleSaveVersion = async () => {
-    if (currentPreview) {
-      try {
-        await saveVersion(currentPreview);
-        setSuccessMessage('Version erfolgreich gespeichert!');
-        setTimeout(() => setSuccessMessage(null), 3000);
-      } catch (error) {
-        console.error('Error saving version:', error);
-      }
+
+  const handleSaveVersion = async (version: ExposeVersionData) => {
+    try {
+      saveExpose({
+        title: version.title,
+        content: version.content,
+        audience: version.audience,
+        tone: version.tone,
+        language: version.language,
+        length: version.length,
+        keywords: version.keywords
+      });
+    } catch (error) {
+      console.error('Save error:', error);
     }
   };
+
+  const handleDeleteVersion = async (versionId: string) => {
+    if (window.confirm('Möchten Sie diese Exposé-Version wirklich löschen?')) {
+      deleteExpose(versionId);
+    }
+  };
+
+  const handlePublishVersion = async (versionId: string) => {
+    publishExpose(versionId);
+  };
+
+  const handleDownloadPDF = async (versionId: string) => {
+    downloadPDF(versionId);
+  };
+
+  const handlePreviewVersion = (version: ExposeVersionData) => {
+    setSelectedVersion(version);
+    setShowPreview(true);
+  };
+
+  const handleEditVersion = (version: ExposeVersionData) => {
+    setEditingVersion(version);
+  };
+
+  const handleAddKeyword = () => {
+    if (keywordInput.trim() && !keywords.includes(keywordInput.trim())) {
+      setKeywords([...keywords, keywordInput.trim()]);
+      setKeywordInput('');
+    }
+  };
+
+  const handleRemoveKeyword = (keyword: string) => {
+    setKeywords(keywords.filter(k => k !== keyword));
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fadeIn">
@@ -114,10 +157,10 @@ const ExposeTab: React.FC<ExposeTabProps> = ({ propertyId }) => {
       </AnimatePresence>
 
       {/* Error Message */}
-      {generateError && (
+      {error && (
         <div className="flex items-center gap-3 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700/50 rounded-xl">
           <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
-          <span className="text-red-800 dark:text-red-300 font-medium">{generateError}</span>
+          <span className="text-red-800 dark:text-red-300 font-medium">{error.message}</span>
         </div>
       )}
 
@@ -150,7 +193,7 @@ const ExposeTab: React.FC<ExposeTabProps> = ({ propertyId }) => {
                   ].map((option) => (
                     <button
                       key={option.value}
-                      onClick={() => setAudience(option.value as ExposeAudience)}
+                      onClick={() => setAudience(option.value as 'kauf' | 'miete' | 'investor')}
                       className={`p-3 rounded-xl border-2 transition-all duration-200 ${
                         audience === option.value
                           ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 shadow-md'
@@ -172,7 +215,7 @@ const ExposeTab: React.FC<ExposeTabProps> = ({ propertyId }) => {
                 </label>
                 <select
                   value={tone}
-                  onChange={(e) => setTone(e.target.value as ExposeTone)}
+                  onChange={(e) => setTone(e.target.value as 'neutral' | 'elegant' | 'kurz')}
                   className="w-full px-4 py-3 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                 >
                   <option value="neutral">Neutral & Sachlich</option>
@@ -194,9 +237,9 @@ const ExposeTab: React.FC<ExposeTabProps> = ({ propertyId }) => {
                   ].map((option) => (
                     <button
                       key={option.value}
-                      onClick={() => setLang(option.value as ExposeLanguage)}
+                      onClick={() => setLanguage(option.value as 'de' | 'en')}
                       className={`p-3 rounded-xl border-2 transition-all duration-200 flex items-center justify-center gap-2 ${
-                        lang === option.value
+                        language === option.value
                           ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 shadow-md'
                           : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
                       }`}
@@ -216,7 +259,7 @@ const ExposeTab: React.FC<ExposeTabProps> = ({ propertyId }) => {
                 </label>
                 <select
                   value={length}
-                  onChange={(e) => setLength(e.target.value as ExposeLength)}
+                  onChange={(e) => setLength(e.target.value as 'short' | 'standard' | 'long')}
                   className="w-full px-4 py-3 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                 >
                   <option value="short">Kurz (~100 Wörter)</option>
@@ -233,8 +276,8 @@ const ExposeTab: React.FC<ExposeTabProps> = ({ propertyId }) => {
                 </label>
                 <input
                   type="text"
-                  value={keywords}
-                  onChange={(e) => setKeywords(e.target.value)}
+                  value={keywordInput}
+                  onChange={(e) => setKeywordInput(e.target.value)}
                   placeholder="z.B. modern, zentral, saniert"
                   className="w-full px-4 py-3 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                 />
@@ -273,7 +316,11 @@ const ExposeTab: React.FC<ExposeTabProps> = ({ propertyId }) => {
           {showPreview && currentPreview && (
             <ExposePreview
               version={currentPreview}
-              onSave={handleSaveVersion}
+              onSave={() => {
+                if (currentPreview) {
+                  handleSaveVersion(currentPreview);
+                }
+              }}
               onClose={() => setShowPreview(false)}
               onUpdate={(updated) => setCurrentPreview(updated)}
             />
@@ -281,14 +328,18 @@ const ExposeTab: React.FC<ExposeTabProps> = ({ propertyId }) => {
 
           {/* Versions List */}
           <ExposeVersionList
-            versions={versions}
-            isLoading={isLoadingVersions}
+            versions={exposeData?.versions || []}
+            isLoading={isLoading}
             onSelect={(version) => {
               setCurrentPreview(version);
               setShowPreview(true);
             }}
-            onDelete={removeVersion}
-            onPublish={publishVersion}
+            onDelete={handleDeleteVersion}
+            onPublish={handlePublishVersion}
+            onDownloadPDF={handleDownloadPDF}
+            isDeleting={isDeleting}
+            isPublishing={isPublishing}
+            isDownloadingPDF={isDownloadingPDF}
           />
         </div>
       </div>

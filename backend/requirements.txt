@@ -24,6 +24,9 @@ google-auth==2.22.0
 google-auth-oauthlib==1.2.0
 google-auth-httplib2==0.2.0
 google-api-python-client==2.149.0
-google-auth-oauthlib==1.2.0
-google-auth-httplib2==0.2.0
-google-api-python-client==2.149.0
+# New dependencies for property details upgrade
+reportlab==4.0.7
+googlemaps==4.10.0
+Pillow==10.1.0
+cryptography==41.0.7
+stripe==7.5.0  # Offizielle Stripe Python SDK

@@ -19,6 +19,7 @@ from app.schemas.properties import (
 )
 from app.core.errors import NotFoundError
 from app.services.audit import AuditService
+from app.core.billing_guard import BillingGuard
 
 
 class PropertiesService:
@@ -167,6 +168,9 @@ class PropertiesService:
         created_by_id: str
     ) -> PropertyResponse:
         """Create a new property"""
+        
+        # Billing Guard: Prüfe Property-Limit ZUERST
+        await BillingGuard.check_limit(self.tenant_id, 'properties', 'create')
         
         @sync_to_async
         def create_property_sync():

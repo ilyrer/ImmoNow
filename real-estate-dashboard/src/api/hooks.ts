@@ -278,11 +278,11 @@ export const useAuth = () => {
   };
 };
 
-export const useCurrentUser = () => {
+export const useCurrentUser = (options?: { enabled?: boolean }) => {
   return useQuery<UserResponse>({
     queryKey: queryKeys.auth.me,
     queryFn: () => apiClient.get<UserResponse>('/api/v1/auth/me'),
-    enabled: true, // Lass React Query das Token-Handling machen
+    enabled: options?.enabled ?? true, // Standard: enabled, aber kann überschrieben werden
     staleTime: 5 * 60 * 1000, // 5 minutes
     retry: (failureCount, error: any) => {
       // Bei 401 Fehlern nicht retry
@@ -294,11 +294,11 @@ export const useCurrentUser = () => {
   });
 };
 
-export const useCurrentTenant = () => {
+export const useCurrentTenant = (options?: { enabled?: boolean }) => {
   return useQuery<TenantUserInfo>({
     queryKey: queryKeys.auth.tenant,
     queryFn: () => apiClient.get<TenantUserInfo>('/api/v1/auth/me/tenant'),
-    enabled: true, // Lass React Query das Token-Handling machen
+    enabled: options?.enabled ?? true, // Standard: enabled, aber kann überschrieben werden
     staleTime: 5 * 60 * 1000, // 5 minutes
     retry: (failureCount, error: any) => {
       // Bei 401 Fehlern nicht retry

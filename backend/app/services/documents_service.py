@@ -18,6 +18,7 @@ from app.schemas.documents import (
 )
 from app.core.errors import NotFoundError, ValidationError
 from app.services.audit import AuditService
+from app.core.billing_guard import BillingGuard
 
 logger = logging.getLogger(__name__)
 
@@ -310,6 +311,10 @@ class DocumentsService:
         uploaded_by_id: str
     ) -> DocumentResponse:
         """Create a new document"""
+        
+        # Billing Guard: Prüfe Storage-Limit ZUERST
+        file_size_mb = file_info['size'] / (1024 * 1024)  # Bytes zu MB
+        await BillingGuard.check_limit(self.tenant_id, 'storage_gb', 'create', int(file_size_mb))
         
         user = await sync_to_async(User.objects.get)(id=uploaded_by_id)
         

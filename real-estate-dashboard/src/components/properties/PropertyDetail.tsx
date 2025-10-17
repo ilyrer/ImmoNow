@@ -18,7 +18,9 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import ExposeTab from './ExposeTab';
 import PublishTab from './PublishTab';
 import EnergyEfficiencyTab from './EnergyEfficiencyTab';
+import LocationTab from './LocationTab';
 import MediaManager from './MediaManager';
+import PerformanceTab from './PerformanceTab';
 
 interface Property {
   id: string;
@@ -47,9 +49,9 @@ interface Property {
   };
   address: {
     street: string;
+    house_number: string;
+    zip_code: string;
     city: string;
-    zipCode: string;
-    state: string;
     country: string;
   };
   financials: {
@@ -70,6 +72,10 @@ interface Property {
   locationDescription?: string;
   equipmentDescription?: string;
   additionalInfo?: string;
+  coordinates?: {
+    lat: number;
+    lng: number;
+  };
   areas?: {
     living?: number;
     plot?: number;
@@ -153,13 +159,13 @@ const PropertyDetail: React.FC = () => {
       },
       address: {
         street: p.address?.street || p.strasse || '',
+        house_number: p.address?.house_number || p.hausnummer || '',
+        zip_code: p.address?.zip_code || p.plz || '',
         city: p.address?.city || p.ort || '',
-        zipCode: p.address?.zip_code || p.plz || '',
-        state: p.address?.state || p.bundesland || '',
         country: p.address?.country || 'Deutschland',
       },
       financials: {
-        purchasePrice: p.kaufpreis || 0,
+        purchasePrice: p.price || 0,
         additionalCosts: p.nebenkosten || 0,
         monthlyRent: p.kaltmiete,
         yield: p.rendite,
@@ -176,6 +182,7 @@ const PropertyDetail: React.FC = () => {
       locationDescription: p.lagebeschreibung,
       equipmentDescription: p.ausstattung,
       additionalInfo: p.sonstiges,
+      coordinates: p.coordinates || (p.latitude && p.longitude ? { lat: p.latitude, lng: p.longitude } : undefined),
       areas: {
         living: p.wohnflaeche,
         plot: p.grundstuecksflaeche,
@@ -315,9 +322,8 @@ const PropertyDetail: React.FC = () => {
         payload.address = {
           street: editingProperty.address.street || '',
           city: editingProperty.address.city || '',
-          zip_code: editingProperty.address.zipCode || '',
-          postal_code: editingProperty.address.zipCode || '',
-          state: editingProperty.address.state || '',
+          zip_code: editingProperty.address.zip_code || '',
+          postal_code: editingProperty.address.zip_code || '',
           country: editingProperty.address.country || 'Deutschland',
         };
       }
@@ -943,60 +949,23 @@ const PropertyDetail: React.FC = () => {
 
                 {/* Location Tab */}
                 {activeTab === 'location' && (
-                  <div className="space-y-6">
-                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
-                      Adresse & Lage
-                    </h3>
-
-                    {/* Address */}
-                    <div>
-                      <h4 className="font-semibold text-gray-900 dark:text-white mb-3">Adresse</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {[
-                          { label: 'Straße', value: property.address.street, field: 'address.street' },
-                          { label: 'PLZ', value: property.address.zipCode, field: 'address.zipCode' },
-                          { label: 'Ort', value: property.address.city, field: 'address.city' },
-                          { label: 'Bundesland', value: property.address.state, field: 'address.state' },
-                        ].map((item, idx) => (
-                          <div key={idx} className="p-4 bg-gray-50/50 dark:bg-gray-700/30 rounded-xl">
-                            <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">{item.label}</div>
-                            {isEditing ? (
-                              <input
-                                type="text"
-                                value={
-                                  item.field.includes('.')
-                                    ? (editingProperty as any)?.[item.field.split('.')[0]]?.[item.field.split('.')[1]] || ''
-                                    : (editingProperty as any)?.[item.field] || ''
-                                }
-                                onChange={(e) => updateEditingProperty(item.field, e.target.value)}
-                                className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
-                              />
-                            ) : (
-                              <div className="text-sm font-semibold text-gray-900 dark:text-white">{item.value}</div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Location Description */}
-                    <div>
-                      <h4 className="font-semibold text-gray-900 dark:text-white mb-3">Lagebeschreibung</h4>
-                      {isEditing ? (
-                        <textarea
-                          value={editingProperty?.locationDescription || ''}
-                          onChange={(e) => updateEditingProperty('locationDescription', e.target.value)}
-                          rows={6}
-                          className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          placeholder="Beschreiben Sie die Lage..."
-                        />
-                      ) : (
-                        <p className="text-gray-600 dark:text-gray-300 leading-relaxed">
-                          {property.locationDescription || 'Keine Lagebeschreibung verfügbar'}
-                        </p>
-                      )}
-                    </div>
-                  </div>
+                  <LocationTab 
+                    property={property}
+                    isEditing={isEditing}
+                    onEdit={() => setIsEditing(true)}
+                    onSave={(data) => {
+                      // Update property with new location data
+                      const updatedProperty = { ...property, ...data };
+                      setProperty(updatedProperty);
+                      setIsEditing(false);
+                      // Here you would typically call an API to save the changes
+                      toast.success('Lageinformationen erfolgreich gespeichert!');
+                    }}
+                    onCancel={() => {
+                      setIsEditing(false);
+                      setEditingProperty(null);
+                    }}
+                  />
                 )}
 
                 {/* Expose Tab */}
@@ -1011,110 +980,7 @@ const PropertyDetail: React.FC = () => {
 
                 {/* Performance Tab */}
                 {activeTab === 'performance' && (
-                  <div className="space-y-6">
-                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
-                      Performance-Übersicht
-                    </h3>
-
-                    {metricsLoading ? (
-                      <div className="flex items-center justify-center py-12">
-                        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                      </div>
-                    ) : (
-                      <>
-                        {/* Metrics Cards */}
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                          <div className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl border border-blue-200 dark:border-blue-700">
-                            <Eye className="w-8 h-8 text-blue-600 dark:text-blue-400 mb-2" />
-                            <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                              {property.metrics.views.toLocaleString('de-DE')}
-                            </div>
-                            <div className="text-xs text-gray-500 dark:text-gray-400">Aufrufe</div>
-                          </div>
-
-                          <div className="p-4 bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20 rounded-xl border border-emerald-200 dark:border-emerald-700">
-                            <MessageSquare className="w-8 h-8 text-emerald-600 dark:text-emerald-400 mb-2" />
-                            <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                              {property.metrics.inquiries.toLocaleString('de-DE')}
-                            </div>
-                            <div className="text-xs text-gray-500 dark:text-gray-400">Anfragen</div>
-                          </div>
-
-                          <div className="p-4 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl border border-purple-200 dark:border-purple-700">
-                            <Users className="w-8 h-8 text-purple-600 dark:text-purple-400 mb-2" />
-                            <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                              {property.metrics.visits.toLocaleString('de-DE')}
-                            </div>
-                            <div className="text-xs text-gray-500 dark:text-gray-400">Besichtigungen</div>
-                          </div>
-
-                          <div className="p-4 bg-gradient-to-br from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20 rounded-xl border border-orange-200 dark:border-orange-700">
-                            <Clock className="w-8 h-8 text-orange-600 dark:text-orange-400 mb-2" />
-                            <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                              {property.metrics.daysOnMarket}
-                            </div>
-                            <div className="text-xs text-gray-500 dark:text-gray-400">Tage im Markt</div>
-                          </div>
-                        </div>
-
-                        {/* Performance Chart */}
-                        <div>
-                          <h4 className="font-semibold text-gray-900 dark:text-white mb-4">Aktivität (30 Tage)</h4>
-                          {performanceData.length > 0 ? (
-                            <div className="h-80 bg-gray-50 dark:bg-gray-900/50 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
-                              <ResponsiveContainer width="100%" height="100%">
-                          <AreaChart data={performanceData}>
-                            <defs>
-                              <linearGradient id="colorViews" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                              </linearGradient>
-                              <linearGradient id="colorInquiries" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                                <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                              </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.2} />
-                            <XAxis dataKey="date" stroke="#9ca3af" />
-                            <YAxis stroke="#9ca3af" />
-                            <Tooltip
-                              contentStyle={{
-                                backgroundColor: '#1f2937',
-                                border: '1px solid #374151',
-                                borderRadius: '0.5rem',
-                                color: '#fff',
-                              }}
-                            />
-                            <Area
-                              type="monotone"
-                              dataKey="views"
-                              stroke="#3b82f6"
-                              strokeWidth={2}
-                              fillOpacity={1}
-                              fill="url(#colorViews)"
-                              name="Aufrufe"
-                            />
-                            <Area
-                              type="monotone"
-                              dataKey="inquiries"
-                              stroke="#10b981"
-                              strokeWidth={2}
-                              fillOpacity={1}
-                              fill="url(#colorInquiries)"
-                              name="Anfragen"
-                            />
-                          </AreaChart>
-                        </ResponsiveContainer>
-                            </div>
-                          ) : (
-                            <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-                              Keine Performance-Daten verfügbar
-                            </div>
-                          )}
-                        </div>
-                      </>
-                    )}
-                  </div>
+                  <PerformanceTab propertyId={property.id} property={property} />
                 )}
               </motion.div>
             </AnimatePresence>

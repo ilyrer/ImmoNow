@@ -11,6 +11,7 @@ from django.utils import timezone
 from .tenant import Tenant
 from .user import User, TenantUser, UserManager
 from .notification import Notification, NotificationPreference
+from .billing import BillingAccount, StripeWebhookEvent
 
 # Export all models
 __all__ = [
@@ -36,12 +37,17 @@ __all__ = [
     'PropertyFeatures',
     'PropertyImage',
     'PropertyDocument',
+    'ExposeVersion',
+    'PublishJob',
+    'IntegrationSettings',
     'Contact',
     'Appointment',
     'Attendee',
     'AuditLog',
     'Notification',
     'NotificationPreference',
+    'BillingAccount',
+    'StripeWebhookEvent',
 ]
 
 
@@ -510,6 +516,15 @@ class Property(models.Model):
     energy_consumption = models.IntegerField(blank=True, null=True, help_text="kWh/m²a")
     heating_type = models.CharField(max_length=100, blank=True, null=True)
     
+    # Energy Certificate fields
+    energy_certificate_type = models.CharField(max_length=50, blank=True, null=True, choices=[
+        ('bedarfsausweis', 'Bedarfsausweis'),
+        ('verbrauchsausweis', 'Verbrauchsausweis'),
+    ])
+    energy_certificate_valid_until = models.DateField(blank=True, null=True)
+    energy_certificate_issue_date = models.DateField(blank=True, null=True)
+    co2_emissions = models.IntegerField(blank=True, null=True, help_text="CO₂-Emissionen in kg/m²a")
+    
     # Location coordinates
     coordinates_lat = models.DecimalField(max_digits=9, decimal_places=6, blank=True, null=True)
     coordinates_lng = models.DecimalField(max_digits=9, decimal_places=6, blank=True, null=True)
@@ -811,3 +826,130 @@ class AuditLog(models.Model):
     
     def __str__(self):
         return f"{self.action} {self.resource_type} {self.resource_id} by {self.user.get_full_name()}"
+
+
+# Expose Models
+class ExposeVersion(models.Model):
+    """Expose version model for AI-generated exposés"""
+    STATUS_CHOICES = [
+        ('draft', 'Draft'),
+        ('published', 'Published'),
+        ('archived', 'Archived'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    property = models.ForeignKey(Property, on_delete=models.CASCADE, related_name='expose_versions')
+    title = models.CharField(max_length=255)
+    content = models.TextField()
+    audience = models.CharField(max_length=50, choices=[
+        ('kauf', 'Kauf'),
+        ('miete', 'Miete'),
+        ('investor', 'Investor'),
+    ])
+    tone = models.CharField(max_length=50, choices=[
+        ('neutral', 'Neutral'),
+        ('elegant', 'Elegant'),
+        ('kurz', 'Kurz'),
+    ])
+    language = models.CharField(max_length=10, choices=[
+        ('de', 'Deutsch'),
+        ('en', 'English'),
+    ])
+    length = models.CharField(max_length=20, choices=[
+        ('short', 'Kurz'),
+        ('standard', 'Standard'),
+        ('long', 'Lang'),
+    ])
+    keywords = models.JSONField(default=list, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+    version_number = models.IntegerField(default=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    
+    class Meta:
+        db_table = 'expose_versions'
+        indexes = [
+            models.Index(fields=['property', 'status']),
+            models.Index(fields=['property', 'created_at']),
+            models.Index(fields=['property', 'version_number']),
+        ]
+        unique_together = ['property', 'version_number']
+    
+    def __str__(self):
+        return f"{self.property.title} - Exposé v{self.version_number}"
+
+
+# Publishing Models
+class PublishJob(models.Model):
+    """Publish job model for tracking property publications"""
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('publishing', 'Publishing'),
+        ('published', 'Published'),
+        ('failed', 'Failed'),
+        ('unpublished', 'Unpublished'),
+    ]
+    
+    PORTAL_CHOICES = [
+        ('immoscout24', 'ImmoScout24'),
+        ('immowelt', 'Immowelt'),
+        ('ebay_kleinanzeigen', 'eBay Kleinanzeigen'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    property = models.ForeignKey(Property, on_delete=models.CASCADE, related_name='publish_jobs')
+    portal = models.CharField(max_length=50, choices=PORTAL_CHOICES)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    portal_property_id = models.CharField(max_length=255, blank=True, null=True)  # ID on the portal
+    portal_url = models.URLField(blank=True, null=True)  # URL to the published property
+    error_message = models.TextField(blank=True, null=True)
+    retry_count = models.IntegerField(default=0)
+    scheduled_at = models.DateTimeField(blank=True, null=True)
+    published_at = models.DateTimeField(blank=True, null=True)
+    unpublished_at = models.DateTimeField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    
+    class Meta:
+        db_table = 'publish_jobs'
+        indexes = [
+            models.Index(fields=['property', 'status']),
+            models.Index(fields=['property', 'portal']),
+            models.Index(fields=['property', 'created_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.property.title} - {self.portal} ({self.status})"
+
+
+# Integration Settings Model
+class IntegrationSettings(models.Model):
+    """Integration settings model for API keys and configurations"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.OneToOneField(Tenant, on_delete=models.CASCADE, related_name='integration_settings')
+    
+    # Google Maps
+    google_maps_api_key = models.TextField(blank=True, null=True)  # Encrypted
+    
+    # ImmoScout24
+    immoscout_client_id = models.TextField(blank=True, null=True)  # Encrypted
+    immoscout_client_secret = models.TextField(blank=True, null=True)  # Encrypted
+    immoscout_access_token = models.TextField(blank=True, null=True)  # Encrypted
+    immoscout_refresh_token = models.TextField(blank=True, null=True)  # Encrypted
+    immoscout_token_expires_at = models.DateTimeField(blank=True, null=True)
+    
+    # Other portals (future)
+    immowelt_api_key = models.TextField(blank=True, null=True)  # Encrypted
+    ebay_api_key = models.TextField(blank=True, null=True)  # Encrypted
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    
+    class Meta:
+        db_table = 'integration_settings'
+    
+    def __str__(self):
+        return f"Integration Settings for {self.tenant.name}"

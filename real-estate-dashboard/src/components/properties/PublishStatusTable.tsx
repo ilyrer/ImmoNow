@@ -1,36 +1,40 @@
 import React from 'react';
-import { RefreshCw, Trash2, Edit, Clock, CheckCircle, XCircle, Loader, Calendar } from 'lucide-react';
-import { PublishJob, PublishJobStatus } from '../../types/publish';
+import { RefreshCw, Trash2, Edit, Clock, CheckCircle, XCircle, Loader, Calendar, ExternalLink } from 'lucide-react';
+import { PublishJobData } from '../../services/publishing';
 
 interface PublishStatusTableProps {
-  jobs: PublishJob[];
+  jobs: PublishJobData[];
   onRetry: (jobId: string) => void;
   onDelete: (jobId: string) => void;
+  getJobStatusColor: (status: string) => string;
+  getJobStatusText: (status: string) => string;
 }
 
-const PublishStatusTable: React.FC<PublishStatusTableProps> = ({ jobs, onRetry, onDelete }) => {
-  const getStatusBadge = (status: PublishJobStatus) => {
-    const styles: Record<PublishJobStatus, { bg: string; icon: JSX.Element; text: string }> = {
-      draft: { bg: 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300', icon: <Edit className="h-3 w-3" />, text: 'Entwurf' },
-      scheduled: { bg: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300', icon: <Clock className="h-3 w-3" />, text: 'Geplant' },
-      sent: { bg: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300', icon: <Loader className="h-3 w-3 animate-spin" />, text: 'Gesendet' },
-      live: { bg: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300', icon: <CheckCircle className="h-3 w-3" />, text: 'Live' },
-      error: { bg: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300', icon: <XCircle className="h-3 w-3" />, text: 'Fehler' }
-    };
-    const style = styles[status];
+const PublishStatusTable: React.FC<PublishStatusTableProps> = ({ 
+  jobs, 
+  onRetry, 
+  onDelete, 
+  getJobStatusColor, 
+  getJobStatusText 
+}) => {
+  const getStatusBadge = (status: string) => {
     return (
-      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${style.bg}`}>
-        {style.icon}
-        {style.text}
+      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${getJobStatusColor(status)}`}>
+        {status === 'published' && <CheckCircle className="h-3 w-3" />}
+        {status === 'publishing' && <Loader className="h-3 w-3 animate-spin" />}
+        {status === 'failed' && <XCircle className="h-3 w-3" />}
+        {status === 'pending' && <Clock className="h-3 w-3" />}
+        {status === 'unpublished' && <Edit className="h-3 w-3" />}
+        {getJobStatusText(status)}
       </span>
     );
   };
 
   const getPortalName = (portal: string) => {
     const names: Record<string, string> = {
-      scout24: 'ImmoScout24',
+      immoscout24: 'ImmoScout24',
       immowelt: 'Immowelt',
-      ebay: 'eBay Kleinanzeigen'
+      'wg-gesucht': 'WG-Gesucht'
     };
     return names[portal] || portal;
   };
@@ -69,7 +73,7 @@ const PublishStatusTable: React.FC<PublishStatusTableProps> = ({ jobs, onRetry, 
               <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">Portal</th>
               <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">Status</th>
               <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">Externe ID</th>
-              <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">Log</th>
+              <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">Fehler</th>
               <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">Datum</th>
               <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">Aktionen</th>
             </tr>
@@ -78,36 +82,56 @@ const PublishStatusTable: React.FC<PublishStatusTableProps> = ({ jobs, onRetry, 
             {jobs.map(job => (
               <tr key={job.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                 <td className="px-6 py-4">
-                  <div className="flex flex-wrap gap-1">
-                    {job.portals.map(portal => (
-                      <span key={portal} className="text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
-                        {getPortalName(portal)}
-                      </span>
-                    ))}
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-gray-900 dark:text-white">
+                      {getPortalName(job.portal)}
+                    </span>
+                    {job.portal_url && (
+                      <a
+                        href={job.portal_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+                        title="Auf Portal öffnen"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                      </a>
+                    )}
                   </div>
                 </td>
                 <td className="px-6 py-4">{getStatusBadge(job.status)}</td>
                 <td className="px-6 py-4">
                   <span className="text-sm text-gray-900 dark:text-white font-mono">
-                    {job.externalId || '—'}
+                    {job.portal_property_id || '—'}
                   </span>
                 </td>
                 <td className="px-6 py-4">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">
-                    {job.lastLog || '—'}
-                  </span>
-                  {job.errorDetails && (
-                    <div className="text-xs text-red-600 dark:text-red-400 mt-1">{job.errorDetails}</div>
+                  {job.error_message ? (
+                    <div className="text-xs text-red-600 dark:text-red-400 max-w-xs truncate" title={job.error_message}>
+                      {job.error_message}
+                    </div>
+                  ) : (
+                    <span className="text-sm text-gray-400">—</span>
                   )}
                 </td>
                 <td className="px-6 py-4">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">
-                    {formatDate(job.createdAt)}
-                  </span>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                    <div>Erstellt: {formatDate(job.created_at)}</div>
+                    {job.published_at && (
+                      <div className="text-xs text-green-600 dark:text-green-400">
+                        Veröffentlicht: {formatDate(job.published_at)}
+                      </div>
+                    )}
+                    {job.unpublished_at && (
+                      <div className="text-xs text-gray-500 dark:text-gray-500">
+                        Entfernt: {formatDate(job.unpublished_at)}
+                      </div>
+                    )}
+                  </div>
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex items-center justify-end gap-2">
-                    {job.status === 'error' && (
+                    {job.status === 'failed' && (
                       <button
                         onClick={() => onRetry(job.id)}
                         className="p-1.5 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded transition-all"
@@ -116,17 +140,15 @@ const PublishStatusTable: React.FC<PublishStatusTableProps> = ({ jobs, onRetry, 
                         <RefreshCw className="h-4 w-4" />
                       </button>
                     )}
-                    <button
-                      onClick={() => {
-                        if (window.confirm('Job wirklich löschen?')) {
-                          onDelete(job.id);
-                        }
-                      }}
-                      className="p-1.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-all"
-                      title="Löschen"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                    {job.status === 'published' && (
+                      <button
+                        onClick={() => onDelete(job.id)}
+                        className="p-1.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded transition-all"
+                        title="Veröffentlichung entfernen"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>
