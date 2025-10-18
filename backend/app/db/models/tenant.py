@@ -41,8 +41,8 @@ class Tenant(models.Model):
         max_length=50,
         choices=[
             ('free', 'Free'),
-            ('basic', 'Basic'),
-            ('professional', 'Professional'),
+            ('starter', 'Starter'),
+            ('pro', 'Pro'),
             ('enterprise', 'Enterprise'),
         ],
         default='free'
