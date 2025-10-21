@@ -5,7 +5,7 @@
 
 import { useMutation } from '@tanstack/react-query';
 import { avmService } from '../services/avm';
-import { AvmRequest, AvmResult } from '../lib/api/types';
+import { AvmRequest, AvmResponse } from '../lib/api/types';
 
 // Query Keys gemäß Backend Contract
 export const avmKeys = {
@@ -18,6 +18,10 @@ export const avmKeys = {
  */
 export const useAvmValuation = () => {
   return useMutation({
-    mutationFn: (payload: AvmRequest) => avmService.valuate(payload),
+    mutationFn: async (payload: AvmRequest) => {
+      const res = await avmService.valuate(payload);
+      // Normalisiere auf bisherige Erwartung der View
+      return res;
+    },
   });
 };

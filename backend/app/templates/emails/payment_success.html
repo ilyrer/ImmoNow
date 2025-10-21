@@ -1,0 +1,71 @@
+{% extends "emails/base.html" %}
+
+{% block additional_content %}
+<div class="notification-card">
+    <div class="priority-indicator" style="background: #34C759;">
+        ✅ Zahlung erfolgreich
+    </div>
+    
+    <h3 class="notification-title">Vielen Dank für Ihre Zahlung!</h3>
+    
+    {% if invoice_amount %}
+    <div class="related-entity">
+        <h4 class="related-entity-title">💰 Betrag</h4>
+        <p class="related-entity-info">{{ invoice_amount }}</p>
+    </div>
+    {% endif %}
+    
+    {% if invoice_number %}
+    <div class="related-entity">
+        <h4 class="related-entity-title">📄 Rechnungsnummer</h4>
+        <p class="related-entity-info">{{ invoice_number }}</p>
+    </div>
+    {% endif %}
+    
+    {% if payment_date %}
+    <div class="related-entity">
+        <h4 class="related-entity-title">📅 Zahlungsdatum</h4>
+        <p class="related-entity-info">{{ payment_date }}</p>
+    </div>
+    {% endif %}
+    
+    {% if subscription_plan %}
+    <div class="related-entity">
+        <h4 class="related-entity-title">📦 Abo-Plan</h4>
+        <p class="related-entity-info">{{ subscription_plan }}</p>
+    </div>
+    {% endif %}
+    
+    {% if next_billing_date %}
+    <div class="related-entity">
+        <h4 class="related-entity-title">🔄 Nächste Abrechnung</h4>
+        <p class="related-entity-info">{{ next_billing_date }}</p>
+    </div>
+    {% endif %}
+    
+    {% if action_url %}
+    <a href="{{ action_url }}" class="action-button">
+        📋 Rechnung anzeigen
+    </a>
+    {% endif %}
+</div>
+
+<div style="background: linear-gradient(135deg, #f8f9fa 0%, #e8f5e8 100%); border-radius: 12px; padding: 20px; margin: 20px 0; text-align: center;">
+    <p style="margin: 0; color: #34C759; font-size: 16px; font-weight: 600;">
+        🎉 Ihre Zahlung wurde erfolgreich verarbeitet!
+    </p>
+    <p style="margin: 8px 0 0 0; color: #6e6e73; font-size: 14px;">
+        Vielen Dank für Ihr Vertrauen in ImmoNow.
+    </p>
+</div>
+
+<div style="background: #f8f9fa; border-radius: 12px; padding: 20px; margin: 20px 0;">
+    <h4 style="margin: 0 0 12px 0; color: #1d1d1f; font-size: 16px;">📋 Nächste Schritte</h4>
+    <ul style="margin: 0; padding-left: 20px; color: #6e6e73; font-size: 14px;">
+        <li>Ihr Abo ist jetzt aktiv</li>
+        <li>Sie haben Zugriff auf alle Premium-Features</li>
+        <li>Rechnung wurde per E-Mail versendet</li>
+        <li>Bei Fragen kontaktieren Sie unseren Support</li>
+    </ul>
+</div>
+{% endblock %}

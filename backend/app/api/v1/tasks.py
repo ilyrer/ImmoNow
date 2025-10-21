@@ -12,7 +12,13 @@ from app.core.security import TokenData
 from app.core.errors import ValidationError, NotFoundError
 from app.schemas.tasks import (
     TaskResponse, CreateTaskRequest, UpdateTaskRequest, MoveTaskRequest,
-    EmployeeResponse, TaskStatisticsResponse
+    EmployeeResponse, TaskStatisticsResponse, TaskComment as TaskCommentSchema,
+    CreateTaskCommentRequest, UpdateTaskCommentRequest, ActivityLogEntry,
+    BulkUpdateTasksRequest, BulkMoveTasksRequest,
+    # New Kanban schemas
+    CreateSubtaskRequest, UpdateSubtaskRequest, CreateLabelRequest, UpdateLabelRequest,
+    UploadAttachmentRequest, CreateSprintRequest, UpdateSprintRequest, SprintResponse,
+    BoardConfigRequest, TaskLabel, TaskSubtask, TaskAttachment, Sprint
 )
 from app.schemas.common import PaginatedResponse
 from app.core.pagination import PaginationParams, get_pagination_offset, validate_sort_field
@@ -75,11 +81,97 @@ async def create_task(
 ):
     """Create a new task"""
     
-    tasks_service = TasksService(tenant_id)
-    task = await tasks_service.create_task(task_data, current_user.user_id)
-    
-    return task
+    try:
+        print(f"DEBUG: API create_task called with tenant_id={tenant_id}")
+        print(f"DEBUG: task_data: {task_data}")
+        print(f"DEBUG: current_user.user_id: {current_user.user_id}")
+        
+        tasks_service = TasksService(tenant_id)
+        task = await tasks_service.create_task(task_data, current_user.user_id)
+        
+        print(f"DEBUG: Task created successfully: {task.id}")
+        return task
+    except Exception as e:
+        print(f"ERROR in create_task API: {type(e).__name__}: {e}")
+        import traceback
+        traceback.print_exc()
+        raise e
 
+
+# ============================================================================
+# SPECIFIC ROUTES (MUST BE BEFORE /{task_id})
+# ============================================================================
+
+@router.get("/statistics", response_model=TaskStatisticsResponse)
+async def get_task_statistics(
+    current_user: TokenData = Depends(require_read_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Get task statistics"""
+    
+    tasks_service = TasksService(tenant_id)
+    statistics = await tasks_service.get_statistics()
+    
+    return statistics
+
+
+# Labels endpoints
+@router.post("/labels", response_model=TaskLabel)
+async def create_label(
+    label_data: CreateLabelRequest,
+    current_user: TokenData = Depends(require_write_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Create a new task label"""
+    tasks_service = TasksService(tenant_id)
+    return await tasks_service.create_label(label_data)
+
+
+@router.get("/labels", response_model=List[TaskLabel])
+async def get_labels(
+    current_user: TokenData = Depends(require_read_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Get all task labels"""
+    tasks_service = TasksService(tenant_id)
+    return await tasks_service.get_labels()
+
+
+# Sprints endpoints
+@router.post("/sprints", response_model=SprintResponse)
+async def create_sprint(
+    sprint_data: CreateSprintRequest,
+    current_user: TokenData = Depends(require_write_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Create a new sprint"""
+    tasks_service = TasksService(tenant_id)
+    return await tasks_service.create_sprint(sprint_data)
+
+
+@router.get("/sprints", response_model=List[SprintResponse])
+async def get_sprints(
+    current_user: TokenData = Depends(require_read_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Get all sprints"""
+    try:
+        print(f"DEBUG: API get_sprints called with tenant_id={tenant_id}")
+        
+        tasks_service = TasksService(tenant_id)
+        result = await tasks_service.get_sprints(None)  # Kein status Parameter
+        print(f"DEBUG: API get_sprints result: {result}")
+        return result
+    except Exception as e:
+        print(f"ERROR in API get_sprints: {type(e).__name__}: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+# ============================================================================
+# TASK-SPECIFIC ROUTES (WITH {task_id})
+# ============================================================================
 
 @router.get("/{task_id}", response_model=TaskResponse)
 async def get_task(
@@ -157,3 +249,383 @@ async def get_task_statistics(
     statistics = await tasks_service.get_statistics()
     
     return statistics
+
+
+# ============================================================================
+# TASK COMMENTS ENDPOINTS
+# ============================================================================
+
+@router.post("/{task_id}/comments", response_model=TaskCommentSchema, status_code=status.HTTP_201_CREATED)
+async def add_task_comment(
+    task_id: str,
+    comment_data: CreateTaskCommentRequest,
+    current_user: TokenData = Depends(require_write_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Add a comment to a task"""
+    
+    tasks_service = TasksService(tenant_id)
+    comment = await tasks_service.add_task_comment(task_id, comment_data, current_user.user_id)
+    
+    if not comment:
+        raise NotFoundError("Task not found")
+    
+    return comment
+
+
+@router.get("/{task_id}/comments", response_model=List[TaskCommentSchema])
+async def get_task_comments(
+    task_id: str,
+    current_user: TokenData = Depends(require_read_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Get all comments for a task"""
+    
+    tasks_service = TasksService(tenant_id)
+    comments = await tasks_service.get_task_comments(task_id)
+    
+    if comments is None:
+        raise NotFoundError("Task not found")
+    
+    return comments
+
+
+@router.put("/{task_id}/comments/{comment_id}", response_model=TaskCommentSchema)
+async def update_task_comment(
+    task_id: str,
+    comment_id: str,
+    comment_data: UpdateTaskCommentRequest,
+    current_user: TokenData = Depends(require_write_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Update a task comment"""
+    
+    tasks_service = TasksService(tenant_id)
+    comment = await tasks_service.update_task_comment(
+        task_id, comment_id, comment_data, current_user.user_id
+    )
+    
+    if not comment:
+        raise NotFoundError("Comment not found")
+    
+    return comment
+
+
+@router.delete("/{task_id}/comments/{comment_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_task_comment(
+    task_id: str,
+    comment_id: str,
+    current_user: TokenData = Depends(require_delete_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Delete a task comment"""
+    
+    tasks_service = TasksService(tenant_id)
+    success = await tasks_service.delete_task_comment(
+        task_id, comment_id, current_user.user_id
+    )
+    
+    if not success:
+        raise NotFoundError("Comment not found")
+
+
+# ============================================================================
+# TASK ACTIVITY LOG ENDPOINTS
+# ============================================================================
+
+@router.get("/{task_id}/activity", response_model=List[ActivityLogEntry])
+async def get_task_activity(
+    task_id: str,
+    current_user: TokenData = Depends(require_read_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Get activity log for a task"""
+    
+    tasks_service = TasksService(tenant_id)
+    activity_log = await tasks_service.get_task_activity(task_id)
+    
+    if activity_log is None:
+        raise NotFoundError("Task not found")
+    
+    return activity_log
+
+
+# ============================================================================
+# BULK OPERATIONS ENDPOINTS
+# ============================================================================
+
+@router.patch("/bulk", response_model=List[TaskResponse])
+async def bulk_update_tasks(
+    bulk_data: BulkUpdateTasksRequest,
+    current_user: TokenData = Depends(require_write_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Bulk update multiple tasks"""
+    
+    tasks_service = TasksService(tenant_id)
+    updated_tasks = await tasks_service.bulk_update_tasks(
+        bulk_data, current_user.user_id
+    )
+    
+    return updated_tasks
+
+
+@router.delete("/bulk", status_code=status.HTTP_204_NO_CONTENT)
+async def bulk_delete_tasks(
+    task_ids: List[str],
+    current_user: TokenData = Depends(require_delete_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Bulk delete multiple tasks"""
+    
+    tasks_service = TasksService(tenant_id)
+    await tasks_service.bulk_delete_tasks(task_ids, current_user.user_id)
+
+
+@router.patch("/bulk/move", response_model=List[TaskResponse])
+async def bulk_move_tasks(
+    bulk_move_data: BulkMoveTasksRequest,
+    current_user: TokenData = Depends(require_write_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Bulk move multiple tasks to different status"""
+    
+    tasks_service = TasksService(tenant_id)
+    moved_tasks = await tasks_service.bulk_move_tasks(
+        bulk_move_data, current_user.user_id
+    )
+    
+    return moved_tasks
+
+
+# Labels endpoints
+@router.post("/labels", response_model=TaskLabel)
+async def create_label(
+    label_data: CreateLabelRequest,
+    current_user: TokenData = Depends(require_write_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Create a new task label"""
+    tasks_service = TasksService(tenant_id)
+    return await tasks_service.create_label(label_data)
+
+
+@router.get("/labels", response_model=List[TaskLabel])
+async def get_labels(
+    current_user: TokenData = Depends(require_read_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Get all task labels"""
+    try:
+        print(f"DEBUG: API get_labels called with tenant_id={tenant_id}")
+        tasks_service = TasksService(tenant_id)
+        result = await tasks_service.get_labels()
+        print(f"DEBUG: API get_labels result: {result}")
+        return result
+    except Exception as e:
+        print(f"ERROR in API get_labels: {type(e).__name__}: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@router.put("/labels/{label_id}", response_model=TaskLabel)
+async def update_label(
+    label_id: str,
+    label_data: UpdateLabelRequest,
+    current_user: TokenData = Depends(require_write_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Update a task label"""
+    tasks_service = TasksService(tenant_id)
+    return await tasks_service.update_label(label_id, label_data)
+
+
+@router.delete("/labels/{label_id}")
+async def delete_label(
+    label_id: str,
+    current_user: TokenData = Depends(require_delete_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Delete a task label"""
+    tasks_service = TasksService(tenant_id)
+    await tasks_service.delete_label(label_id)
+    return {"message": "Label deleted successfully"}
+
+
+# Subtasks endpoints
+@router.post("/{task_id}/subtasks", response_model=TaskSubtask)
+async def create_subtask(
+    task_id: str,
+    subtask_data: CreateSubtaskRequest,
+    current_user: TokenData = Depends(require_write_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Create a subtask"""
+    tasks_service = TasksService(tenant_id)
+    return await tasks_service.create_subtask(task_id, subtask_data)
+
+
+@router.put("/subtasks/{subtask_id}", response_model=TaskSubtask)
+async def update_subtask(
+    subtask_id: str,
+    subtask_data: UpdateSubtaskRequest,
+    current_user: TokenData = Depends(require_write_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Update a subtask"""
+    tasks_service = TasksService(tenant_id)
+    return await tasks_service.update_subtask(subtask_id, subtask_data)
+
+
+@router.delete("/subtasks/{subtask_id}")
+async def delete_subtask(
+    subtask_id: str,
+    current_user: TokenData = Depends(require_delete_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Delete a subtask"""
+    tasks_service = TasksService(tenant_id)
+    await tasks_service.delete_subtask(subtask_id)
+    return {"message": "Subtask deleted successfully"}
+
+
+# Attachments endpoints
+@router.post("/{task_id}/attachments", response_model=TaskAttachment)
+async def upload_attachment(
+    task_id: str,
+    attachment_data: UploadAttachmentRequest,
+    current_user: TokenData = Depends(require_write_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Upload an attachment"""
+    tasks_service = TasksService(tenant_id)
+    return await tasks_service.add_attachment(task_id, attachment_data, current_user.user_id)
+
+
+@router.delete("/attachments/{attachment_id}")
+async def delete_attachment(
+    attachment_id: str,
+    current_user: TokenData = Depends(require_delete_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Delete an attachment"""
+    tasks_service = TasksService(tenant_id)
+    await tasks_service.delete_attachment(attachment_id)
+    return {"message": "Attachment deleted successfully"}
+
+
+# Watchers endpoints
+@router.post("/{task_id}/watchers/{user_id}")
+async def add_watcher(
+    task_id: str,
+    user_id: str,
+    current_user: TokenData = Depends(require_write_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Add a watcher to a task"""
+    tasks_service = TasksService(tenant_id)
+    await tasks_service.add_watcher(task_id, user_id)
+    return {"message": "Watcher added successfully"}
+
+
+@router.delete("/{task_id}/watchers/{user_id}")
+async def remove_watcher(
+    task_id: str,
+    user_id: str,
+    current_user: TokenData = Depends(require_write_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Remove a watcher from a task"""
+    tasks_service = TasksService(tenant_id)
+    await tasks_service.remove_watcher(task_id, user_id)
+    return {"message": "Watcher removed successfully"}
+
+
+# Sprints endpoints
+@router.post("/sprints", response_model=SprintResponse)
+async def create_sprint(
+    sprint_data: CreateSprintRequest,
+    current_user: TokenData = Depends(require_write_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Create a new sprint"""
+    tasks_service = TasksService(tenant_id)
+    return await tasks_service.create_sprint(sprint_data)
+
+
+@router.get("/sprints", response_model=List[SprintResponse])
+async def get_sprints(
+    current_user: TokenData = Depends(require_read_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Get all sprints"""
+    try:
+        print(f"DEBUG: API get_sprints called with tenant_id={tenant_id}")
+        
+        tasks_service = TasksService(tenant_id)
+        result = await tasks_service.get_sprints(None)  # Kein status Parameter
+        print(f"DEBUG: API get_sprints result: {result}")
+        return result
+    except Exception as e:
+        print(f"ERROR in API get_sprints: {type(e).__name__}: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@router.put("/sprints/{sprint_id}", response_model=SprintResponse)
+async def update_sprint(
+    sprint_id: str,
+    sprint_data: UpdateSprintRequest,
+    current_user: TokenData = Depends(require_write_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Update a sprint"""
+    tasks_service = TasksService(tenant_id)
+    return await tasks_service.update_sprint(sprint_id, sprint_data)
+
+
+@router.get("/{task_id}/activity")
+async def get_task_activity(
+    task_id: str,
+    current_user: TokenData = Depends(require_read_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Get task activity log"""
+    tasks_service = TasksService(tenant_id)
+    return await tasks_service.get_task_activity(task_id)
+
+
+@router.get("/{task_id}/comments")
+async def get_task_comments(
+    task_id: str,
+    current_user: TokenData = Depends(require_read_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Get task comments"""
+    tasks_service = TasksService(tenant_id)
+    return await tasks_service.get_task_comments(task_id)
+
+
+@router.post("/{task_id}/comments")
+async def add_task_comment(
+    task_id: str,
+    comment_data: CreateTaskCommentRequest,
+    current_user: TokenData = Depends(require_write_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Add a comment to a task"""
+    tasks_service = TasksService(tenant_id)
+    return await tasks_service.add_task_comment(task_id, comment_data, current_user.id)
+
+
+@router.get("/{task_id}/attachments")
+async def get_task_attachments(
+    task_id: str,
+    current_user: TokenData = Depends(require_read_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Get task attachments"""
+    tasks_service = TasksService(tenant_id)
+    return await tasks_service.get_task_attachments(task_id)

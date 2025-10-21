@@ -135,3 +135,37 @@ class SocialQueueResponse(BaseModel):
     queue_length: int
     
     model_config = ConfigDict(from_attributes=True)
+
+
+class SocialTemplateResponse(BaseModel):
+    """Social media template response"""
+    id: str
+    name: str
+    template_type: str
+    content_template: str
+    hashtags: List[str]
+    platforms: List[str]
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+    
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CreateTemplateRequest(BaseModel):
+    """Create social media template request"""
+    name: str
+    template_type: str
+    content_template: str
+    hashtags: List[str] = Field(default_factory=list)
+    platforms: List[str] = Field(default_factory=list)
+
+
+class UpdateTemplateRequest(BaseModel):
+    """Update social media template request"""
+    name: Optional[str] = None
+    template_type: Optional[str] = None
+    content_template: Optional[str] = None
+    hashtags: Optional[List[str]] = None
+    platforms: Optional[List[str]] = None
+    is_active: Optional[bool] = None

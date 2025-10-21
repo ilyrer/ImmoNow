@@ -6,15 +6,15 @@
 import { apiClient } from '../lib/api/client';
 import {
   AvmRequest,
-  AvmResult
+  AvmResponse
 } from '../lib/api/types';
 
 class AVMService {
   /**
    * POST /avm/valuate - Immobilie bewerten
    */
-  async valuate(payload: AvmRequest): Promise<AvmResult> {
-    const response = await apiClient.post<AvmResult>('/avm/valuate', payload);
+  async valuate(payload: AvmRequest): Promise<AvmResponse> {
+    const response = await apiClient.post<AvmResponse>('/api/v1/avm/valuate', payload);
     return response;
   }
 }

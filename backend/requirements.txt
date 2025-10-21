@@ -30,3 +30,11 @@ googlemaps==4.10.0
 Pillow==10.1.0
 cryptography==41.0.7
 stripe==7.5.0  # Offizielle Stripe Python SDK
+sendgrid>=6.10.0  # für SendGrid Email API
+mailgun>=0.0.1  # für Mailgun Email API
+jinja2>=3.1.2  # für Template-Rendering
+premailer>=3.10.0  # für Inline-CSS in Emails
+# Django Channels for WebSocket support
+channels==4.0.0
+channels-redis==4.1.0
+daphne==4.0.0

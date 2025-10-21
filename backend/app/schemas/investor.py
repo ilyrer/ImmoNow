@@ -187,3 +187,108 @@ class InvestorPortfolioResponse(BaseModel):
     assets: List[InvestorAssetResponse]
     kpis: PortfolioKPIsResponse
     generated_at: datetime
+
+
+class PerformanceSnapshotResponse(BaseModel):
+    """Performance snapshot response"""
+    id: str
+    snapshot_date: datetime
+    total_portfolio_value: float
+    average_roi: float
+    total_cashflow: float
+    vacancy_rate: float
+    asset_count: int
+    monthly_income: float
+    annual_return: float
+    portfolio_growth: float
+    created_at: datetime
+
+
+class VacancyRecordResponse(BaseModel):
+    """Vacancy record response"""
+    id: str
+    property_id: str
+    property_title: str
+    record_date: datetime
+    vacancy_rate: float
+    vacant_units: int
+    total_units: int
+    vacancy_costs: float
+    notes: Optional[str] = None
+
+
+class CostRecordResponse(BaseModel):
+    """Cost record response"""
+    id: str
+    property_id: str
+    property_title: str
+    record_date: datetime
+    category: str
+    amount: float
+    description: Optional[str] = None
+    invoice_number: Optional[str] = None
+    vendor: Optional[str] = None
+
+
+class SavedSimulationResponse(BaseModel):
+    """Saved ROI simulation response"""
+    id: str
+    name: str
+    scenario: str
+    property_value: float
+    down_payment: float
+    interest_rate: float
+    loan_term_years: int
+    monthly_rent: float
+    vacancy_rate: float
+    maintenance_rate: float
+    property_tax_rate: float
+    insurance_rate: float
+    management_fee_rate: float
+    appreciation_rate: float
+    monthly_cashflow: float
+    annual_cashflow: float
+    annual_roi: float
+    total_return_5y: float
+    total_return_10y: float
+    break_even_months: int
+    net_present_value: float
+    internal_rate_return: float
+    cash_on_cash_return: float
+    roi_projection: List[float]
+    scenarios: List[Dict[str, Any]]
+    created_at: datetime
+
+
+class SaveSimulationRequest(BaseModel):
+    """Save simulation request"""
+    name: str
+    scenario: str
+    property_value: float
+    down_payment: float
+    interest_rate: float
+    loan_term_years: int
+    monthly_rent: float
+    vacancy_rate: float
+    maintenance_rate: float
+    property_tax_rate: float
+    insurance_rate: float
+    management_fee_rate: float
+    appreciation_rate: float
+
+
+class PackageReservationResponse(BaseModel):
+    """Package reservation response"""
+    id: str
+    package_id: str
+    package_title: str
+    investor_name: str
+    investor_email: str
+    investor_phone: Optional[str] = None
+    investment_amount: float
+    contact_preference: str
+    status: str
+    reserved_at: datetime
+    expires_at: datetime
+    confirmed_at: Optional[datetime] = None
+    notes: Optional[str] = None

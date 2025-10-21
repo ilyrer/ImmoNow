@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
-import { MessageSquare } from 'lucide-react';
+import { MessageSquare, Plus } from 'lucide-react';
 import { ConversationList } from '../../components/communications/ConversationList';
-// TODO: Implement real API hooks
+import { MessageThread } from '../../components/communications/MessageThread';
+import { StartChatModal } from '../../components/communications/StartChatModal';
+import { useConversations, useMarkMessagesAsRead } from '../../api/hooks';
+import type { ConversationResponse } from '../../api/types.gen';
 
 /**
  * Chat View
@@ -11,28 +14,38 @@ import { ConversationList } from '../../components/communications/ConversationLi
 const ChatView: React.FC = () => {
   const [selectedConvId, setSelectedConvId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showStartChatModal, setShowStartChatModal] = useState(false);
 
-  // TODO: Implement real conversations API hooks
-  const conversations: any[] = [];
-  const loading = false;
-  const markAsRead = (id: string) => Promise.resolve();
-  const togglePin = (id: string) => Promise.resolve();
-  const updateConversation = (id: string, updates: any) => Promise.resolve();
+  // Use real API hooks
+  const { data: conversationsData, isLoading } = useConversations();
+  const conversations: ConversationResponse[] = conversationsData?.items || [];
+  const markAsRead = useMarkMessagesAsRead();
 
   const handleSelectConversation = (id: string) => {
     setSelectedConvId(id);
-    markAsRead(id);
+    // Mark conversation as read
+    const conversation = conversations.find(c => c.id === id);
+    if (conversation && conversation.unread_count > 0) {
+      // TODO: Implement mark conversation as read
+    }
   };
 
   const handlePin = (id: string) => {
-    togglePin(id);
+    // TODO: Implement pin conversation
+    console.log('Pin conversation:', id);
   };
 
   const handleArchive = (id: string) => {
-    updateConversation(id, { status: 'archived' });
+    // TODO: Implement archive conversation
+    console.log('Archive conversation:', id);
   };
 
-  if (loading) {
+  const handleConversationCreated = (conversationId: string) => {
+    setSelectedConvId(conversationId);
+    setShowStartChatModal(false);
+  };
+
+  if (isLoading) {
     return (
       <div className="h-full flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
@@ -43,7 +56,18 @@ const ChatView: React.FC = () => {
   return (
     <div className="h-full flex">
       {/* Left: Conversation List (Inbox) */}
-      <div className="w-80 border-r border-gray-200 dark:border-gray-700 flex-shrink-0">
+      <div className="w-80 border-r border-gray-200 dark:border-gray-700 flex-shrink-0 flex flex-col">
+        {/* Start Chat Button */}
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+          <button
+            onClick={() => setShowStartChatModal(true)}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Neuen Chat starten
+          </button>
+        </div>
+
         <ConversationList
           conversations={conversations}
           selectedId={selectedConvId || undefined}
@@ -57,23 +81,7 @@ const ChatView: React.FC = () => {
       {/* Middle: Message Thread */}
       <div className="flex-1 flex flex-col">
         {selectedConvId ? (
-          <div className="h-full flex items-center justify-center text-gray-500">
-            <div className="text-center">
-              <MessageSquare className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-              <p className="text-lg font-medium">Message Thread</p>
-              <p className="text-sm text-gray-400 mt-2">
-                Konversation: {selectedConvId}
-              </p>
-              <p className="text-xs text-gray-400 mt-4 max-w-md">
-                Hier würde der vollständige Message-Thread erscheinen mit:
-                <br />• Virtualisiertes Scrolling für Performance
-                <br />• Rich Message Composer (Attachments, Mentions, Emojis)
-                <br />• Edit/Delete/Quote/Pin-Funktionen
-                <br />• Realtime-Typing-Indikatoren
-                <br />• Read-Receipts (✓✓)
-              </p>
-            </div>
-          </div>
+          <MessageThread conversationId={selectedConvId} />
         ) : (
           <div className="h-full flex items-center justify-center text-gray-400">
             <div className="text-center">
@@ -109,6 +117,13 @@ const ChatView: React.FC = () => {
           </div>
         </div>
       )}
+      
+      {/* Start Chat Modal */}
+      <StartChatModal
+        isOpen={showStartChatModal}
+        onClose={() => setShowStartChatModal(false)}
+        onConversationCreated={handleConversationCreated}
+      />
     </div>
   );
 };

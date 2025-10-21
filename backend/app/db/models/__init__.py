@@ -10,8 +10,13 @@ from django.utils import timezone
 # Import new auth models
 from .tenant import Tenant
 from .user import User, TenantUser, UserManager
+from .email_log import EmailLog, EmailTemplateUsage
 from .notification import Notification, NotificationPreference
 from .billing import BillingAccount, StripeWebhookEvent
+from .communications import (
+    Conversation, ConversationParticipant, Message, MessageReadReceipt,
+    MessageAttachment, TypingIndicator, UserPresence, MessageMention, MessageReaction
+)
 
 # Export all models
 __all__ = [
@@ -25,6 +30,15 @@ __all__ = [
     'DocumentVersion',
     'SocialAccount',
     'SocialPost',
+    'SocialTemplate',
+    'InvestorProperty',
+    'InvestorReport',
+    'MarketplacePackage',
+    'PerformanceSnapshot',
+    'VacancyRecord',
+    'CostRecord',
+    'ROISimulation',
+    'PackageReservation',
     'Permission',
     'Role',
     'FeatureFlag',
@@ -46,8 +60,19 @@ __all__ = [
     'AuditLog',
     'Notification',
     'NotificationPreference',
+    'EmailLog',
+    'EmailTemplateUsage',
     'BillingAccount',
     'StripeWebhookEvent',
+    'Conversation',
+    'ConversationParticipant',
+    'Message',
+    'MessageReadReceipt',
+    'MessageAttachment',
+    'TypingIndicator',
+    'UserPresence',
+    'MessageMention',
+    'MessageReaction',
 ]
 
 
@@ -284,6 +309,43 @@ class SocialPost(models.Model):
         return f"{self.account.platform}: {self.content[:50]}..."
 
 
+class SocialTemplate(models.Model):
+    """Social media post template model"""
+    TEMPLATE_TYPE_CHOICES = [
+        ('property_sale', 'Property Sale'),
+        ('property_rent', 'Property Rent'),
+        ('market_update', 'Market Update'),
+        ('company_news', 'Company News'),
+        ('investment_tip', 'Investment Tip'),
+        ('general', 'General'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='social_templates')
+    name = models.CharField(max_length=255)
+    template_type = models.CharField(max_length=50, choices=TEMPLATE_TYPE_CHOICES)
+    content_template = models.TextField()
+    hashtags = models.JSONField(default=list, blank=True)
+    platforms = models.JSONField(default=list, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'social_templates'
+        indexes = [
+            models.Index(fields=['tenant', 'template_type']),
+            models.Index(fields=['tenant', 'is_active']),
+            models.Index(fields=['tenant', 'created_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.name} ({self.template_type})"
+
+
+
+
 # RBAC Models
 class Permission(models.Model):
     """Permission model for RBAC"""
@@ -356,6 +418,7 @@ class TaskPriority(models.TextChoices):
 
 
 class TaskStatus(models.TextChoices):
+    BACKLOG = 'backlog', 'Backlog'
     TODO = 'todo', 'To Do'
     IN_PROGRESS = 'in_progress', 'In Progress'
     REVIEW = 'review', 'Review'
@@ -386,12 +449,13 @@ class Task(models.Model):
     description = models.TextField(blank=True, null=True)
     priority = models.CharField(max_length=20, choices=PRIORITY_CHOICES, default='medium')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='todo')
-    assignee = models.ForeignKey(User, on_delete=models.CASCADE, related_name='assigned_tasks')
+    assignee = models.ForeignKey(User, on_delete=models.CASCADE, related_name='assigned_tasks', null=True, blank=True)
     due_date = models.DateTimeField()
     start_date = models.DateTimeField(blank=True, null=True)
     progress = models.IntegerField(default=0, validators=[MinValueValidator(0), MaxValueValidator(100)])
     estimated_hours = models.IntegerField(default=1, validators=[MinValueValidator(1), MaxValueValidator(1000)])
     actual_hours = models.IntegerField(blank=True, null=True, validators=[MinValueValidator(0)])
+    position = models.IntegerField(default=0, validators=[MinValueValidator(0)])
     tags = models.JSONField(default=list, blank=True)
     property_id = models.UUIDField(blank=True, null=True)
     financing_status = models.CharField(max_length=50, blank=True, null=True)
@@ -399,6 +463,20 @@ class Task(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_tasks')
     archived = models.BooleanField(default=False)
+    
+    # New Kanban fields
+    story_points = models.IntegerField(null=True, blank=True)
+    sprint = models.ForeignKey('Sprint', on_delete=models.SET_NULL, null=True, blank=True)
+    labels = models.ManyToManyField('TaskLabel', blank=True, related_name='tasks')
+    blocked_reason = models.TextField(blank=True, null=True)
+    blocked_by_task = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True)
+    epic_link = models.UUIDField(null=True, blank=True)
+    issue_type = models.CharField(max_length=50, default='task', choices=[
+        ('task', 'Task'),
+        ('story', 'Story'),
+        ('bug', 'Bug'),
+        ('epic', 'Epic')
+    ])
     
     class Meta:
         db_table = 'tasks'
@@ -447,6 +525,79 @@ class TaskComment(models.Model):
     
     def __str__(self):
         return f"Comment by {self.author.get_full_name()} on {self.task.title}"
+
+
+class TaskSubtask(models.Model):
+    """Subtask model"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4)
+    task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='subtasks')
+    title = models.CharField(max_length=200)
+    completed = models.BooleanField(default=False)
+    order = models.IntegerField(default=0)
+    assignee = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'task_subtasks'
+        ordering = ['order']
+    
+    def __str__(self):
+        return self.title
+
+
+class TaskAttachment(models.Model):
+    """Task attachment model"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4)
+    task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='attachments')
+    name = models.CharField(max_length=255)
+    file_url = models.URLField()
+    file_size = models.BigIntegerField()
+    mime_type = models.CharField(max_length=100)
+    uploaded_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'task_attachments'
+    
+    def __str__(self):
+        return self.name
+
+
+class TaskWatcher(models.Model):
+    """Task watcher model"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4)
+    task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='watchers')
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    added_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'task_watchers'
+        unique_together = ['task', 'user']
+    
+    def __str__(self):
+        return f"{self.user.username} watching {self.task.title}"
+
+
+class Sprint(models.Model):
+    """Sprint model for agile planning"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4)
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE)
+    name = models.CharField(max_length=100)
+    goal = models.TextField(blank=True)
+    start_date = models.DateTimeField()
+    end_date = models.DateTimeField()
+    status = models.CharField(max_length=20, choices=[
+        ('planning', 'Planning'),
+        ('active', 'Active'),
+        ('completed', 'Completed')
+    ], default='planning')
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'sprints'
+    
+    def __str__(self):
+        return self.name
 
 
 # Property Models
@@ -548,6 +699,295 @@ class Property(models.Model):
     
     def __str__(self):
         return self.title
+
+
+# Investor Models
+
+class InvestorProperty(models.Model):
+    """Extended property data for investors"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    property = models.OneToOneField(Property, on_delete=models.CASCADE, related_name='investor_data')
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='investor_properties')
+    purchase_date = models.DateField()
+    purchase_price = models.DecimalField(max_digits=12, decimal_places=2)
+    current_value = models.DecimalField(max_digits=12, decimal_places=2)
+    monthly_rent = models.DecimalField(max_digits=10, decimal_places=2)
+    occupancy_rate = models.DecimalField(max_digits=5, decimal_places=2, default=100.0)
+    maintenance_costs = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    property_tax = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    insurance = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    management_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'investor_properties'
+        indexes = [
+            models.Index(fields=['tenant', 'purchase_date']),
+            models.Index(fields=['tenant', 'current_value']),
+        ]
+    
+    def __str__(self):
+        return f"Investor Data for {self.property.title}"
+
+
+class InvestorReport(models.Model):
+    """Investor report model"""
+    REPORT_TYPE_CHOICES = [
+        ('monthly', 'Monthly'),
+        ('quarterly', 'Quarterly'),
+        ('annual', 'Annual'),
+        ('custom', 'Custom'),
+    ]
+    
+    STATUS_CHOICES = [
+        ('generating', 'Generating'),
+        ('generated', 'Generated'),
+        ('failed', 'Failed'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='investor_reports')
+    title = models.CharField(max_length=255)
+    report_type = models.CharField(max_length=50, choices=REPORT_TYPE_CHOICES)
+    period_start = models.DateField()
+    period_end = models.DateField()
+    generated_at = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='generating')
+    file_url = models.URLField(blank=True, null=True)
+    summary = models.JSONField(default=dict, blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    
+    class Meta:
+        db_table = 'investor_reports'
+        indexes = [
+            models.Index(fields=['tenant', 'report_type']),
+            models.Index(fields=['tenant', 'generated_at']),
+            models.Index(fields=['tenant', 'status']),
+        ]
+    
+    def __str__(self):
+        return f"{self.title} ({self.report_type})"
+
+
+class MarketplacePackage(models.Model):
+    """Marketplace investment package model"""
+    STATUS_CHOICES = [
+        ('draft', 'Draft'),
+        ('available', 'Available'),
+        ('reserved', 'Reserved'),
+        ('sold_out', 'Sold Out'),
+        ('expired', 'Expired'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='marketplace_packages')
+    title = models.CharField(max_length=255)
+    description = models.TextField()
+    location = models.CharField(max_length=255)
+    total_value = models.DecimalField(max_digits=12, decimal_places=2)
+    expected_roi = models.DecimalField(max_digits=5, decimal_places=2)
+    min_investment = models.DecimalField(max_digits=12, decimal_places=2)
+    max_investors = models.IntegerField()
+    current_investors = models.IntegerField(default=0)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+    expires_at = models.DateTimeField()
+    property_count = models.IntegerField()
+    property_types = models.JSONField(default=list, blank=True)
+    properties = models.ManyToManyField(Property, blank=True, related_name='marketplace_packages')
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    
+    class Meta:
+        db_table = 'marketplace_packages'
+        indexes = [
+            models.Index(fields=['tenant', 'status']),
+            models.Index(fields=['tenant', 'expires_at']),
+            models.Index(fields=['tenant', 'expected_roi']),
+        ]
+    
+    def __str__(self):
+        return f"{self.title} - {self.location}"
+
+
+class PerformanceSnapshot(models.Model):
+    """Performance snapshot for historical tracking"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='performance_snapshots')
+    snapshot_date = models.DateField()
+    total_portfolio_value = models.DecimalField(max_digits=12, decimal_places=2)
+    average_roi = models.DecimalField(max_digits=5, decimal_places=2)
+    total_cashflow = models.DecimalField(max_digits=12, decimal_places=2)
+    vacancy_rate = models.DecimalField(max_digits=5, decimal_places=2)
+    asset_count = models.IntegerField()
+    monthly_income = models.DecimalField(max_digits=10, decimal_places=2)
+    annual_return = models.DecimalField(max_digits=12, decimal_places=2)
+    portfolio_growth = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'performance_snapshots'
+        indexes = [
+            models.Index(fields=['tenant', 'snapshot_date']),
+            models.Index(fields=['tenant', 'created_at']),
+        ]
+        unique_together = ['tenant', 'snapshot_date']
+    
+    def __str__(self):
+        return f"Performance Snapshot {self.snapshot_date} - {self.tenant.name}"
+
+
+class VacancyRecord(models.Model):
+    """Vacancy tracking record for properties"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='vacancy_records')
+    property = models.ForeignKey(Property, on_delete=models.CASCADE, related_name='vacancy_records')
+    record_date = models.DateField()
+    vacancy_rate = models.DecimalField(max_digits=5, decimal_places=2)
+    vacant_units = models.IntegerField(default=0)
+    total_units = models.IntegerField(default=1)
+    vacancy_costs = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    notes = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'vacancy_records'
+        indexes = [
+            models.Index(fields=['tenant', 'record_date']),
+            models.Index(fields=['property', 'record_date']),
+            models.Index(fields=['tenant', 'property', 'record_date']),
+        ]
+    
+    def __str__(self):
+        return f"Vacancy Record {self.property.title} - {self.record_date}"
+
+
+class CostRecord(models.Model):
+    """Cost tracking record for properties"""
+    COST_CATEGORIES = [
+        ('maintenance', 'Maintenance'),
+        ('utilities', 'Utilities'),
+        ('management', 'Management'),
+        ('insurance', 'Insurance'),
+        ('property_tax', 'Property Tax'),
+        ('other', 'Other'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='cost_records')
+    property = models.ForeignKey(Property, on_delete=models.CASCADE, related_name='cost_records')
+    record_date = models.DateField()
+    category = models.CharField(max_length=50, choices=COST_CATEGORIES)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    description = models.TextField(blank=True, null=True)
+    invoice_number = models.CharField(max_length=100, blank=True, null=True)
+    vendor = models.CharField(max_length=255, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    
+    class Meta:
+        db_table = 'cost_records'
+        indexes = [
+            models.Index(fields=['tenant', 'record_date']),
+            models.Index(fields=['property', 'record_date']),
+            models.Index(fields=['tenant', 'category', 'record_date']),
+        ]
+    
+    def __str__(self):
+        return f"Cost Record {self.property.title} - {self.category} - {self.record_date}"
+
+
+class ROISimulation(models.Model):
+    """Saved ROI simulation"""
+    SCENARIO_CHOICES = [
+        ('optimistic', 'Optimistic'),
+        ('realistic', 'Realistic'),
+        ('pessimistic', 'Pessimistic'),
+        ('custom', 'Custom'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='roi_simulations')
+    name = models.CharField(max_length=255)
+    scenario = models.CharField(max_length=50, choices=SCENARIO_CHOICES)
+    
+    # Investment parameters
+    property_value = models.DecimalField(max_digits=12, decimal_places=2)
+    down_payment = models.DecimalField(max_digits=12, decimal_places=2)
+    interest_rate = models.DecimalField(max_digits=5, decimal_places=2)
+    loan_term_years = models.IntegerField()
+    monthly_rent = models.DecimalField(max_digits=10, decimal_places=2)
+    vacancy_rate = models.DecimalField(max_digits=5, decimal_places=2)
+    maintenance_rate = models.DecimalField(max_digits=5, decimal_places=2)
+    property_tax_rate = models.DecimalField(max_digits=5, decimal_places=2)
+    insurance_rate = models.DecimalField(max_digits=5, decimal_places=2)
+    management_fee_rate = models.DecimalField(max_digits=5, decimal_places=2)
+    appreciation_rate = models.DecimalField(max_digits=5, decimal_places=2)
+    
+    # Results
+    monthly_cashflow = models.DecimalField(max_digits=10, decimal_places=2)
+    annual_cashflow = models.DecimalField(max_digits=12, decimal_places=2)
+    annual_roi = models.DecimalField(max_digits=5, decimal_places=2)
+    total_return_5y = models.DecimalField(max_digits=5, decimal_places=2)
+    total_return_10y = models.DecimalField(max_digits=5, decimal_places=2)
+    break_even_months = models.IntegerField()
+    net_present_value = models.DecimalField(max_digits=12, decimal_places=2)
+    internal_rate_return = models.DecimalField(max_digits=5, decimal_places=2)
+    cash_on_cash_return = models.DecimalField(max_digits=5, decimal_places=2)
+    
+    # Additional data
+    roi_projection = models.JSONField(default=list, blank=True)  # Array of ROI values over time
+    scenarios = models.JSONField(default=list, blank=True)  # Different scenario results
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    
+    class Meta:
+        db_table = 'roi_simulations'
+        indexes = [
+            models.Index(fields=['tenant', 'created_at']),
+            models.Index(fields=['tenant', 'scenario']),
+            models.Index(fields=['tenant', 'name']),
+        ]
+    
+    def __str__(self):
+        return f"ROI Simulation: {self.name} ({self.scenario})"
+
+
+class PackageReservation(models.Model):
+    """Marketplace package reservation"""
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('confirmed', 'Confirmed'),
+        ('cancelled', 'Cancelled'),
+        ('expired', 'Expired'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='package_reservations')
+    package = models.ForeignKey(MarketplacePackage, on_delete=models.CASCADE, related_name='reservations')
+    investor_name = models.CharField(max_length=255)
+    investor_email = models.EmailField()
+    investor_phone = models.CharField(max_length=50, blank=True, null=True)
+    investment_amount = models.DecimalField(max_digits=12, decimal_places=2)
+    contact_preference = models.CharField(max_length=50, default='email')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    reserved_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    confirmed_at = models.DateTimeField(blank=True, null=True)
+    notes = models.TextField(blank=True, null=True)
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    
+    class Meta:
+        db_table = 'package_reservations'
+        indexes = [
+            models.Index(fields=['tenant', 'status']),
+            models.Index(fields=['package', 'status']),
+            models.Index(fields=['tenant', 'reserved_at']),
+        ]
+    
+    def __str__(self):
+        return f"Reservation: {self.investor_name} - {self.package.title}"
 
 
 class Address(models.Model):

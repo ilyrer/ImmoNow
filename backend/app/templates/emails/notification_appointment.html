@@ -1,0 +1,58 @@
+{% extends "emails/base.html" %}
+
+{% block additional_content %}
+<div class="notification-card">
+    <div class="priority-indicator priority-{{ priority }}">
+        📅 Termin-Update
+    </div>
+    
+    <h3 class="notification-title">Termin-Details</h3>
+    
+    {% if appointment_title %}
+    <div class="related-entity">
+        <h4 class="related-entity-title">📝 Termin</h4>
+        <p class="related-entity-info">{{ appointment_title }}</p>
+    </div>
+    {% endif %}
+    
+    {% if appointment_date %}
+    <div class="related-entity">
+        <h4 class="related-entity-title">📅 Datum & Uhrzeit</h4>
+        <p class="related-entity-info">{{ appointment_date }}</p>
+    </div>
+    {% endif %}
+    
+    {% if appointment_location %}
+    <div class="related-entity">
+        <h4 class="related-entity-title">📍 Ort</h4>
+        <p class="related-entity-info">{{ appointment_location }}</p>
+    </div>
+    {% endif %}
+    
+    {% if appointment_attendees %}
+    <div class="related-entity">
+        <h4 class="related-entity-title">👥 Teilnehmer</h4>
+        <p class="related-entity-info">{{ appointment_attendees }}</p>
+    </div>
+    {% endif %}
+    
+    {% if appointment_type %}
+    <div class="related-entity">
+        <h4 class="related-entity-title">🏷️ Termintyp</h4>
+        <p class="related-entity-info">{{ appointment_type }}</p>
+    </div>
+    {% endif %}
+    
+    {% if action_url %}
+    <a href="{{ action_url }}" class="action-button">
+        📋 Termin anzeigen
+    </a>
+    {% endif %}
+</div>
+
+<div style="background: #f8f9fa; border-radius: 12px; padding: 20px; margin: 20px 0; text-align: center;">
+    <p style="margin: 0; color: #6e6e73; font-size: 14px;">
+        ⏰ <strong>Erinnerung:</strong> Sie erhalten automatisch eine Erinnerung 30 Minuten vor dem Termin.
+    </p>
+</div>
+{% endblock %}

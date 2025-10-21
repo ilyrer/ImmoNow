@@ -5,7 +5,8 @@
 
 import React, { useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../common/Card';
-// TODO: Implement real composer API
+import { useSocialAccounts, useCreatePost, useUploadMedia } from '../../../hooks/useSocial';
+import { SocialAccount, CreatePostRequest } from '../../../api/social';
 import {
   SocialPost,
   PostType,
@@ -24,8 +25,15 @@ const ComposerView: React.FC<ComposerViewProps> = ({ onBack }) => {
   const [selectedType, setSelectedType] = useState<PostType>('text');
   const [scheduledDate, setScheduledDate] = useState('');
   const [uploadedMedia, setUploadedMedia] = useState<File[]>([]);
+  const [mediaUrls, setMediaUrls] = useState<string[]>([]);
 
-  const connectedAccounts: any[] = []; // TODO: Get from real API
+  // Use React Query hooks for data management
+  const { data: accounts = [], isLoading: accountsLoading, error: accountsError } = useSocialAccounts();
+  const createPostMutation = useCreatePost();
+  const uploadMediaMutation = useUploadMedia();
+
+  // Filter only active accounts
+  const connectedAccounts = accounts.filter((account: SocialAccount) => account.status === 'active');
 
   const togglePlatform = (platform: SocialPlatform) => {
     setSelectedPlatforms(prev =>
@@ -35,28 +43,119 @@ const ComposerView: React.FC<ComposerViewProps> = ({ onBack }) => {
     );
   };
 
-  const handleMediaUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      setUploadedMedia(prev => [...prev, ...Array.from(e.target.files!)]);
+      const files = Array.from(e.target.files);
+      setUploadedMedia(prev => [...prev, ...files]);
+      
+      // Upload files to backend
+      try {
+        const uploadPromises = files.map(file => uploadMediaMutation.mutateAsync(file));
+        const uploadedUrls = await Promise.all(uploadPromises);
+        setMediaUrls(prev => [...prev, ...uploadedUrls]);
+      } catch (error) {
+        console.error('Media upload failed:', error);
+      }
     }
   };
 
   const removeMedia = (index: number) => {
     setUploadedMedia(prev => prev.filter((_, i) => i !== index));
+    setMediaUrls(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handlePublish = () => {
-    console.log('Publishing post...', {
-      text: postText,
-      platforms: selectedPlatforms,
-      type: selectedType,
-      media: uploadedMedia,
-      scheduledDate,
-    });
+  const handlePublish = async () => {
+    if (!postText.trim() || selectedPlatforms.length === 0) {
+      return;
+    }
+
+    try {
+      // Get account IDs for selected platforms
+      const accountIds = connectedAccounts
+        .filter(account => selectedPlatforms.includes(account.platform as SocialPlatform))
+        .map(account => account.id);
+
+      const postData: CreatePostRequest = {
+        account_ids: accountIds,
+        content: postText,
+        post_type: selectedType as any,
+        media_urls: mediaUrls,
+        scheduled_at: scheduledDate ? new Date(scheduledDate).toISOString() : undefined,
+        hashtags: [], // TODO: Extract hashtags from content
+        mentions: [] // TODO: Extract mentions from content
+      };
+
+      await createPostMutation.mutateAsync(postData);
+      
+      // Reset form after successful creation
+      setPostText('');
+      setSelectedPlatforms([]);
+      setScheduledDate('');
+      setUploadedMedia([]);
+      setMediaUrls([]);
+    } catch (error) {
+      console.error('Failed to create post:', error);
+    }
   };
 
   const characterCount = postText.length;
   const maxCharacters = 280; // Twitter limit as example
+
+  // Show loading state while accounts are being fetched
+  if (accountsLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center space-x-4">
+          <button
+            onClick={onBack}
+            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+          >
+            <i className="ri-arrow-left-line text-xl text-gray-600 dark:text-gray-400"></i>
+          </button>
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+              Beitrag erstellen
+            </h2>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">
+              Lade Konten...
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state if accounts failed to load
+  if (accountsError) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center space-x-4">
+          <button
+            onClick={onBack}
+            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+          >
+            <i className="ri-arrow-left-line text-xl text-gray-600 dark:text-gray-400"></i>
+          </button>
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+              Beitrag erstellen
+            </h2>
+            <p className="text-red-600 dark:text-red-400 mt-1">
+              Fehler beim Laden der Konten
+            </p>
+          </div>
+        </div>
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+          <p className="text-red-800 dark:text-red-300">
+            {accountsError.message || 'Unbekannter Fehler beim Laden der Konten'}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -310,10 +409,15 @@ const ComposerView: React.FC<ComposerViewProps> = ({ onBack }) => {
               <div className="space-y-3">
                 <button
                   onClick={handlePublish}
-                  disabled={!postText.trim() || selectedPlatforms.length === 0}
+                  disabled={!postText.trim() || selectedPlatforms.length === 0 || createPostMutation.isPending}
                   className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors"
                 >
-                  {scheduledDate ? (
+                  {createPostMutation.isPending ? (
+                    <>
+                      <i className="ri-loader-4-line animate-spin mr-2"></i>
+                      Wird erstellt...
+                    </>
+                  ) : scheduledDate ? (
                     <>
                       <i className="ri-calendar-line mr-2"></i>
                       Planen

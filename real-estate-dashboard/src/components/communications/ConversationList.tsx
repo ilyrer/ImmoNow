@@ -9,10 +9,10 @@ import {
 } from 'lucide-react';
 import { Avatar } from '../../components/common/Avatar';
 import { Badge } from '../../components/common/Badge';
-import type { Conversation } from '../../types/communications';
+import type { ConversationResponse } from '../../api/types.gen';
 
 interface ConversationListProps {
-  conversations: Conversation[];
+  conversations: ConversationResponse[];
   selectedId?: string;
   onSelect: (id: string) => void;
   onPin?: (id: string) => void;
@@ -49,29 +49,15 @@ export const ConversationList: React.FC<ConversationListProps> = ({
     return date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
   };
 
-  const getConversationIcon = (kind: string): React.ReactNode => {
-    switch (kind) {
-      case 'group':
-        return (
-          <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center text-xs text-white">
-            👥
-          </div>
-        );
-      case 'object':
-        return (
-          <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-purple-500 rounded-full flex items-center justify-center text-xs text-white">
-            🏠
-          </div>
-        );
-      case 'customer':
-        return (
-          <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center text-xs text-white">
-            👤
-          </div>
-        );
-      default:
-        return null;
+  const getConversationIcon = (participants: any[]): React.ReactNode => {
+    if (participants.length > 2) {
+      return (
+        <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center text-xs text-white">
+          👥
+        </div>
+      );
     }
+    return null;
   };
 
   const handleContextMenu = (e: React.MouseEvent, convId: string) => {
@@ -79,11 +65,14 @@ export const ConversationList: React.FC<ConversationListProps> = ({
     setActiveMenu(activeMenu === convId ? null : convId);
   };
 
-  // Sortiere: Pinned zuerst, dann nach lastMessageAt
+  // Sortiere: Pinned zuerst, dann nach updated_at
   const sortedConversations = [...conversations].sort((a, b) => {
-    if (a.isPinned && !b.isPinned) return -1;
-    if (!a.isPinned && b.isPinned) return 1;
-    return new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime();
+    const aPinned = a.metadata?.is_pinned || false;
+    const bPinned = b.metadata?.is_pinned || false;
+    
+    if (aPinned && !bPinned) return -1;
+    if (!aPinned && bPinned) return 1;
+    return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
   });
 
   return (
@@ -110,14 +99,14 @@ export const ConversationList: React.FC<ConversationListProps> = ({
               key={conv.id}
               onClick={() => onSelect(conv.id)}
               onContextMenu={(e) => handleContextMenu(e, conv.id)}
-              className={`
+                className={`
                 relative px-4 py-3 cursor-pointer
                 border-l-4 transition-all duration-200
                 ${selectedId === conv.id
                   ? 'bg-blue-50 dark:bg-blue-900/20 border-l-blue-600'
                   : 'border-l-transparent hover:bg-gray-50 dark:hover:bg-gray-800/50'
                 }
-                ${conv.unreadCount > 0 ? 'bg-blue-50/30 dark:bg-blue-900/10' : ''}
+                ${conv.unread_count > 0 ? 'bg-blue-50/30 dark:bg-blue-900/10' : ''}
               `}
             >
               <div className="flex items-start gap-3">
@@ -126,10 +115,10 @@ export const ConversationList: React.FC<ConversationListProps> = ({
                   <Avatar
                     name={conv.participants[0]?.name || conv.title}
                     size="md"
-                    showStatus={conv.kind === 'dm'}
+                    showStatus={conv.participants.length === 2}
                     status="online"
                   />
-                  {getConversationIcon(conv.kind)}
+                  {getConversationIcon(conv.participants)}
                 </div>
 
                 {/* Content */}
@@ -138,11 +127,11 @@ export const ConversationList: React.FC<ConversationListProps> = ({
                     <div className="flex items-center gap-2 min-w-0">
                       <span className={`
                         text-sm font-semibold truncate
-                        ${conv.unreadCount > 0 ? 'text-gray-900 dark:text-white' : 'text-gray-700 dark:text-gray-300'}
+                        ${conv.unread_count > 0 ? 'text-gray-900 dark:text-white' : 'text-gray-700 dark:text-gray-300'}
                       `}>
                         {conv.title}
                       </span>
-                      {conv.isPinned && (
+                      {conv.metadata?.is_pinned && (
                         <Pin className="w-3 h-3 text-blue-600 dark:text-blue-400 flex-shrink-0" />
                       )}
                       {conv.metadata?.priority && conv.metadata.priority !== 'normal' && (
@@ -152,33 +141,33 @@ export const ConversationList: React.FC<ConversationListProps> = ({
                       )}
                     </div>
                     <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0 ml-2">
-                      {formatTime(conv.lastMessageAt)}
+                      {formatTime(conv.updated_at)}
                     </span>
                   </div>
 
                   {/* Last Message */}
-                  {conv.lastMessage && (
+                  {conv.last_message && (
                     <div className="flex items-center gap-2">
                       <p className={`
                         text-sm truncate
-                        ${conv.unreadCount > 0
+                        ${conv.unread_count > 0
                           ? 'text-gray-900 dark:text-white font-medium'
                           : 'text-gray-500 dark:text-gray-400'
                         }
                       `}>
-                        {conv.kind === 'group' && `${conv.lastMessage.authorName}: `}
-                        {conv.lastMessage.body}
+                        {conv.participants.length > 2 && `${conv.last_message?.sender_name}: `}
+                        {conv.last_message?.content}
                       </p>
-                      {conv.unreadCount > 0 && (
+                      {conv.unread_count > 0 && (
                         <span className="flex-shrink-0 w-5 h-5 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
-                          {conv.unreadCount}
+                          {conv.unread_count}
                         </span>
                       )}
                     </div>
                   )}
 
                   {/* Participants (for groups) */}
-                  {conv.kind === 'group' && conv.participants.length > 1 && (
+                  {conv.participants.length > 2 && (
                     <div className="flex items-center gap-1 mt-1">
                       <span className="text-xs text-gray-400">
                         {conv.participants.length} Teilnehmer
@@ -200,7 +189,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
                     className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
                   >
                     <Pin className="w-4 h-4" />
-                    {conv.isPinned ? 'Entpinnen' : 'Anpinnen'}
+                    {conv.metadata?.is_pinned ? 'Entpinnen' : 'Anpinnen'}
                   </button>
                   <button
                     onClick={(e) => {

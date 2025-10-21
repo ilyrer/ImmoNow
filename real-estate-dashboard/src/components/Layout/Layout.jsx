@@ -3,7 +3,6 @@ import { GlobalAIChatbot } from '../AI';
 import SidebarChat from '../Chat/SidebarChat';
 import GlobalHeader from '../common/GlobalHeader';
 import GlobalSidebar from '../common/GlobalSidebar';
-import ChatbotFAB from '../common/ChatbotFAB.tsx';
 import { PaymentModal } from '../billing/PaymentModal';
 import { useTrialStatus } from '../../hooks/useTrialStatus';
 
@@ -72,9 +71,6 @@ const Layout = ({ children, user, onLogout }) => {
 
         {/* Sidebar Chat */}
         <SidebarChat open={chatOpen} onClose={() => setChatOpen(false)} />
-
-        {/* New Enhanced Chatbot FAB */}
-        <ChatbotFAB />
         
         {/* Payment Modal */}
         {showPaymentModal && (

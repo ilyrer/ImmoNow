@@ -666,6 +666,170 @@ Erkläre:
       };
     }
   }
+
+  /**
+   * Preisstrategie generieren (strukturierte JSON-Antwort)
+   */
+  static async generatePricingStrategy(input: {
+    location: string;
+    propertyType: string;
+    estimatedValue: number;
+    rangeMin: number;
+    rangeMax: number;
+    pricePerSqm: number;
+    size: number;
+    demandLevel?: string;
+    competitionIndex?: number;
+  }): Promise<{
+    recommendedListingPrice: number;
+    positioning: 'aggressiv' | 'marktgerecht' | 'defensiv';
+    strategyNotes: string[];
+    priceBand: { softFloor: number; optimal: number; softCeil: number };
+    urgencyTips: string[];
+  }> {
+    const prompt = `Erstelle eine PREISSTRATEGIE als JSON.
+Kontext:
+- Standort: ${input.location}
+- Typ: ${input.propertyType}
+- Wert: ${input.estimatedValue}
+- Spanne: ${input.rangeMin} - ${input.rangeMax}
+- €/m²: ${input.pricePerSqm}
+- Größe: ${input.size} m²
+- Nachfrage: ${input.demandLevel || 'unbekannt'}
+- Wettbewerb: ${input.competitionIndex ?? 'unbekannt'}
+
+Antwort-JSON mit Feldern:
+{
+  "recommendedListingPrice": number,
+  "positioning": "aggressiv"|"marktgerecht"|"defensiv",
+  "strategyNotes": string[],
+  "priceBand": { "softFloor": number, "optimal": number, "softCeil": number },
+  "urgencyTips": string[]
+}`;
+
+    try {
+      const res = await this.askQuestion({ prompt, temperature: 0.4, maxTokens: 900 });
+      const match = res.response.match(/\{[\s\S]*\}/);
+      if (match) return JSON.parse(match[0]);
+    } catch (e) {
+      console.error('Pricing Strategy Error:', e);
+    }
+    const opt = Math.round(input.estimatedValue);
+    return {
+      recommendedListingPrice: opt,
+      positioning: 'marktgerecht',
+      strategyNotes: ['Marktgerechte Preisansetzung empfohlen.'],
+      priceBand: { softFloor: Math.round(input.rangeMin), optimal: opt, softCeil: Math.round(input.rangeMax) },
+      urgencyTips: ['Frühe Besichtigungsslots anbieten', 'Hochwertiges Exposé nutzen'],
+    };
+  }
+
+  /**
+   * Renovierungs-ROI und Maßnahmenplan
+   */
+  static async generateRenovationPlan(input: {
+    condition: string;
+    propertyType: string;
+    location: string;
+    size: number;
+  }): Promise<{
+    quickWins: Array<{ measure: string; cost: number; uplift: number }>;
+    majorUpgrades: Array<{ measure: string; cost: number; uplift: number }>;
+    totalPotentialUplift: number;
+    remarks: string;
+  }> {
+    const prompt = `Erstelle einen Renovierungs-ROI-Plan als JSON.
+Kontext: Typ ${input.propertyType}, Zustand ${input.condition}, Lage ${input.location}, Größe ${input.size} m².
+JSON Felder:
+{
+  "quickWins": [{"measure": string, "cost": number, "uplift": number}],
+  "majorUpgrades": [{"measure": string, "cost": number, "uplift": number}],
+  "totalPotentialUplift": number,
+  "remarks": string
+}`;
+    try {
+      const res = await this.askQuestion({ prompt, temperature: 0.5, maxTokens: 900 });
+      const match = res.response.match(/\{[\s\S]*\}/);
+      if (match) return JSON.parse(match[0]);
+    } catch (e) {
+      console.error('Renovation Plan Error:', e);
+    }
+    return {
+      quickWins: [{ measure: 'Wände streichen', cost: 1500, uplift: 4000 }],
+      majorUpgrades: [{ measure: 'Bad modernisieren', cost: 12000, uplift: 18000 }],
+      totalPotentialUplift: 22000,
+      remarks: 'Maßnahmen priorisieren nach Budget und Zeithorizont.',
+    };
+  }
+
+  /**
+   * Buyer Persona & Kanäle
+   */
+  static async generateBuyerPersona(input: {
+    location: string;
+    propertyType: string;
+    size: number;
+    price: number;
+  }): Promise<{
+    personas: Array<{ name: string; description: string; keyNeeds: string[] }>;
+    channels: string[];
+    messaging: string[];
+  }> {
+    const prompt = `Erstelle Buyer-Personas als JSON für ${input.propertyType} in ${input.location}, ${input.size} m², Preis ${input.price}.
+JSON:
+{
+  "personas": [{"name": string, "description": string, "keyNeeds": string[]}],
+  "channels": string[],
+  "messaging": string[]
+}`;
+    try {
+      const res = await this.askQuestion({ prompt, temperature: 0.6, maxTokens: 800 });
+      const match = res.response.match(/\{[\s\S]*\}/);
+      if (match) return JSON.parse(match[0]);
+    } catch (e) {
+      console.error('Buyer Persona Error:', e);
+    }
+    return {
+      personas: [{ name: 'Junges Paar', description: 'Erstkäufer mit Fokus Lage/ÖPNV', keyNeeds: ['Gute Anbindung', 'Niedrige Nebenkosten'] }],
+      channels: ['Portale', 'Social Ads', 'Bestandskunden'],
+      messaging: ['Zentrale Lage', 'Effizienter Grundriss'],
+    };
+  }
+
+  /**
+   * Sales-Playbook / Nächste Schritte
+   */
+  static async generateSalesPlaybook(input: {
+    location: string;
+    type: string;
+    demandLevel?: string;
+    competitionIndex?: number;
+  }): Promise<{
+    nextSteps: string[];
+    checklist: string[];
+    kpis: Array<{ name: string; target: string }>;
+  }> {
+    const prompt = `Erstelle ein kurzes Sales-Playbook als JSON.
+Kontext: ${input.type} in ${input.location}, Nachfrage ${input.demandLevel || 'n/a'}, Wettbewerb ${input.competitionIndex ?? 'n/a'}.
+JSON:
+{
+  "nextSteps": string[],
+  "checklist": string[],
+  "kpis": [{"name": string, "target": string}]
+}`;
+    try {
+      const res = await this.askQuestion({ prompt, temperature: 0.4, maxTokens: 700 });
+      const match = res.response.match(/\{[\s\S]*\}/);
+      if (match) return JSON.parse(match[0]);
+    } catch (e) {
+      console.error('Sales Playbook Error:', e);
+    }
+    return {
+      nextSteps: ['Exposé finalisieren', 'Besichtigungsslots planen', 'Preisband intern abstimmen'],
+      checklist: ['Energieausweis prüfen', 'Grundriss bereitstellen', 'Finanzierungsbestätigungsvorlage'],
+      kpis: [{ name: 'Leads/Woche', target: '≥10' }, { name: 'Zeit bis Erstbesichtigung', target: '<=5 Tage' }],
+    };
+  }
 }
 
 export default LLMService;

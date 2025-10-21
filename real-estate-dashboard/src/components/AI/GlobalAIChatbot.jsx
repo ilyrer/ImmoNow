@@ -8,14 +8,14 @@ const GlobalAIChatbot = ({ user, onCreateTask, onCreateProperty, onCreateMeeting
     {
       id: 1,
       type: 'ai',
-      content: 'Hallo! Ich bin Ihr KI-Assistent für Immobilien. Ich kann Ihnen bei folgenden Aufgaben helfen:',
+      content: 'Hallo! Ich bin Ihr KI-Assistent von ImmoNow. Ich kann Ihnen bei folgenden Aufgaben helfen:',
       timestamp: new Date(),
       suggestions: [
-        '📋 Aufgaben erstellen und priorisieren',
-        '🏠 Immobilienbeschreibungen generieren',
-        '📊 Marktanalysen durchführen',
-        '📝 Besprechungsnotizen erstellen',
-        '📈 Marketing-Content entwickeln'
+        'Aufgaben erstellen und priorisieren',
+        'Immobilienbeschreibungen generieren',
+        'Marktanalysen durchführen',
+        'Besprechungsnotizen erstellen',
+        'Marketing-Content entwickeln'
       ]
     }
   ]);
@@ -384,7 +384,7 @@ ${marketingContent.hashtags?.join(' ') || '#Immobilien #Verkauf'}
 Für welchen spezifischen Kanal soll ich Content erstellen?`;
 
     } catch (error) {
-      return `📢 Marketing-Unterstützung verfügbar!
+      return `Marketing-Unterstützung verfügbar!
 
 **Verfügbare Services:**
 • **Social Media Posts** - Instagram, Facebook, LinkedIn
@@ -393,7 +393,7 @@ Für welchen spezifischen Kanal soll ich Content erstellen?`;
 • **Website-Content** - SEO-optimiert
 
 **Beispiel-Content:**
-"🏡 TRAUMHAUS GEFUNDEN! Moderne Villa mit Garten, 5 Zimmer, Top-Lage. Jetzt besichtigen! #Immobilien #Traumhaus"
+" TRAUMHAUS GEFUNDEN! Moderne Villa mit Garten, 5 Zimmer, Top-Lage. Jetzt besichtigen! #Immobilien #Traumhaus"
 
 Für welchen Kanal soll ich Content erstellen?`;
     }
@@ -412,11 +412,11 @@ Für welchen Kanal soll ich Content erstellen?`;
       return `Ich verstehe Ihre Anfrage und helfe gerne! 
 
 **Meine Hauptfunktionen:**
-🎯 **Aufgaben-Management** - Erstellen, priorisieren, verwalten
-🏠 **Immobilien-Support** - Beschreibungen, Analysen, Bewertungen  
-📅 **Besprechungen** - Planen, Agenda erstellen, Nachbereitung
-📊 **Markt-Insights** - Trends, Preise, Empfehlungen
-📢 **Marketing** - Content, Kampagnen, Social Media
+**Aufgaben-Management** - Erstellen, priorisieren, verwalten
+**Immobilien-Support** - Beschreibungen, Analysen, Bewertungen  
+**Besprechungen** - Planen, Agenda erstellen, Nachbereitung
+**Markt-Insights** - Trends, Preise, Empfehlungen
+**Marketing** - Content, Kampagnen, Social Media
 
 Wie kann ich Ihnen konkret helfen?`;
     }
@@ -449,23 +449,12 @@ Wie kann ich Ihnen konkret helfen?`;
           <i className="ri-close-line text-white text-3xl"></i>
         ) : (
           <img 
-            src="/logo/chatbot_logo.png" 
+            src="/logo/ImmoNow_Maskotchen.png" 
             alt="KI-Assistent" 
             className="w-14 h-14 object-contain"
           />
         )}
         
-        {/* Notification Badge */}
-        {!isOpen && (
-          <motion.div
-            className="absolute -top-2 -right-2 w-7 h-7 bg-red-500 rounded-full flex items-center justify-center"
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: 0.5 }}
-          >
-            <span className="text-white text-sm font-bold">AI</span>
-          </motion.div>
-        )}
       </motion.button>
 
       {/* Chat Window */}
@@ -601,19 +590,19 @@ Wie kann ich Ihnen konkret helfen?`;
                   onClick={() => handleSuggestionClick('Erstelle eine neue Aufgabe')}
                   className="px-4 py-2 text-sm bg-indigo-100 text-indigo-700 rounded-full hover:bg-indigo-200 transition-colors"
                 >
-                  📋 Aufgabe
+                  Aufgabe
                 </button>
                 <button
                   onClick={() => handleSuggestionClick('Analysiere den Immobilienmarkt')}
                   className="px-4 py-2 text-sm bg-purple-100 text-purple-700 rounded-full hover:bg-purple-200 transition-colors"
                 >
-                  📊 Markt
+                  Markt
                 </button>
                 <button
                   onClick={() => handleSuggestionClick('Plane eine Besprechung')}
                   className="px-4 py-2 text-sm bg-green-100 text-green-700 rounded-full hover:bg-green-200 transition-colors"
                 >
-                  📅 Meeting
+                  Meeting
                 </button>
               </div>
             </div>

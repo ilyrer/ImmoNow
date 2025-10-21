@@ -16,7 +16,7 @@ from app.db.models import User, BillingAccount
 from app.core.errors import UnauthorizedError, NotFoundError
 from django.utils import timezone
 
-router = APIRouter(prefix="/billing", tags=["Billing"])
+router = APIRouter(prefix="/billing", tags=["billing"])
 security = HTTPBearer()
 
 

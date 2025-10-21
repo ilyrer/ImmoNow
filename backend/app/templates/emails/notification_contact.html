@@ -1,0 +1,37 @@
+{% extends "emails/base.html" %}
+
+{% block additional_content %}
+<div class="notification-card">
+    <h4>👤 Kontakt-Details</h4>
+    <p><strong>Name:</strong> {{ contact_name }}</p>
+    <p><strong>E-Mail:</strong> {{ contact_email }}</p>
+    <p><strong>Telefon:</strong> {{ contact_phone }}</p>
+    <p><strong>Typ:</strong> {{ contact_type }}</p>
+    
+    {% if contact_company %}
+    <p><strong>Unternehmen:</strong> {{ contact_company }}</p>
+    {% endif %}
+    
+    {% if contact_address %}
+    <p><strong>Adresse:</strong> {{ contact_address }}</p>
+    {% endif %}
+    
+    {% if contact_notes %}
+    <p><strong>Notizen:</strong><br>{{ contact_notes }}</p>
+    {% endif %}
+    
+    {% if is_assigned %}
+    <div style="background-color: #e3f2fd; border: 1px solid #2196f3; border-radius: 4px; padding: 10px; margin: 10px 0;">
+        <p style="color: #1976d2; margin: 0; font-weight: 600;">👥 Dieser Kontakt wurde Ihnen zugewiesen</p>
+    </div>
+    {% endif %}
+</div>
+
+{% if action_url %}
+<div style="text-align: center; margin: 30px 0;">
+    <a href="{{ action_url }}" class="action-button" style="background-color: #00bcd4;">
+        Kontakt anzeigen
+    </a>
+</div>
+{% endif %}
+{% endblock %}

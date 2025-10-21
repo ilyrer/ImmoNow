@@ -19,7 +19,9 @@ class TaskAssignee(BaseModel):
     role: Optional[str] = None
     email: Optional[str] = None
     
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, json_encoders={
+        datetime: lambda v: v.isoformat() if v else None
+    })
 
 
 class TaskLabel(BaseModel):
@@ -29,7 +31,9 @@ class TaskLabel(BaseModel):
     color: str
     description: Optional[str] = None
     
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, json_encoders={
+        datetime: lambda v: v.isoformat() if v else None
+    })
 
 
 class Subtask(BaseModel):
@@ -39,7 +43,9 @@ class Subtask(BaseModel):
     completed: bool
     order: int
     
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, json_encoders={
+        datetime: lambda v: v.isoformat() if v else None
+    })
 
 
 class TaskComment(BaseModel):
@@ -49,8 +55,55 @@ class TaskComment(BaseModel):
     text: str
     timestamp: datetime
     parent_id: Optional[str] = None
+    is_edited: bool = False
     
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, json_encoders={
+        datetime: lambda v: v.isoformat() if v else None
+    })
+
+
+class CreateTaskCommentRequest(BaseModel):
+    """Request model for creating task comment"""
+    text: str = Field(..., min_length=1, max_length=2000)
+    parent_id: Optional[str] = None
+
+
+class UpdateTaskCommentRequest(BaseModel):
+    """Request model for updating task comment"""
+    text: str = Field(..., min_length=1, max_length=2000)
+
+
+class ActivityLogEntry(BaseModel):
+    """Activity log entry model"""
+    id: str
+    action: str
+    description: str
+    user: TaskAssignee
+    timestamp: datetime
+    old_values: Optional[Dict[str, Any]] = None
+    new_values: Optional[Dict[str, Any]] = None
+    
+    model_config = ConfigDict(from_attributes=True, json_encoders={
+        datetime: lambda v: v.isoformat() if v else None
+    })
+
+
+class BulkUpdateTasksRequest(BaseModel):
+    """Request model for bulk updating tasks"""
+    task_ids: List[str] = Field(..., min_items=1, max_items=50)
+    updates: Dict[str, Any] = Field(..., min_items=1)
+
+
+class BulkMoveTasksRequest(BaseModel):
+    """Request model for bulk moving tasks"""
+    task_ids: List[str] = Field(..., min_items=1, max_items=50)
+    new_status: str
+    position: Optional[int] = None
+    parent_id: Optional[str] = None
+    
+    model_config = ConfigDict(from_attributes=True, json_encoders={
+        datetime: lambda v: v.isoformat() if v else None
+    })
 
 
 class TaskDocument(BaseModel):
@@ -61,7 +114,9 @@ class TaskDocument(BaseModel):
     size: int
     mime_type: str
     
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, json_encoders={
+        datetime: lambda v: v.isoformat() if v else None
+    })
 
 
 class PropertyInfo(BaseModel):
@@ -71,7 +126,9 @@ class PropertyInfo(BaseModel):
     address: str
     price: Optional[float] = None
     
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, json_encoders={
+        datetime: lambda v: v.isoformat() if v else None
+    })
 
 
 class FinancingStatus(BaseModel):
@@ -81,7 +138,9 @@ class FinancingStatus(BaseModel):
     interest_rate: Optional[float] = None
     term: Optional[int] = None
     
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, json_encoders={
+        datetime: lambda v: v.isoformat() if v else None
+    })
 
 
 class ActivityLogEntry(BaseModel):
@@ -92,7 +151,9 @@ class ActivityLogEntry(BaseModel):
     timestamp: datetime
     description: str
     
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, json_encoders={
+        datetime: lambda v: v.isoformat() if v else None
+    })
 
 
 class BlockedInfo(BaseModel):
@@ -101,7 +162,9 @@ class BlockedInfo(BaseModel):
     blocked_by: Optional[str] = None
     blocked_at: Optional[datetime] = None
     
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, json_encoders={
+        datetime: lambda v: v.isoformat() if v else None
+    })
 
 
 class TaskResponse(BaseModel):
@@ -111,7 +174,7 @@ class TaskResponse(BaseModel):
     description: str
     priority: TaskPriority
     status: TaskStatus
-    assignee: TaskAssignee
+    assignee: Optional[TaskAssignee] = None
     due_date: datetime
     start_date: Optional[datetime] = None
     progress: int = Field(0, ge=0, le=100)
@@ -131,7 +194,9 @@ class TaskResponse(BaseModel):
     archived: bool = False
     blocked: Optional[BlockedInfo] = None
     
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, json_encoders={
+        datetime: lambda v: v.isoformat() if v else None
+    })
 
 
 class CreateTaskRequest(BaseModel):
@@ -139,13 +204,21 @@ class CreateTaskRequest(BaseModel):
     title: str = Field(..., min_length=1, max_length=200)
     description: str = Field("", max_length=2000)
     priority: TaskPriority = TaskPriority.MEDIUM
-    assignee_id: str
+    status: TaskStatus
+    assignee_id: Optional[str] = None
     due_date: datetime
     start_date: Optional[datetime] = None
     estimated_hours: int = Field(1, ge=1, le=1000)
     tags: List[str] = Field(default_factory=list)
     property_id: Optional[str] = None
     financing_status: Optional[FinancingStatus] = None
+    # New Kanban fields
+    label_ids: List[str] = Field(default_factory=list)
+    watcher_ids: List[str] = Field(default_factory=list)
+    story_points: Optional[int] = Field(None, ge=0, le=100)
+    sprint_id: Optional[str] = None
+    issue_type: str = 'task'
+    epic_link: Optional[str] = None
 
 
 class UpdateTaskRequest(BaseModel):
@@ -163,6 +236,16 @@ class UpdateTaskRequest(BaseModel):
     property_id: Optional[str] = None
     financing_status: Optional[FinancingStatus] = None
     archived: Optional[bool] = None
+    # New Kanban fields
+    label_ids: Optional[List[str]] = None
+    watcher_ids: Optional[List[str]] = None
+    story_points: Optional[int] = Field(None, ge=0, le=100)
+    sprint_id: Optional[str] = None
+    issue_type: Optional[str] = None
+    epic_link: Optional[str] = None
+    blocked_reason: Optional[str] = None
+    position: Optional[int] = Field(None, ge=0)
+    blocked_by_task_id: Optional[str] = None
 
 
 class MoveTaskRequest(BaseModel):
@@ -182,7 +265,9 @@ class EmployeeResponse(BaseModel):
     department: Optional[str] = None
     is_active: bool
     
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, json_encoders={
+        datetime: lambda v: v.isoformat() if v else None
+    })
 
 
 class TaskStatisticsResponse(BaseModel):
@@ -200,3 +285,175 @@ class TaskStatisticsResponse(BaseModel):
     tasks_by_assignee: Dict[str, int] = Field(default_factory=dict)
     upcoming_deadlines: List[TaskResponse] = Field(default_factory=list)
     recent_activity: List[ActivityLogEntry] = Field(default_factory=list)
+
+
+# New Kanban schemas
+class CreateSubtaskRequest(BaseModel):
+    """Create subtask request model"""
+    title: str = Field(..., min_length=1, max_length=200)
+    assignee_id: Optional[str] = None
+
+
+class UpdateSubtaskRequest(BaseModel):
+    """Update subtask request model"""
+    title: Optional[str] = Field(None, min_length=1, max_length=200)
+    completed: Optional[bool] = None
+    assignee_id: Optional[str] = None
+
+
+class CreateLabelRequest(BaseModel):
+    """Create label request model"""
+    name: str = Field(..., min_length=1, max_length=50)
+    color: str = Field(..., pattern=r'^#[0-9A-Fa-f]{6}$')
+    description: str = ""
+
+
+class UpdateLabelRequest(BaseModel):
+    """Update label request model"""
+    name: Optional[str] = Field(None, min_length=1, max_length=50)
+    color: Optional[str] = Field(None, pattern=r'^#[0-9A-Fa-f]{6}$')
+    description: Optional[str] = None
+
+
+class UploadAttachmentRequest(BaseModel):
+    """Upload attachment request model"""
+    name: str
+    file_url: str
+    file_size: int
+    mime_type: str
+
+
+class CreateSprintRequest(BaseModel):
+    """Create sprint request model"""
+    name: str = Field(..., min_length=1, max_length=100)
+    goal: str = ""
+    start_date: datetime
+    end_date: datetime
+
+
+class UpdateSprintRequest(BaseModel):
+    """Update sprint request model"""
+    name: Optional[str] = Field(None, min_length=1, max_length=100)
+    goal: Optional[str] = None
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    status: Optional[str] = None
+
+
+class BoardConfigRequest(BaseModel):
+    """Board configuration request model"""
+    wip_limits: Dict[str, int] = Field(default_factory=dict)
+    swimlane_type: str = 'none'  # none, assignee, priority, epic
+    columns: List[Dict[str, Any]] = Field(default_factory=list)
+
+
+# Response models for Kanban features
+class TaskLabel(BaseModel):
+    """Task label response model"""
+    id: str
+    name: str
+    color: str
+    description: str
+    created_at: datetime
+    
+    model_config = ConfigDict(from_attributes=True, json_encoders={
+        datetime: lambda v: v.isoformat() if v else None
+    })
+
+
+class TaskSubtask(BaseModel):
+    """Task subtask response model"""
+    id: str
+    title: str
+    completed: bool
+    order: int
+    assignee_id: Optional[str] = None
+    created_at: datetime
+    
+    model_config = ConfigDict(from_attributes=True, json_encoders={
+        datetime: lambda v: v.isoformat() if v else None
+    })
+
+
+class TaskAttachment(BaseModel):
+    """Task attachment response model"""
+    id: str
+    name: str
+    file_url: str
+    file_size: int
+    mime_type: str
+    uploaded_by_id: str
+    uploaded_at: datetime
+    
+    model_config = ConfigDict(from_attributes=True, json_encoders={
+        datetime: lambda v: v.isoformat() if v else None
+    })
+
+
+class Sprint(BaseModel):
+    """Sprint response model"""
+    id: str
+    name: str
+    goal: str
+    start_date: datetime
+    end_date: datetime
+    status: str
+    created_at: datetime
+    
+    model_config = ConfigDict(from_attributes=True, json_encoders={
+        datetime: lambda v: v.isoformat() if v else None
+    })
+
+
+class SprintResponse(BaseModel):
+    """Sprint response model"""
+    id: str
+    name: str
+    goal: str
+    start_date: datetime
+    end_date: datetime
+    status: str
+    created_at: datetime
+    
+    model_config = ConfigDict(from_attributes=True, json_encoders={
+        datetime: lambda v: v.isoformat() if v else None
+    })
+
+
+class CreateTaskCommentRequest(BaseModel):
+    """Create task comment request"""
+    text: str
+    parent_id: Optional[str] = None
+
+
+class UpdateTaskCommentRequest(BaseModel):
+    """Update task comment request"""
+    text: str
+
+
+class ActivityLogEntry(BaseModel):
+    """Activity log entry"""
+    id: str
+    user: str
+    action: str
+    timestamp: datetime
+    details: str
+    
+    model_config = ConfigDict(from_attributes=True, json_encoders={
+        datetime: lambda v: v.isoformat() if v else None
+    })
+
+
+class TaskDocument(BaseModel):
+    """Task document/attachment"""
+    id: str
+    name: str
+    file_url: str
+    file_size: int
+    mime_type: str
+    uploaded_by: TaskAssignee
+    uploaded_at: datetime
+    
+    model_config = ConfigDict(from_attributes=True, json_encoders={
+        datetime: lambda v: v.isoformat() if v else None
+    })

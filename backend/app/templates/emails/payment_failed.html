@@ -1,0 +1,53 @@
+{% extends "emails/base.html" %}
+
+{% block additional_content %}
+<div class="notification-card">
+    <h4>❌ Zahlung fehlgeschlagen</h4>
+    <p><strong>Betrag:</strong> {{ amount }}</p>
+    <p><strong>Rechnungsnummer:</strong> {{ invoice_number }}</p>
+    <p><strong>Fehlgeschlagen am:</strong> {{ failure_date }}</p>
+    <p><strong>Zahlungsmethode:</strong> {{ payment_method }}</p>
+    
+    {% if failure_reason %}
+    <p><strong>Grund:</strong> {{ failure_reason }}</p>
+    {% endif %}
+    
+    {% if retry_date %}
+    <p><strong>Nächster Versuch:</strong> {{ retry_date }}</p>
+    {% endif %}
+    
+    <div style="background-color: #ffebee; border: 1px solid #f44336; border-radius: 4px; padding: 15px; margin: 20px 0;">
+        <p style="color: #d32f2f; margin: 0; font-weight: 600; font-size: 18px;">⚠️ Sofortige Aktion erforderlich!</p>
+        <p style="color: #d32f2f; margin: 5px 0 0 0;">Bitte aktualisieren Sie Ihre Zahlungsinformationen, um eine Unterbrechung Ihres Services zu vermeiden.</p>
+    </div>
+</div>
+
+<div style="text-align: center; margin: 30px 0;">
+    <a href="{{ update_payment_url }}" class="action-button" style="background-color: #f44336;">
+        Zahlungsmethode aktualisieren
+    </a>
+    <a href="{{ support_url }}" class="action-button" style="background-color: #607d8b; margin-left: 10px;">
+        Support kontaktieren
+    </a>
+</div>
+
+<div style="background-color: #fff3e0; border-radius: 6px; padding: 20px; margin: 20px 0;">
+    <h4 style="margin: 0 0 10px 0; color: #f57c00;">🚨 Wichtige Hinweise:</h4>
+    <ul style="margin: 0; padding-left: 20px; color: #555;">
+        <li>Ihr Service wird möglicherweise eingeschränkt</li>
+        <li>Automatische Wiederholungsversuche werden durchgeführt</li>
+        <li>Bei anhaltenden Problemen kontaktieren Sie unseren Support</li>
+        <li>Alle Daten bleiben sicher gespeichert</li>
+    </ul>
+</div>
+
+<div style="background-color: #e3f2fd; border-radius: 6px; padding: 20px; margin: 20px 0;">
+    <h4 style="margin: 0 0 10px 0; color: #1976d2;">💡 Häufige Lösungen:</h4>
+    <ul style="margin: 0; padding-left: 20px; color: #555;">
+        <li>Überprüfen Sie Ihre Kreditkarteninformationen</li>
+        <li>Stellen Sie sicher, dass ausreichend Guthaben vorhanden ist</li>
+        <li>Kontaktieren Sie Ihre Bank bei Sperrungen</li>
+        <li>Versuchen Sie eine alternative Zahlungsmethode</li>
+    </ul>
+</div>
+{% endblock %}

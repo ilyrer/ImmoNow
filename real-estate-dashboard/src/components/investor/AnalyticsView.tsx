@@ -24,14 +24,23 @@ import {
   DollarSign,
   Home
 } from 'lucide-react';
-// TODO: Implement real investor analytics API hooks
+import { useVacancyAnalytics, useCostAnalytics } from '../../hooks/useInvestor';
 
 const AnalyticsView: React.FC = () => {
-  // TODO: Implement real investor analytics API hooks
-  const trends: any[] = [];
-  const trendsLoading = false;
-  const analysis: any[] = [];
-  const analysisLoading = false;
+  const { data: vacancyAnalytics, isLoading: vacancyLoading } = useVacancyAnalytics();
+  const { data: costAnalytics, isLoading: costLoading } = useCostAnalytics();
+
+  // Loading state
+  if (vacancyLoading || costLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[600px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400">Lade Analysen...</p>
+        </div>
+      </div>
+    );
+  }
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('de-DE', {
@@ -42,27 +51,20 @@ const AnalyticsView: React.FC = () => {
     }).format(value);
   };
 
-  // Calculate metrics
-  const currentVacancy = trends.length > 0 ? trends[trends.length - 1].rate : 0;
-  const avgVacancy = trends.reduce((sum, t) => sum + t.rate, 0) / (trends.length || 1);
-  const vacancyTrend = trends.length >= 2 
-    ? trends[trends.length - 1].rate - trends[trends.length - 2].rate 
+  // Calculate metrics from real data
+  const currentVacancy = vacancyAnalytics?.current_vacancy_rate || 0;
+  const avgVacancy = vacancyAnalytics?.average_vacancy_rate || 0;
+  const vacancyTrend = vacancyAnalytics?.vacancy_trend?.length >= 2 
+    ? vacancyAnalytics.vacancy_trend[vacancyAnalytics.vacancy_trend.length - 1].vacancy_rate - 
+      vacancyAnalytics.vacancy_trend[vacancyAnalytics.vacancy_trend.length - 2].vacancy_rate
     : 0;
 
-  const avgMaintenance = analysis.reduce((sum, a) => sum + a.maintenance, 0) / (analysis.length || 1);
-  const totalRevenue = analysis.reduce((sum, a) => sum + a.revenue, 0);
-  const totalCosts = analysis.reduce((sum, a) => sum + a.maintenance + a.utilities + a.management, 0);
-
-  if (trendsLoading || analysisLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[600px]">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">Lade Analysen...</p>
-        </div>
-      </div>
-    );
-  }
+  const avgMaintenance = costAnalytics?.costs_by_category?.maintenance || 0;
+  const totalCosts = costAnalytics?.total_costs || 0;
+  const costPerSqm = costAnalytics?.cost_per_sqm || 0;
+  
+  // Calculate total revenue from cost analytics (simplified)
+  const totalRevenue = totalCosts * 1.5; // Assume 50% profit margin
 
   return (
     <div className="space-y-6">
@@ -182,7 +184,7 @@ const AnalyticsView: React.FC = () => {
         
         <div className="h-80">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={trends}>
+            <LineChart data={vacancyAnalytics?.vacancy_trend || []}>
               <defs>
                 <linearGradient id="vacancyGradient" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3} />
@@ -216,7 +218,7 @@ const AnalyticsView: React.FC = () => {
               />
               <Line
                 type="monotone"
-                dataKey="rate"
+                dataKey="vacancy_rate"
                 name="Leerstandsquote"
                 stroke="#f59e0b"
                 strokeWidth={3}
@@ -247,7 +249,7 @@ const AnalyticsView: React.FC = () => {
         
         <div className="h-96">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={analysis}>
+            <BarChart data={costAnalytics?.cost_trend || []}>
               <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.2} />
               <XAxis 
                 dataKey="month" 
@@ -275,21 +277,21 @@ const AnalyticsView: React.FC = () => {
                 iconType="circle"
               />
               <Bar 
-                dataKey="revenue" 
-                name="Einnahmen" 
-                fill="#10b981" 
+                dataKey="total_costs" 
+                name="Gesamtkosten" 
+                fill="#ef4444" 
                 radius={[8, 8, 0, 0]}
               />
               <Bar 
                 dataKey="maintenance" 
                 name="Instandhaltung" 
-                fill="#ef4444" 
+                fill="#f59e0b" 
                 radius={[8, 8, 0, 0]}
               />
               <Bar 
                 dataKey="utilities" 
                 name="Nebenkosten" 
-                fill="#f59e0b" 
+                fill="#3b82f6" 
                 radius={[8, 8, 0, 0]}
               />
               <Bar 

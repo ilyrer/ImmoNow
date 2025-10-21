@@ -47,6 +47,23 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: Optional[str] = Field(default=None, env="SMTP_PASSWORD")
     SMTP_USE_TLS: bool = Field(default=True, env="SMTP_USE_TLS")
     
+    # Email Provider Configuration
+    EMAIL_PROVIDER: str = Field(default="console", env="EMAIL_PROVIDER")
+    EMAIL_ENABLED: bool = Field(default=True, env="EMAIL_ENABLED")
+    DEFAULT_FROM_EMAIL: str = Field(default="noreply@immonow.com", env="DEFAULT_FROM_EMAIL")
+    DEFAULT_FROM_NAME: str = Field(default="ImmoNow", env="DEFAULT_FROM_NAME")
+    
+    # SendGrid Configuration
+    SENDGRID_API_KEY: Optional[str] = Field(default=None, env="SENDGRID_API_KEY")
+    SENDGRID_FROM_EMAIL: str = Field(default="noreply@immonow.com", env="SENDGRID_FROM_EMAIL")
+    SENDGRID_FROM_NAME: str = Field(default="ImmoNow", env="SENDGRID_FROM_NAME")
+    
+    # Mailgun Configuration
+    MAILGUN_API_KEY: Optional[str] = Field(default=None, env="MAILGUN_API_KEY")
+    MAILGUN_DOMAIN: Optional[str] = Field(default=None, env="MAILGUN_DOMAIN")
+    MAILGUN_FROM_EMAIL: str = Field(default="noreply@immonow.com", env="MAILGUN_FROM_EMAIL")
+    MAILGUN_FROM_NAME: str = Field(default="ImmoNow", env="MAILGUN_FROM_NAME")
+    
     # Logging
     LOG_LEVEL: str = Field(default="INFO", env="LOG_LEVEL")
     

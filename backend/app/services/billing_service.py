@@ -107,6 +107,27 @@ class BillingService:
             
             await sync_to_async(billing.save)()
             
+            # Send subscription change email if plan changed
+            try:
+                old_plan = billing.meta.get('previous_plan')
+                new_plan = billing.plan_key
+                
+                if old_plan and old_plan != new_plan:
+                    from app.services.email_service import EmailService
+                    
+                    # Determine if it's an upgrade or downgrade
+                    plan_hierarchy = {'starter': 1, 'pro': 2, 'enterprise': 3}
+                    old_level = plan_hierarchy.get(old_plan, 0)
+                    new_level = plan_hierarchy.get(new_plan, 0)
+                    
+                    if new_level > old_level:
+                        await EmailService.send_subscription_upgraded_email(billing, old_plan, new_plan)
+                    elif new_level < old_level:
+                        await EmailService.send_subscription_downgraded_email(billing, old_plan, new_plan)
+                        
+            except Exception as e:
+                logger.error(f"Failed to send subscription change email: {str(e)}")
+            
             print(f"✅ BillingService: Subscription updated for customer {customer_id}")
             print(f"✅ BillingService: Status changed to {billing.status}")
             
@@ -180,6 +201,13 @@ class BillingService:
             
             await sync_to_async(billing.save)()
             
+            # Send success email to tenant admin
+            try:
+                from app.services.email_service import EmailService
+                await EmailService.send_payment_success_email(billing, invoice)
+            except Exception as e:
+                logger.error(f"Failed to send payment success email: {str(e)}")
+            
             print(f"✅ BillingService: Payment succeeded for customer {customer_id}")
             
         except Exception as e:
@@ -214,6 +242,13 @@ class BillingService:
             })
             
             await sync_to_async(billing.save)()
+            
+            # Send failure email to tenant admin
+            try:
+                from app.services.email_service import EmailService
+                await EmailService.send_payment_failed_email(billing, invoice)
+            except Exception as e:
+                logger.error(f"Failed to send payment failed email: {str(e)}")
             
             print(f"✅ BillingService: Payment failed for customer {customer_id}")
             print(f"✅ BillingService: Status set to past_due")

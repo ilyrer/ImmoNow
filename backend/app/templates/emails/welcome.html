@@ -1,0 +1,79 @@
+{% extends "emails/base.html" %}
+
+{% block additional_content %}
+<div class="notification-card">
+    <div class="priority-indicator" style="background: #007AFF;">
+        🎉 Willkommen bei ImmoNow
+    </div>
+    
+    <h3 class="notification-title">Herzlich willkommen!</h3>
+    
+    <div class="related-entity">
+        <h4 class="related-entity-title">👤 Ihr Account</h4>
+        <p class="related-entity-info">{{ user_email }}</p>
+    </div>
+    
+    {% if trial_days %}
+    <div class="related-entity">
+        <h4 class="related-entity-title">⏰ Testphase</h4>
+        <p class="related-entity-info">{{ trial_days }} Tage kostenlos testen</p>
+    </div>
+    {% endif %}
+    
+    {% if action_url %}
+    <a href="{{ action_url }}" class="action-button">
+        🚀 Dashboard öffnen
+    </a>
+    {% endif %}
+</div>
+
+<div style="background: linear-gradient(135deg, #f8f9fa 0%, #e3f2fd 100%); border-radius: 12px; padding: 24px; margin: 20px 0;">
+    <h4 style="margin: 0 0 16px 0; color: #1d1d1f; font-size: 18px; text-align: center;">
+        🏠 Ihr Immobilien-Management startet jetzt!
+    </h4>
+    
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0;">
+        <div style="text-align: center; padding: 16px; background: #ffffff; border-radius: 8px;">
+            <div style="font-size: 24px; margin-bottom: 8px;">📊</div>
+            <h5 style="margin: 0 0 4px 0; color: #1d1d1f; font-size: 14px;">Dashboard</h5>
+            <p style="margin: 0; color: #6e6e73; font-size: 12px;">Übersicht aller Immobilien</p>
+        </div>
+        
+        <div style="text-align: center; padding: 16px; background: #ffffff; border-radius: 8px;">
+            <div style="font-size: 24px; margin-bottom: 8px;">👥</div>
+            <h5 style="margin: 0 0 4px 0; color: #1d1d1f; font-size: 14px;">Kontakte</h5>
+            <p style="margin: 0; color: #6e6e73; font-size: 12px;">Kunden verwalten</p>
+        </div>
+        
+        <div style="text-align: center; padding: 16px; background: #ffffff; border-radius: 8px;">
+            <div style="font-size: 24px; margin-bottom: 8px;">✅</div>
+            <h5 style="margin: 0 0 4px 0; color: #1d1d1f; font-size: 14px;">Aufgaben</h5>
+            <p style="margin: 0; color: #6e6e73; font-size: 12px;">Termine & Tasks</p>
+        </div>
+        
+        <div style="text-align: center; padding: 16px; background: #ffffff; border-radius: 8px;">
+            <div style="font-size: 24px; margin-bottom: 8px;">📄</div>
+            <h5 style="margin: 0 0 4px 0; color: #1d1d1f; font-size: 14px;">Dokumente</h5>
+            <p style="margin: 0; color: #6e6e73; font-size: 12px;">Dateien verwalten</p>
+        </div>
+    </div>
+</div>
+
+<div style="background: #f8f9fa; border-radius: 12px; padding: 20px; margin: 20px 0; text-align: center;">
+    <p style="margin: 0; color: #6e6e73; font-size: 14px;">
+        💡 <strong>Tipp:</strong> Laden Sie die ImmoNow-App herunter für den mobilen Zugriff.
+    </p>
+</div>
+
+<div style="background: #ffffff; border: 1px solid #e1e5e9; border-radius: 12px; padding: 20px; margin: 20px 0;">
+    <h4 style="margin: 0 0 12px 0; color: #1d1d1f; font-size: 16px;">📞 Support & Hilfe</h4>
+    <p style="margin: 0 0 8px 0; color: #6e6e73; font-size: 14px;">
+        Bei Fragen stehen wir Ihnen gerne zur Verfügung:
+    </p>
+    <ul style="margin: 0; padding-left: 20px; color: #6e6e73; font-size: 14px;">
+        <li>📧 E-Mail: support@immonow.com</li>
+        <li>💬 Live-Chat im Dashboard</li>
+        <li>📚 Hilfe-Center: {{ frontend_url }}/help</li>
+    </ul>
+</div>
+{% endblock %}

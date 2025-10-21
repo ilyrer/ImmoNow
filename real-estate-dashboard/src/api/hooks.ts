@@ -28,7 +28,7 @@ import type {
   ContactAnalyticsResponse, TaskAnalyticsResponse,
   
   // Communications Types
-  ConversationResponse, CreateConversationRequest, SendMessageRequest,
+  ConversationResponse, MessageResponse, CreateConversationRequest, SendMessageRequest,
   UpdateMessageRequest, MarkAsReadRequest,
   
   // Social Types
@@ -51,12 +51,33 @@ import type {
   PaginatedResponse
 } from './types.gen';
 
+// Optimized React Query Configuration
+export const queryClientConfig = {
+  defaultOptions: {
+    queries: {
+      staleTime: 30 * 1000, // 30 seconds
+      gcTime: 5 * 60 * 1000, // 5 minutes (formerly cacheTime)
+      refetchOnWindowFocus: false,
+      retry: 3,
+      retryDelay: (attemptIndex: number) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    },
+    mutations: {
+      retry: 1,
+    },
+  },
+};
+
 // Query Keys
 export const queryKeys = {
   // Auth
   auth: {
     me: ['auth', 'me'] as const,
     tenant: ['auth', 'tenant'] as const,
+  },
+  
+  // Users
+  users: {
+    colleagues: ['users', 'colleagues'] as const,
   },
   
   // Properties
@@ -541,12 +562,24 @@ export const useTaskAnalytics = (startDate?: string, endDate?: string) => {
   });
 };
 
+// Users Hooks
+export const useColleagues = () => {
+  return useQuery<UserResponse[]>({
+    queryKey: queryKeys.users.colleagues,
+    queryFn: () => apiClient.get<UserResponse[]>('/api/v1/auth/users/colleagues'),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+  });
+};
+
 // Communications Hooks
 export const useConversations = (params?: any) => {
   return useQuery<PaginatedResponse<ConversationResponse>>({
     queryKey: [...queryKeys.communications.conversations, params],
     queryFn: () => apiClient.get<PaginatedResponse<ConversationResponse>>('/api/v1/communications/conversations', { params }),
-    staleTime: 1 * 60 * 1000, // 1 minute
+    staleTime: 30 * 1000, // 30 seconds
+    gcTime: 5 * 60 * 1000, // 5 minutes (formerly cacheTime)
+    refetchOnWindowFocus: false,
   });
 };
 
@@ -563,16 +596,75 @@ export const useCreateConversation = () => {
   });
 };
 
+export const useConversation = (conversationId: string) => {
+  return useQuery<ConversationResponse>({
+    queryKey: queryKeys.communications.conversation(conversationId),
+    queryFn: () => apiClient.get<ConversationResponse>(`/api/v1/communications/conversations/${conversationId}`),
+    enabled: !!conversationId,
+    staleTime: 30 * 1000, // 30 seconds
+  });
+};
+
+export const useMessages = (conversationId: string, params?: any) => {
+  return useQuery<PaginatedResponse<MessageResponse>>({
+    queryKey: [...queryKeys.communications.messages(conversationId), params],
+    queryFn: () => apiClient.get<PaginatedResponse<MessageResponse>>(`/api/v1/communications/conversations/${conversationId}/messages`, { params }),
+    enabled: !!conversationId,
+    staleTime: 30 * 1000, // 30 seconds
+  });
+};
+
 export const useSendMessage = () => {
   const queryClient = useQueryClient();
   
-  return useMutation<any, Error, SendMessageRequest>({
+  return useMutation<MessageResponse, Error, SendMessageRequest>({
     mutationFn: async (data) => {
-      return apiClient.post(`/api/v1/communications/conversations/${data.conversation_id}/messages`, data);
+      return apiClient.post<MessageResponse>(`/api/v1/communications/conversations/${data.conversation_id}/messages`, data);
     },
     onSuccess: (_, { conversation_id }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.communications.messages(conversation_id) });
       queryClient.invalidateQueries({ queryKey: queryKeys.communications.conversations });
+    },
+  });
+};
+
+export const useUpdateMessage = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation<MessageResponse, Error, { messageId: string; data: UpdateMessageRequest }>({
+    mutationFn: async ({ messageId, data }) => {
+      return apiClient.put<MessageResponse>(`/api/v1/communications/messages/${messageId}`, data);
+    },
+    onSuccess: (_, { messageId }) => {
+      // Invalidate all message queries that might contain this message
+      queryClient.invalidateQueries({ queryKey: ['communications', 'messages'] });
+    },
+  });
+};
+
+export const useDeleteMessage = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation<void, Error, string>({
+    mutationFn: async (messageId) => {
+      return apiClient.delete(`/api/v1/communications/messages/${messageId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['communications', 'messages'] });
+    },
+  });
+};
+
+export const useMarkMessagesAsRead = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation<void, Error, MarkAsReadRequest>({
+    mutationFn: async (data) => {
+      return apiClient.post('/api/v1/communications/messages/mark-read', data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['communications', 'conversations'] });
+      queryClient.invalidateQueries({ queryKey: ['communications', 'messages'] });
     },
   });
 };
@@ -709,3 +801,6 @@ export const useDeleteContact = () => {
     },
   });
 };
+
+// Export Profile Hooks
+export * from './hooks/profile';

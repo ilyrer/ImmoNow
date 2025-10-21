@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useUser } from '../../contexts/UserContext';
+import { useCurrentUser, useConversations } from '../../api/hooks';
 import { useTenant } from '../../hooks/useTenant';
 import {
   Home,
@@ -37,8 +37,13 @@ const GlobalSidebar: React.FC<GlobalSidebarProps> = ({ onLogout, onCollapsedChan
   const location = useLocation();
   const navigate = useNavigate();
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const { user } = useUser();
+  const { data: user } = useCurrentUser();
   const { tenant } = useTenant();
+  
+  // Get real conversation data for unread count
+  const { data: conversationsData } = useConversations();
+  const conversations = conversationsData?.items || [];
+  const unreadCount = conversations.reduce((total, conv) => total + (conv.unread_count || 0), 0);
 
   const toggleCollapsed = () => {
     const newCollapsed = !isCollapsed;
@@ -53,7 +58,7 @@ const GlobalSidebar: React.FC<GlobalSidebarProps> = ({ onLogout, onCollapsedChan
     { id: 'dashboard', label: 'Dashboard', icon: Home, path: '/' },
     { id: 'properties', label: 'Immobilien', icon: Building2, path: '/properties' },
     { id: 'contacts', label: 'Kontakte', icon: UserCircle, path: '/contacts' },
-    { id: 'communications', label: 'Kommunikation', icon: MessageSquare, path: '/communications', badge: 2 }
+    { id: 'communications', label: 'Kommunikation', icon: MessageSquare, path: '/communications', badge: unreadCount > 0 ? unreadCount : undefined }
   ];
 
   const workflowItems: SidebarItem[] = [
@@ -160,11 +165,11 @@ const GlobalSidebar: React.FC<GlobalSidebarProps> = ({ onLogout, onCollapsedChan
     return null;
   }
 
-  // UserContext liefert bereits normalisierte Daten
-  const userName = user.name || user.email;
-  const userInitials = user.name 
-    ? user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
-    : user.email?.[0]?.toUpperCase() || 'U';
+  // User-Anzeige korrekt aus API-Daten
+  const hasValidName = user.first_name && user.last_name &&
+    user.first_name.toLowerCase() !== 'string' && user.last_name.toLowerCase() !== 'string';
+  const userName = hasValidName ? `${user.first_name} ${user.last_name}` : user.email;
+  const userInitials = userName.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
 
   return (
     <aside 

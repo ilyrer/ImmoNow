@@ -4,7 +4,7 @@ Handles JWT token generation, password hashing, and user verification
 """
 
 from datetime import datetime, timedelta
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 import jwt
 import re
 from django.contrib.auth.hashers import make_password, check_password
@@ -82,7 +82,7 @@ class AuthService:
             "exp": expire,
             "iat": datetime.utcnow(),
             "type": "access",
-            "scopes": ["read", "write", "delete"] if role in ["owner", "admin"] else ["read"]
+            "scopes": ["read", "write", "delete", "admin"] if role in ["owner", "admin"] else ["read", "write"]
         }
         
         print(f"🔍 AuthService: Creating token with payload: {payload}")
@@ -437,3 +437,41 @@ class AuthService:
             return True
         except User.DoesNotExist:
             return False
+
+    @staticmethod
+    async def get_colleagues(tenant_id: str, current_user_id: str) -> List[User]:
+        """Get all colleagues (users in the same tenant) excluding current user"""
+        from app.schemas.auth import UserResponse
+        
+        def _get_colleagues_sync():
+            # Get all users in the same tenant, excluding the current user
+            # Use prefetch_related for Many-to-Many relationships instead of select_related
+            colleagues = User.objects.filter(
+                tenant_memberships__tenant_id=tenant_id,
+                tenant_memberships__is_active=True
+            ).exclude(id=current_user_id).prefetch_related('tenant_memberships').order_by('first_name', 'last_name')
+            
+            return list(colleagues)
+        
+        colleagues = await sync_to_async(_get_colleagues_sync)()
+        
+        # Convert to UserResponse format
+        result = []
+        for user in colleagues:
+            # Get the tenant membership for this user
+            tenant_membership = user.tenant_memberships.filter(tenant_id=tenant_id).first()
+            
+            result.append(UserResponse(
+                id=str(user.id),
+                email=user.email,
+                first_name=user.first_name,
+                last_name=user.last_name,
+                role=tenant_membership.role if tenant_membership else 'EMPLOYEE',
+                avatar=user.avatar,
+                is_active=user.is_active,
+                tenant_id=str(tenant_membership.tenant_id) if tenant_membership else tenant_id,
+                created_at=user.date_joined.isoformat(),
+                last_login=user.last_login.isoformat() if user.last_login else None
+            ))
+        
+        return result

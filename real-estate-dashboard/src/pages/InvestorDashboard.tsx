@@ -5,6 +5,7 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useInvestorStats } from '../hooks/useInvestor';
 import {
   Briefcase,
   FileText,
@@ -22,6 +23,17 @@ type Tab = 'portfolio' | 'reports' | 'analytics' | 'simulations' | 'marketplace'
 
 const InvestorDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('portfolio');
+  
+  // Use real API data for investor stats
+  const { 
+    totalValue, 
+    averageROI, 
+    totalCashflow, 
+    assetCount, 
+    reportCount, 
+    availablePackages, 
+    isLoading 
+  } = useInvestorStats();
 
   const tabs = [
     {
@@ -97,6 +109,70 @@ const InvestorDashboard: React.FC = () => {
               <p className="text-gray-600 dark:text-gray-400 mt-1">
                 Professionelles Portfolio-Management für Ihre Immobilieninvestments
               </p>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Quick Stats */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6"
+        >
+          <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl p-6 border border-white/20 dark:border-gray-700/50 shadow-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Portfolio-Wert</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {isLoading ? '...' : `€${(totalValue / 1000000).toFixed(1)}M`}
+                </p>
+              </div>
+              <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                <Briefcase className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl p-6 border border-white/20 dark:border-gray-700/50 shadow-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Durchschnitts-ROI</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {isLoading ? '...' : `${averageROI.toFixed(1)}%`}
+                </p>
+              </div>
+              <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                <BarChart3 className="w-6 h-6 text-green-600 dark:text-green-400" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl p-6 border border-white/20 dark:border-gray-700/50 shadow-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Jährlicher Cashflow</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {isLoading ? '...' : `€${(totalCashflow / 1000).toFixed(0)}K`}
+                </p>
+              </div>
+              <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                <Calculator className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl p-6 border border-white/20 dark:border-gray-700/50 shadow-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Immobilien</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {isLoading ? '...' : assetCount}
+                </p>
+              </div>
+              <div className="p-3 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
+                <ShoppingBag className="w-6 h-6 text-orange-600 dark:text-orange-400" />
+              </div>
             </div>
           </div>
         </motion.div>

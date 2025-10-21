@@ -1,0 +1,52 @@
+{% extends "emails/base.html" %}
+
+{% block additional_content %}
+<div class="notification-card">
+    <h4>📉 Abo-Downgrade</h4>
+    <p><strong>Neuer Plan:</strong> {{ new_plan }}</p>
+    <p><strong>Vorheriger Plan:</strong> {{ old_plan }}</p>
+    <p><strong>Downgrade-Datum:</strong> {{ downgrade_date }}</p>
+    <p><strong>Neue monatliche Kosten:</strong> {{ new_price }}</p>
+    
+    {% if downgrade_reason %}
+    <p><strong>Grund:</strong> {{ downgrade_reason }}</p>
+    {% endif %}
+    
+    {% if affected_features %}
+    <p><strong>Eingeschränkte Funktionen:</strong><br>{{ affected_features }}</p>
+    {% endif %}
+    
+    <div style="background-color: #fff3e0; border: 1px solid #ff9800; border-radius: 4px; padding: 15px; margin: 20px 0;">
+        <p style="color: #f57c00; margin: 0; font-weight: 600; font-size: 18px;">📋 Downgrade bestätigt</p>
+        <p style="color: #f57c00; margin: 5px 0 0 0;">Ihr Abo wurde erfolgreich auf den {{ new_plan }}-Plan geändert.</p>
+    </div>
+</div>
+
+<div style="text-align: center; margin: 30px 0;">
+    <a href="{{ dashboard_url }}" class="action-button" style="background-color: #ff9800;">
+        Dashboard anzeigen
+    </a>
+    <a href="{{ upgrade_url }}" class="action-button" style="background-color: #4caf50; margin-left: 10px;">
+        Wieder upgraden
+    </a>
+</div>
+
+<div style="background-color: #f8f9fa; border-radius: 6px; padding: 20px; margin: 20px 0;">
+    <h4 style="margin: 0 0 10px 0; color: #2c3e50;">📊 Was sich geändert hat:</h4>
+    <ul style="margin: 0; padding-left: 20px; color: #555;">
+        {% for change in changes_list %}
+        <li>{{ change }}</li>
+        {% endfor %}
+    </ul>
+</div>
+
+<div style="background-color: #e8f5e8; border-radius: 6px; padding: 20px; margin: 20px 0;">
+    <h4 style="margin: 0 0 10px 0; color: #2e7d32;">💡 Upgrade-Optionen:</h4>
+    <p style="margin: 0 0 10px 0; color: #555;">Sie können jederzeit wieder upgraden, um Zugriff auf alle Premium-Funktionen zu erhalten.</p>
+    <div style="text-align: center; margin: 15px 0 0 0;">
+        <a href="{{ upgrade_url }}" class="action-button" style="background-color: #4caf50; font-size: 14px; padding: 8px 16px;">
+            Jetzt upgraden
+        </a>
+    </div>
+</div>
+{% endblock %}

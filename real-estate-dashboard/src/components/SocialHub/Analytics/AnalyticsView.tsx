@@ -5,7 +5,8 @@
 
 import React, { useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../common/Card';
-// TODO: Implement real analytics API
+import { useSocialAnalytics } from '../../../hooks/useSocial';
+import { SocialAnalytics } from '../../../api/social';
 import {
   AnalyticsSummary,
   AnalyticsPeriod,
@@ -18,8 +19,81 @@ interface AnalyticsViewProps {
 }
 
 const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onBack }) => {
-  const [analytics] = useState<AnalyticsSummary | null>(null); // TODO: Load from real API
-  const [period, setPeriod] = useState<AnalyticsPeriod>('30d');
+  const [selectedPeriod, setSelectedPeriod] = useState<AnalyticsPeriod>('7d');
+  const [selectedPlatform, setSelectedPlatform] = useState<string>('all');
+
+  // Use React Query hooks for data management
+  const { data: analyticsData, isLoading: analyticsLoading, error: analyticsError } = useSocialAnalytics({
+    start_date: selectedPeriod === '7d' ? new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString() : 
+               selectedPeriod === '30d' ? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString() :
+               selectedPeriod === '90d' ? new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString() :
+               new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString(),
+    end_date: new Date().toISOString(),
+    platform: selectedPlatform === 'all' ? undefined : selectedPlatform
+  });
+
+  // Convert backend analytics to frontend format
+  const analytics: AnalyticsSummary | null = analyticsData ? {
+    period: selectedPeriod,
+    startDate: analyticsData.start_date || new Date().toISOString(),
+    endDate: analyticsData.end_date || new Date().toISOString(),
+    overview: {
+      totalPosts: analyticsData.total_posts || 0,
+      totalImpressions: analyticsData.total_impressions || 0,
+      totalEngagements: analyticsData.total_engagements || 0,
+      averageEngagementRate: analyticsData.engagement_rate || 0,
+      followerGrowth: 0, // TODO: Get from backend
+      topPerformingPost: analyticsData.top_posts?.[0]?.id || ''
+    },
+    platformStats: analyticsData.platforms?.reduce((acc, platform) => {
+      acc[platform.platform as any] = {
+        posts: platform.posts,
+        impressions: platform.impressions,
+        engagements: platform.engagements,
+        followerGrowth: platform.growth
+      };
+      return acc;
+    }, {} as any) || {},
+    topPosts: Array.isArray(analyticsData.top_posts) 
+      ? analyticsData.top_posts.map(post => ({
+      id: post.id,
+      content: {
+        text: post.content,
+        hashtags: [],
+        mentions: [],
+        links: []
+      },
+      platform: post.platform as any,
+      type: 'text' as any,
+      status: 'published' as any,
+      media: [],
+      platforms: [post.platform as any],
+      author: 'User',
+      published_at: post.published_at,
+      engagement: {
+        likes: post.engagements,
+        comments: 0,
+        shares: 0,
+        clicks: 0
+      },
+      createdAt: post.published_at,
+      updatedAt: post.published_at
+    })) : [],
+    engagement: {
+      likes: analyticsData.total_engagements || 0,
+      comments: 0,
+      shares: 0,
+      saves: 0
+    },
+    audience: {
+      demographics: {
+        ageGroups: analyticsData.audience?.demographics?.age || {},
+        genders: analyticsData.audience?.demographics?.gender || {},
+        locations: analyticsData.audience?.demographics?.location || {}
+      },
+      activeHours: {}
+    }
+  } : null;
 
   const formatNumber = (num: number): string => {
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
@@ -34,6 +108,62 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onBack }) => {
       year: 'numeric',
     });
   };
+
+  // Show loading state while analytics are being fetched
+  if (analyticsLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center space-x-4">
+          <button
+            onClick={onBack}
+            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+          >
+            <i className="ri-arrow-left-line text-xl text-gray-600 dark:text-gray-400"></i>
+          </button>
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+              Social Media Analytics
+            </h2>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">
+              Lade Analytics-Daten...
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state if analytics failed to load
+  if (analyticsError) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center space-x-4">
+          <button
+            onClick={onBack}
+            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+          >
+            <i className="ri-arrow-left-line text-xl text-gray-600 dark:text-gray-400"></i>
+          </button>
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+              Social Media Analytics
+            </h2>
+            <p className="text-red-600 dark:text-red-400 mt-1">
+              Fehler beim Laden der Analytics
+            </p>
+          </div>
+        </div>
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+          <p className="text-red-800 dark:text-red-300">
+            {analyticsError.message || 'Unbekannter Fehler beim Laden der Analytics'}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -57,14 +187,25 @@ const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onBack }) => {
         </div>
         <div className="flex items-center space-x-2">
           <select
-            value={period}
-            onChange={(e) => setPeriod(e.target.value as AnalyticsPeriod)}
+            value={selectedPeriod}
+            onChange={(e) => setSelectedPeriod(e.target.value as AnalyticsPeriod)}
             className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
           >
             <option value="7d">Letzte 7 Tage</option>
             <option value="30d">Letzte 30 Tage</option>
             <option value="90d">Letzte 90 Tage</option>
             <option value="1y">Letztes Jahr</option>
+          </select>
+          <select
+            value={selectedPlatform}
+            onChange={(e) => setSelectedPlatform(e.target.value)}
+            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+          >
+            <option value="all">Alle Plattformen</option>
+            <option value="instagram">Instagram</option>
+            <option value="facebook">Facebook</option>
+            <option value="twitter">Twitter</option>
+            <option value="linkedin">LinkedIn</option>
           </select>
         </div>
       </div>

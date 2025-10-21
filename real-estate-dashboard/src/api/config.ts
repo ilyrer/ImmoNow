@@ -17,8 +17,31 @@ const baseClient = axios.create({
 // Request interceptor to add auth token
 baseClient.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('authToken');
+    const token = localStorage.getItem('authToken') || localStorage.getItem('auth_token');
     if (token) {
+      // Prüfe Token-Ablauf vor dem Senden
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        const currentTime = Math.floor(Date.now() / 1000);
+        
+        if (payload.exp && payload.exp < currentTime) {
+          console.log('🔐 Token ist abgelaufen - automatische Weiterleitung');
+          localStorage.removeItem('authToken');
+          localStorage.removeItem('auth_token');
+          localStorage.removeItem('tenantId');
+          localStorage.removeItem('tenant_id');
+          localStorage.removeItem('refreshToken');
+          localStorage.removeItem('refresh_token');
+          
+          if (window.location.pathname !== '/login') {
+            window.location.href = '/login';
+          }
+          return Promise.reject(new Error('Token expired'));
+        }
+      } catch (error) {
+        console.error('❌ Fehler beim Prüfen des Token-Ablaufs:', error);
+      }
+      
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
@@ -34,11 +57,30 @@ baseClient.interceptors.response.use(
     return response;
   },
   (error) => {
-    if (error.response?.status === 401) {
-      // Handle unauthorized access
+    const originalRequest = error.config;
+    
+    // Prüfe auf 401 Unauthorized (Token abgelaufen)
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      console.log('🔐 Token abgelaufen - automatische Weiterleitung zum Login');
+      
+      // Markiere Request als bereits wiederholt, um Endlosschleifen zu vermeiden
+      originalRequest._retry = true;
+      
+      // Lösche alle Auth-Daten
       localStorage.removeItem('authToken');
-      window.location.href = '/login';
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('tenantId');
+      localStorage.removeItem('tenant_id');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('refresh_token');
+      
+      // Weiterleitung zum Login (nur wenn nicht bereits auf Login-Seite)
+      if (window.location.pathname !== '/login') {
+        console.log('🔄 Weiterleitung zu /login');
+        window.location.href = '/login';
+      }
     }
+    
     return Promise.reject(error);
   }
 );

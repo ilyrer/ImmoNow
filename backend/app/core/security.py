@@ -104,4 +104,19 @@ def require_role(required_role: str):
 
 def get_tenant_id(current_user: TokenData = Depends(get_current_user)) -> str:
     """Get tenant ID from authenticated user"""
+    if not current_user.tenant_id:
+        raise HTTPException(status_code=400, detail="No tenant ID found in token")
+    
+    # Debug: Print the actual tenant_id value
+    print(f"DEBUG: get_tenant_id called, tenant_id={current_user.tenant_id}")
+    
+    # Validate that tenant_id is a valid UUID
+    try:
+        import uuid
+        uuid.UUID(current_user.tenant_id)
+        print(f"DEBUG: tenant_id is valid UUID: {current_user.tenant_id}")
+    except ValueError:
+        print(f"ERROR: Invalid tenant_id format: {current_user.tenant_id}")
+        raise HTTPException(status_code=400, detail=f"Invalid tenant ID format: {current_user.tenant_id}")
+    
     return current_user.tenant_id

@@ -5,7 +5,7 @@ Handles user registration, login, token refresh, and user info
 
 from fastapi import APIRouter, Depends, HTTPException, status, Header
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from typing import Optional
+from typing import Optional, List
 from asgiref.sync import sync_to_async
 
 from app.schemas.auth import (
@@ -22,6 +22,7 @@ from app.schemas.auth import (
 from app.services.auth_service import AuthService
 from app.core.errors import UnauthorizedError, ConflictError, NotFoundError
 from app.db.models import User, TenantUser
+from app.api.deps import require_read_scope, get_tenant_id, get_current_user, TokenData
 
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -260,3 +261,16 @@ async def verify_token(current_user: User = Depends(get_current_user)):
         message="Token is valid",
         success=True
     )
+
+
+@router.get("/users/colleagues", response_model=List[UserResponse])
+async def get_colleagues(
+    current_user: TokenData = Depends(require_read_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Get all colleagues (users in the same tenant)"""
+    
+    auth_service = AuthService()
+    colleagues = await auth_service.get_colleagues(tenant_id, current_user.user_id)
+    
+    return colleagues

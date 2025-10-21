@@ -68,6 +68,15 @@ interface ModernKanbanBoardProps {
   selectedTasks: string[];
   onTaskSelect: (taskId: string, selected: boolean) => void;
   bulkEditMode: boolean;
+  // Sprint controls (optional)
+  sprints?: Array<{ id: string; name: string; status?: string }>;
+  selectedSprintId?: string | null;
+  onChangeSprint?: (sprintId: string | null) => void;
+  onCreateSprint?: () => void;
+  sprintInfo?: { id: string; name: string; status: 'planning' | 'active' | 'completed' } | null;
+  sprintStats?: { total: number; done: number; remaining: number } | null;
+  onSprintStart?: () => void;
+  onSprintComplete?: () => void;
 }
 
 const ModernKanbanBoard: React.FC<ModernKanbanBoardProps> = ({
@@ -79,7 +88,12 @@ const ModernKanbanBoard: React.FC<ModernKanbanBoardProps> = ({
   onCreateTask,
   selectedTasks,
   onTaskSelect,
-  bulkEditMode
+  bulkEditMode,
+  sprints,
+  selectedSprintId,
+  onChangeSprint,
+  onCreateSprint
+  , sprintInfo, sprintStats, onSprintStart, onSprintComplete
 }) => {
   const [wipViolations, setWipViolations] = useState<Record<string, boolean>>({});
   const [columnCollapsed, setColumnCollapsed] = useState<Record<string, boolean>>({});
@@ -98,15 +112,15 @@ const ModernKanbanBoard: React.FC<ModernKanbanBoardProps> = ({
     setWipViolations(violations);
   }, [tasks, statusColumns]);
 
-  // Get priority icon
-  const getPriorityIcon = (priority: string) => {
-    switch (priority) {
-      case 'critical': return '🔴';
-      case 'hoch': return '🟠';
-      case 'mittel': return '🟡';
-      case 'niedrig': return '🟢';
-      default: return '⚪';
-    }
+  // Priority color marker (no emojis)
+  const getPriorityMarker = (priority: string) => {
+    const map: Record<string, string> = {
+      critical: 'bg-red-500',
+      hoch: 'bg-orange-500',
+      mittel: 'bg-yellow-500',
+      niedrig: 'bg-green-500'
+    };
+    return map[priority] || 'bg-gray-400';
   };
 
   // Filter tasks based on search and filters
@@ -147,18 +161,52 @@ const ModernKanbanBoard: React.FC<ModernKanbanBoardProps> = ({
     <div className="h-full flex flex-col">
       {/* Enhanced Header with Filters */}
       <div className={`p-6 border-b ${isDarkMode ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-white/50'} backdrop-blur-sm`}>
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
             <h2 className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-              🚀 Sprint Board
+              Kanban Board
             </h2>
             <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'} mt-1`}>
-              Moderne Kanban-Ansicht für maximale Produktivität
+              Moderne, professionelle Aufgabenverwaltung
             </p>
           </div>
 
           {/* Filters and Search */}
           <div className="flex flex-wrap items-center gap-3">
+            {/* Sprint header info */}
+            {sprintInfo && (
+              <div className={`flex items-center gap-3 px-3 py-2 rounded-lg ${isDarkMode ? 'bg-gray-800/70' : 'bg-white'} border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                <span className="text-sm font-medium">Sprint:</span>
+                <span className="text-sm font-semibold">{sprintInfo.name}</span>
+                <span className={`text-xs px-2 py-0.5 rounded-full ${
+                  sprintInfo.status === 'active' ? 'bg-green-100 text-green-700' : sprintInfo.status === 'planning' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-700'
+                }`}>{sprintInfo.status}</span>
+                {sprintStats && (
+                  <div className="hidden md:flex items-center gap-3 ml-2">
+                    <div className="flex items-center gap-1 text-xs">
+                      <span>Done</span>
+                      <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <motion.div className="h-full bg-green-500" initial={{width:0}} animate={{width: `${Math.min(100, (sprintStats.done / Math.max(1, sprintStats.total)) * 100)}%`}} />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 text-xs">
+                      <span>Remaining</span>
+                      <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <motion.div className="h-full bg-blue-500" initial={{width:0}} animate={{width: `${Math.min(100, (sprintStats.remaining / Math.max(1, sprintStats.total)) * 100)}%`}} />
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <div className="flex items-center gap-2 ml-2">
+                  {onSprintStart && sprintInfo.status === 'planning' && (
+                    <button onClick={onSprintStart} className="px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs">Starten</button>
+                  )}
+                  {onSprintComplete && sprintInfo.status === 'active' && (
+                    <button onClick={onSprintComplete} className="px-3 py-1 rounded-lg bg-green-600 hover:bg-green-700 text-white text-xs">Abschließen</button>
+                  )}
+                </div>
+              </div>
+            )}
             {/* Search */}
             <div className="relative">
               <i className={`ri-search-line absolute left-3 top-1/2 transform -translate-y-1/2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}></i>
@@ -186,11 +234,41 @@ const ModernKanbanBoard: React.FC<ModernKanbanBoardProps> = ({
               } focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all`}
             >
               <option value="all">Alle Prioritäten</option>
-              <option value="critical">🔴 Kritisch</option>
-              <option value="hoch">🟠 Hoch</option>
-              <option value="mittel">🟡 Mittel</option>
-              <option value="niedrig">🟢 Niedrig</option>
+              <option value="critical">Kritisch</option>
+              <option value="hoch">Hoch</option>
+              <option value="mittel">Mittel</option>
+              <option value="niedrig">Niedrig</option>
             </select>
+
+            {/* Sprint Filter (optional) */}
+            {sprints && (
+              <div className="flex items-center gap-2">
+                <select
+                  value={selectedSprintId || ''}
+                  onChange={(e) => onChangeSprint?.(e.target.value || null)}
+                  className={`px-3 py-2 rounded-lg border ${
+                    isDarkMode 
+                      ? 'bg-gray-700 border-gray-600 text-white' 
+                      : 'bg-white border-gray-300 text-gray-900'
+                  } focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all`}
+                >
+                  <option value="">Alle Sprints</option>
+                  {sprints.map(s => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+                {onCreateSprint && (
+                  <button
+                    onClick={onCreateSprint}
+                    className={`px-3 py-2 rounded-lg font-medium transition-all ${
+                      isDarkMode ? 'bg-gray-700 hover:bg-gray-600 text-gray-200' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                    }`}
+                  >
+                    Sprint erstellen
+                  </button>
+                )}
+              </div>
+            )}
 
             {/* Assignee Filter */}
             <select
@@ -259,10 +337,10 @@ const ModernKanbanBoard: React.FC<ModernKanbanBoardProps> = ({
         </div>
       </div>
 
-      {/* Kanban Board */}
-      <div className="flex-1 overflow-x-auto">
+      {/* Kanban Board (fixed layout, no horizontal scroll) */}
+      <div className="flex-1 p-6">
         <DragDropContext onDragEnd={onDragEnd}>
-          <div className="flex gap-6 p-6 min-w-max h-full">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6 gap-6 h-full">
             {statusColumns.map((column) => {
               const columnTasks = getFilteredTasks(tasks[column.id] || []);
               const isOverLimit = wipViolations[column.id];
@@ -427,13 +505,10 @@ const ModernKanbanBoard: React.FC<ModernKanbanBoardProps> = ({
                                       </div>
                                       
                                       {/* Priority Badge */}
-                                      <div className={`ml-2 px-2 py-1 rounded-lg text-xs font-bold flex items-center gap-1 ${
-                                        task.priority === 'critical' ? 'bg-red-500/20 text-red-400' :
-                                        task.priority === 'hoch' ? 'bg-orange-500/20 text-orange-400' :
-                                        task.priority === 'mittel' ? 'bg-yellow-500/20 text-yellow-400' :
-                                        'bg-green-500/20 text-green-400'
+                                      <div className={`ml-2 px-2 py-1 rounded-lg text-xs font-medium flex items-center gap-2 ${
+                                        isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-700'
                                       }`}>
-                                        {getPriorityIcon(task.priority)}
+                                        <span className={`inline-block w-2 h-2 rounded-full ${getPriorityMarker(task.priority)}`}></span>
                                         {task.priority}
                                       </div>
                                     </div>
@@ -575,9 +650,8 @@ const ModernKanbanBoard: React.FC<ModernKanbanBoardProps> = ({
                           <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
-                            className={`text-center py-12 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+                            className={`text-center py-10 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
                           >
-                            <div className="text-4xl mb-3">✨</div>
                             <p className="text-sm font-medium mb-2">Keine Aufgaben</p>
                             <button
                               onClick={() => onCreateTask(column.id)}
@@ -587,7 +661,7 @@ const ModernKanbanBoard: React.FC<ModernKanbanBoardProps> = ({
                                   : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
                               }`}
                             >
-                              Erste Aufgabe erstellen
+                              Aufgabe erstellen
                             </button>
                           </motion.div>
                         )}

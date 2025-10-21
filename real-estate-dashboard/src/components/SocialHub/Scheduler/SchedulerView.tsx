@@ -5,7 +5,8 @@
 
 import React, { useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../common/Card';
-// TODO: Implement real scheduler API
+import { useSocialPosts, useUpdatePost, useDeletePost } from '../../../hooks/useSocial';
+import { SocialPost } from '../../../api/social';
 import {
   SchedulerEvent,
   PLATFORM_ICONS,
@@ -18,9 +19,56 @@ interface SchedulerViewProps {
 }
 
 const SchedulerView: React.FC<SchedulerViewProps> = ({ onBack }) => {
-  const [events] = useState<SchedulerEvent[]>([]); // TODO: Load from real API
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('week');
+
+  // Use React Query hooks for data management
+  const { data: postsData, isLoading: postsLoading, error: postsError } = useSocialPosts({ 
+    status: 'scheduled' 
+  });
+  const updatePostMutation = useUpdatePost();
+  const deletePostMutation = useDeletePost();
+
+  // Handle different data structures - ensure posts is always an array
+  const posts = Array.isArray(postsData) ? postsData : ((postsData as any)?.items || []);
+
+  // Convert posts to scheduler events
+  const events: SchedulerEvent[] = posts.map((post: SocialPost) => ({
+    id: post.id,
+    postId: post.id,
+    post: {
+      id: post.id,
+      content: {
+        text: post.content,
+        hashtags: [],
+        mentions: [],
+        links: []
+      },
+      platform: post.platform as any,
+      type: post.post_type as any,
+      status: post.status as any,
+      media: (post.media_urls || []).map((url: string) => ({
+        id: url,
+        type: 'image' as any,
+        url: url,
+        filename: url.split('/').pop() || 'media',
+        size: 0,
+        uploadedAt: new Date().toISOString()
+      })),
+      platforms: [post.platform as any],
+      author: 'User',
+      published_at: post.published_at,
+      engagement: post.engagement,
+      createdAt: post.created_at,
+      updatedAt: post.updated_at
+    },
+    platforms: [post.platform as any],
+    scheduledTime: post.scheduled_at || post.created_at,
+    status: post.status === 'scheduled' ? 'scheduled' : 
+            post.status === 'published' ? 'posted' : 'failed',
+    createdBy: 'User', // TODO: Get from post metadata
+    createdAt: post.created_at
+  }));
 
   const formatDate = (dateString: string): string => {
     return new Date(dateString).toLocaleDateString('de-DE', {
@@ -53,6 +101,79 @@ const SchedulerView: React.FC<SchedulerViewProps> = ({ onBack }) => {
     acc[date].push(event);
     return acc;
   }, {} as Record<string, SchedulerEvent[]>);
+
+  const handleEditPost = async (eventId: string) => {
+    // TODO: Open edit modal or navigate to edit page
+    console.log('Edit post:', eventId);
+  };
+
+  const handleDeletePost = async (eventId: string) => {
+    if (!window.confirm('Möchten Sie diesen geplanten Post wirklich löschen?')) {
+      return;
+    }
+    
+    try {
+      await deletePostMutation.mutateAsync(eventId);
+    } catch (error) {
+      console.error('Failed to delete post:', error);
+    }
+  };
+
+  // Show loading state while posts are being fetched
+  if (postsLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center space-x-4">
+          <button
+            onClick={onBack}
+            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+          >
+            <i className="ri-arrow-left-line text-xl text-gray-600 dark:text-gray-400"></i>
+          </button>
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+              Beitragsplaner
+            </h2>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">
+              Lade geplante Posts...
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state if posts failed to load
+  if (postsError) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center space-x-4">
+          <button
+            onClick={onBack}
+            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+          >
+            <i className="ri-arrow-left-line text-xl text-gray-600 dark:text-gray-400"></i>
+          </button>
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+              Beitragsplaner
+            </h2>
+            <p className="text-red-600 dark:text-red-400 mt-1">
+              Fehler beim Laden der Posts
+            </p>
+          </div>
+        </div>
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+          <p className="text-red-800 dark:text-red-300">
+            {postsError.message || 'Unbekannter Fehler beim Laden der Posts'}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -252,14 +373,25 @@ const SchedulerView: React.FC<SchedulerViewProps> = ({ onBack }) => {
 
                           {/* Actions */}
                           <div className="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button className="p-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors">
+                            <button 
+                              onClick={() => handleEditPost(event.id)}
+                              className="p-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"
+                            >
                               <i className="ri-edit-line"></i>
                             </button>
                             <button className="p-2 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
                               <i className="ri-eye-line"></i>
                             </button>
-                            <button className="p-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors">
-                              <i className="ri-delete-bin-line"></i>
+                            <button 
+                              onClick={() => handleDeletePost(event.id)}
+                              disabled={deletePostMutation.isPending}
+                              className="p-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors disabled:opacity-50"
+                            >
+                              {deletePostMutation.isPending ? (
+                                <i className="ri-loader-4-line animate-spin"></i>
+                              ) : (
+                                <i className="ri-delete-bin-line"></i>
+                              )}
                             </button>
                           </div>
                         </div>

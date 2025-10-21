@@ -1,0 +1,51 @@
+{% extends "emails/base.html" %}
+
+{% block additional_content %}
+<div class="notification-card">
+    <div class="priority-indicator priority-{{ priority }}">
+        🏠 Immobilien-Update
+    </div>
+    
+    <h3 class="notification-title">Immobilien-Details</h3>
+    
+    {% if property_address %}
+    <div class="related-entity">
+        <h4 class="related-entity-title">📍 Adresse</h4>
+        <p class="related-entity-info">{{ property_address }}</p>
+    </div>
+    {% endif %}
+    
+    {% if property_price %}
+    <div class="related-entity">
+        <h4 class="related-entity-title">💰 Preis</h4>
+        <p class="related-entity-info">{{ property_price }}</p>
+    </div>
+    {% endif %}
+    
+    {% if property_status %}
+    <div class="related-entity">
+        <h4 class="related-entity-title">📊 Status</h4>
+        <p class="related-entity-info">{{ property_status }}</p>
+    </div>
+    {% endif %}
+    
+    {% if property_type %}
+    <div class="related-entity">
+        <h4 class="related-entity-title">🏘️ Immobilientyp</h4>
+        <p class="related-entity-info">{{ property_type }}</p>
+    </div>
+    {% endif %}
+    
+    {% if action_url %}
+    <a href="{{ action_url }}" class="action-button">
+        📋 Immobilie anzeigen
+    </a>
+    {% endif %}
+</div>
+
+<div style="background: #f8f9fa; border-radius: 12px; padding: 20px; margin: 20px 0; text-align: center;">
+    <p style="margin: 0; color: #6e6e73; font-size: 14px;">
+        💡 <strong>Tipp:</strong> Nutzen Sie die ImmoNow-App für schnellen Zugriff auf alle Ihre Immobilien.
+    </p>
+</div>
+{% endblock %}

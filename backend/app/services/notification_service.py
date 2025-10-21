@@ -92,7 +92,36 @@ class NotificationService:
             created_by=created_by,
         )
         
+        # Send email notification if enabled
+        if notification:
+            try:
+                from app.services.email_service import EmailService
+                await EmailService.send_notification_email(notification, user, tenant)
+            except Exception as e:
+                logger.error(f"Failed to send email notification: {str(e)}")
+                # Don't fail the whole notification creation if email fails
+        
         return notification
+    
+    @staticmethod
+    def _is_quiet_hours(pref: NotificationPreference) -> bool:
+        """Check if current time is in user's quiet hours"""
+        if not pref.quiet_hours_enabled:
+            return False
+        
+        if not pref.quiet_hours_start or not pref.quiet_hours_end:
+            return False
+        
+        from django.utils import timezone
+        now = timezone.now().time()
+        start_time = pref.quiet_hours_start
+        end_time = pref.quiet_hours_end
+        
+        # Handle overnight quiet hours (e.g., 22:00 to 08:00)
+        if start_time > end_time:
+            return now >= start_time or now <= end_time
+        else:
+            return start_time <= now <= end_time
     
     @staticmethod
     def notify_property_status_change(

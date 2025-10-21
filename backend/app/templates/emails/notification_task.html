@@ -1,0 +1,51 @@
+{% extends "emails/base.html" %}
+
+{% block additional_content %}
+<div class="notification-card">
+    <div class="priority-indicator priority-{{ priority }}">
+        ✅ Aufgaben-Update
+    </div>
+    
+    <h3 class="notification-title">Aufgaben-Details</h3>
+    
+    {% if task_title %}
+    <div class="related-entity">
+        <h4 class="related-entity-title">📝 Aufgabe</h4>
+        <p class="related-entity-info">{{ task_title }}</p>
+    </div>
+    {% endif %}
+    
+    {% if task_due_date %}
+    <div class="related-entity">
+        <h4 class="related-entity-title">📅 Fälligkeitsdatum</h4>
+        <p class="related-entity-info">{{ task_due_date }}</p>
+    </div>
+    {% endif %}
+    
+    {% if task_assignee %}
+    <div class="related-entity">
+        <h4 class="related-entity-title">👤 Zugewiesen an</h4>
+        <p class="related-entity-info">{{ task_assignee }}</p>
+    </div>
+    {% endif %}
+    
+    {% if task_status %}
+    <div class="related-entity">
+        <h4 class="related-entity-title">📊 Status</h4>
+        <p class="related-entity-info">{{ task_status }}</p>
+    </div>
+    {% endif %}
+    
+    {% if action_url %}
+    <a href="{{ action_url }}" class="action-button">
+        📋 Aufgabe bearbeiten
+    </a>
+    {% endif %}
+</div>
+
+<div style="background: #f8f9fa; border-radius: 12px; padding: 20px; margin: 20px 0; text-align: center;">
+    <p style="margin: 0; color: #6e6e73; font-size: 14px;">
+        ⏰ <strong>Erinnerung:</strong> Aufgaben werden automatisch an Sie erinnert, wenn sie fällig werden.
+    </p>
+</div>
+{% endblock %}

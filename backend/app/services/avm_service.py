@@ -1,5 +1,6 @@
 """
 AVM Service
+Stellt auf Live-Marktdaten via MarketService um (keine Mock-Daten)
 """
 from typing import List
 from datetime import datetime
@@ -10,6 +11,10 @@ from app.schemas.avm import (
     ComparableListing, MarketIntelligence, MarketTrendPoint
 )
 from app.schemas.common import PropertyType
+from app.db.models import Property, Address
+from asgiref.sync import sync_to_async
+from app.services.market_service import MarketService
+from app.services.llm_service import LLMService
 
 
 class AVMService:
@@ -17,12 +22,17 @@ class AVMService:
     
     def __init__(self, tenant_id: str):
         self.tenant_id = tenant_id
+        self.market = MarketService(tenant_id)
+        self.llm = LLMService(tenant_id)
     
     async def valuate_property(self, avm_request: AvmRequest) -> AvmResponse:
         """Valuate a property using AVM"""
         
-        # Mock valuation calculation
-        base_price_per_sqm = self._get_base_price_per_sqm(avm_request.city, avm_request.postal_code)
+        # Basispreis auf Live-Daten
+        base_price_per_sqm = await self.market.estimate_base_price_per_sqm(
+            city=avm_request.city,
+            postal_code=avm_request.postal_code,
+        )
         
         # Apply adjustments based on property characteristics
         adjustments = self._calculate_adjustments(avm_request)
@@ -55,41 +65,94 @@ class AVMService:
             last_updated=datetime.utcnow()
         )
         
-        # Create comparables
-        comparables = self._create_comparables(avm_request, base_price_per_sqm)
+        # Comparables: echte Vergleichsobjekte aus DB (ähnliche Größe, gleiche Stadt/PLZ)
+        comparables = await self._fetch_comparables(
+            city=avm_request.city,
+            postal_code=avm_request.postal_code,
+            size=avm_request.size,
+            property_type=avm_request.property_type,
+            limit=5,
+        )
         
-        # Create market intelligence
-        market_intelligence = self._create_market_intelligence(avm_request)
+        # Live Market Intelligence
+        market_intelligence = await self.market.build_market_intelligence(
+            city=avm_request.city,
+            postal_code=avm_request.postal_code,
+        )
         
         return AvmResponse(
             result=result,
             comparables=comparables,
             market_intelligence=market_intelligence
         )
+
+    async def _fetch_comparables(
+        self,
+        city: str,
+        postal_code: str,
+        size: int,
+        property_type: PropertyType,
+        limit: int = 5,
+    ) -> List[ComparableListing]:
+        """Hole Vergleichsobjekte aus der DB ohne Mocks.
+
+        Kriterien:
+        - gleiche Stadt oder gleiche PLZ (wenn vorhanden)
+        - ähnliche Größe (±20%)
+        - Status aktiv/verkauft (falls Status verwendet wird)
+        """
+
+        size_min = int(size * 0.8)
+        size_max = int(size * 1.2)
+
+        @sync_to_async
+        def query():
+            qs = Property.objects.filter(tenant_id=self.tenant_id)
+            # location filter (city or postal_code via Address)
+            qs = qs.select_related('address')
+            qs = qs.filter(property_type=property_type)
+            # size range on living_area if available
+            qs = qs.filter(living_area__isnull=False, living_area__gte=size_min, living_area__lte=size_max)
+            # address city/postal match
+            qs = qs.filter(address__city__icontains=city) if city else qs
+            if postal_code:
+                qs = qs.filter(address__postal_code__icontains=postal_code)
+            # prefer recent updates
+            return list(qs.order_by('-updated_at')[:limit])
+
+        properties = await query()
+
+        results: List[ComparableListing] = []
+        for idx, p in enumerate(properties):
+            addr = getattr(p, 'address', None)
+            living_area = float(p.living_area or 0)
+            price_value = float(p.price or 0)
+            price_per_sqm = price_value / living_area if living_area > 0 else 0
+            match_score = 0.0
+            if living_area > 0:
+                size_diff = abs(living_area - size) / size
+                match_score = max(0.0, 1.0 - size_diff) * 100.0
+
+            results.append(ComparableListing(
+                id=str(p.id),
+                address=f"{addr.street} {addr.house_number}" if addr else p.location,
+                city=addr.city if addr else city,
+                postal_code=addr.postal_code if addr and addr.postal_code else (addr.zip_code if addr else postal_code),
+                property_type=property_type,
+                size=int(living_area) if living_area else size,
+                rooms=p.rooms or None,
+                build_year=p.year_built or 2000,
+                condition='good',
+                price=price_value if price_value else 0,
+                price_per_sqm=price_per_sqm,
+                sold_date=p.updated_at,
+                distance=0.0,
+                match_score=round(match_score, 2),
+            ))
+
+        return results
     
-    def _get_base_price_per_sqm(self, city: str, postal_code: str) -> float:
-        """Get base price per sqm for location"""
-        # Mock pricing data
-        base_prices = {
-            'Berlin': 4500,
-            'Munich': 6500,
-            'Hamburg': 4200,
-            'Frankfurt': 4800,
-            'Cologne': 3800,
-            'Stuttgart': 5200,
-            'Düsseldorf': 4500,
-            'Leipzig': 2800,
-            'Dortmund': 2200,
-            'Essen': 2000
-        }
-        
-        # Find matching city
-        for city_name, price in base_prices.items():
-            if city_name.lower() in city.lower():
-                return price
-        
-        # Default price
-        return 3000
+    # Entfernt: _get_base_price_per_sqm (Mock)
     
     def _calculate_adjustments(self, avm_request: AvmRequest) -> dict:
         """Calculate adjustments based on property characteristics"""
@@ -223,60 +286,6 @@ class AVMService:
         
         return factors
     
-    def _create_comparables(self, avm_request: AvmRequest, base_price_per_sqm: float) -> List[ComparableListing]:
-        """Create comparable listings"""
-        
-        comparables = []
-        
-        # Generate mock comparables
-        for i in range(5):
-            size_variation = random.uniform(0.8, 1.2)
-            price_variation = random.uniform(0.9, 1.1)
-            
-            comparable = ComparableListing(
-                id=f"comp_{i+1}",
-                address=f"Mock Street {i+1}",
-                city=avm_request.city,
-                postal_code=avm_request.postal_code,
-                property_type=avm_request.property_type,
-                size=int(avm_request.size * size_variation),
-                rooms=avm_request.rooms,
-                build_year=avm_request.build_year or 2000,
-                condition=avm_request.condition,
-                price=avm_request.size * base_price_per_sqm * price_variation,
-                price_per_sqm=base_price_per_sqm * price_variation,
-                sold_date=datetime.utcnow(),
-                distance=random.uniform(0.1, 2.0),
-                match_score=random.uniform(0.7, 0.95)
-            )
-            comparables.append(comparable)
-        
-        return comparables
+    # Entfernt: _create_comparables (Mock)
     
-    def _create_market_intelligence(self, avm_request: AvmRequest) -> MarketIntelligence:
-        """Create market intelligence data"""
-        
-        # Mock market data
-        trends = []
-        for i in range(12):
-            date = datetime.utcnow().replace(month=i+1, day=1)
-            trends.append(MarketTrendPoint(
-                date=date.strftime("%Y-%m"),
-                average_price=random.uniform(200000, 500000),
-                average_price_per_sqm=random.uniform(3000, 6000),
-                transaction_count=random.randint(50, 200),
-                median_price=random.uniform(180000, 450000),
-                region=avm_request.city
-            ))
-        
-        return MarketIntelligence(
-            region=avm_request.city,
-            postal_code=avm_request.postal_code,
-            demand_level=random.choice(['high', 'medium', 'low']),
-            supply_level=random.choice(['high', 'medium', 'low']),
-            price_growth_12m=random.uniform(-5, 15),
-            price_growth_36m=random.uniform(0, 25),
-            average_days_on_market=random.randint(30, 120),
-            competition_index=random.randint(1, 10),
-            trends=trends
-        )
+    # Entfernt: _create_market_intelligence (Mock)

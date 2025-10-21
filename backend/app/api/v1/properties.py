@@ -19,6 +19,8 @@ from app.schemas.properties import (
 from app.schemas.common import PaginatedResponse
 from app.core.pagination import PaginationParams, get_pagination_offset, validate_sort_field
 from app.services.properties_service import PropertiesService
+from app.services.contacts_service import ContactsService
+from app.schemas.contacts import ContactResponse
 
 router = APIRouter()
 
@@ -291,3 +293,16 @@ async def delete_property_document(
     
     properties_service = PropertiesService(tenant_id)
     await properties_service.delete_document(property_id, document_id)
+
+
+@router.get("/{property_id}/matching-contacts", response_model=List[ContactResponse])
+async def get_property_matching_contacts(
+    property_id: str,
+    limit: int = Query(10, ge=1, le=50, description="Maximum number of matching contacts"),
+    current_user: TokenData = Depends(require_read_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Gibt passende Kontakte für eine Immobilie zurück (Budget ±10%)."""
+
+    contacts_service = ContactsService(tenant_id)
+    return await contacts_service.get_matching_contacts_for_property(property_id, limit)

@@ -26,54 +26,16 @@ import {
   CheckCircle,
   Target
 } from 'lucide-react';
-// TODO: Implement real API hooks
-import { Simulation } from '../../types/investor';
+import { useROISimulation, useSavedSimulations, useSaveSimulation, useDeleteSimulation } from '../../hooks/useInvestor';
 
-interface SimulationData {
-  id: string;
-  name: string;
-  scenario: string;
-  investment: number;
-  interestRate: number;
-  loanTerm: number;
-  downPayment: number;
-  renovationCosts: number;
-  monthlyRent: number;
-  vacancyAssumption: number;
-  createdAt: string;
-  roiProjection?: number[]; // Array of ROI values over time
-  breakEvenMonth?: number; // Months until break-even
-  totalReturn?: number; // Total return amount
-  results: {
-    monthlyCashFlow: number;
-    annualCashFlow: number;
-    totalReturn: number;
-    roi: number;
-    breakEvenYears: number;
-  };
-}
-
-// Mock hook for investor simulations
-const useInvestorSimulationsMock = () => {
-  const simulations: SimulationData[] = [];
-  const loading = false;
-  const error = null;
-  
-  const createSimulation = (data: any) => {
-    console.log('Creating simulation:', data);
-    return Promise.resolve();
-  };
-  
-  const deleteSimulation = (id: string) => {
-    console.log('Deleting simulation:', id);
-    return Promise.resolve();
-  };
-  
-  return { simulations, loading, error, createSimulation, deleteSimulation };
-};
+// Interface removed - using SavedSimulationResponse from API types
 
 const SimulationsView: React.FC = () => {
-  const { simulations, loading, error, createSimulation, deleteSimulation } = useInvestorSimulationsMock();
+  const roiSimulationMutation = useROISimulation();
+  const saveSimulationMutation = useSaveSimulation();
+  const deleteSimulationMutation = useDeleteSimulation();
+  const { data: savedSimulations = [], isLoading: simulationsLoading } = useSavedSimulations();
+  
   const [showForm, setShowForm] = useState(false);
   const [selectedSimulations, setSelectedSimulations] = useState<string[]>([]);
   const [isCreating, setIsCreating] = useState(false);
@@ -103,7 +65,25 @@ const SimulationsView: React.FC = () => {
     e.preventDefault();
     setIsCreating(true);
     try {
-      await createSimulation(formData);
+      // Save simulation to backend
+      const saveData = {
+        name: formData.name || `${formData.scenario} Szenario`,
+        scenario: formData.scenario,
+        property_value: formData.investment,
+        down_payment: formData.downPayment,
+        interest_rate: formData.interestRate,
+        loan_term_years: formData.loanTerm,
+        monthly_rent: formData.monthlyRent,
+        vacancy_rate: formData.vacancyAssumption,
+        maintenance_rate: 1.5,
+        property_tax_rate: 0.5,
+        insurance_rate: 0.2,
+        management_fee_rate: 8,
+        appreciation_rate: 2.0
+      };
+
+      await saveSimulationMutation.mutateAsync(saveData);
+      
       setShowForm(false);
       setFormData({
         name: '',
@@ -117,7 +97,7 @@ const SimulationsView: React.FC = () => {
         vacancyAssumption: 7
       });
     } catch (err) {
-      console.error(err);
+      console.error('Simulation error:', err);
     } finally {
       setIsCreating(false);
     }
@@ -125,7 +105,7 @@ const SimulationsView: React.FC = () => {
 
   const handleDelete = async (id: string) => {
     if (window.confirm('Möchten Sie diese Simulation wirklich löschen?')) {
-      await deleteSimulation(id);
+      await deleteSimulationMutation.mutateAsync(id);
       setSelectedSimulations(prev => prev.filter(s => s !== id));
     }
   };
@@ -155,32 +135,32 @@ const SimulationsView: React.FC = () => {
     ? Array.from({ length: 30 }, (_, i) => {
         const data: any = { year: i + 1 };
         selectedSimulations.forEach(simId => {
-          const sim = simulations.find(s => s.id === simId);
-          if (sim && sim.roiProjection[i]) {
-            data[sim.name] = sim.roiProjection[i];
+          const sim = savedSimulations.find(s => s.id === simId);
+          if (sim && sim.roi_projection[i]) {
+            data[sim.name] = sim.roi_projection[i];
           }
         });
         return data;
       })
     : [];
 
-  if (loading) {
+  if (roiSimulationMutation.isPending) {
     return (
       <div className="flex items-center justify-center min-h-[600px]">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">Lade Simulationen...</p>
+          <p className="text-gray-600 dark:text-gray-400">Erstelle Simulation...</p>
         </div>
       </div>
     );
   }
 
-  if (error) {
+  if (roiSimulationMutation.isError) {
     return (
       <div className="flex items-center justify-center min-h-[600px]">
         <div className="text-center">
           <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <p className="text-red-600 dark:text-red-400">{error}</p>
+          <p className="text-red-600 dark:text-red-400">Fehler beim Laden der Simulationen</p>
         </div>
       </div>
     );
@@ -408,7 +388,7 @@ const SimulationsView: React.FC = () => {
                 />
                 <Legend />
                 {selectedSimulations.map((simId, idx) => {
-                  const sim = simulations.find(s => s.id === simId);
+                  const sim = savedSimulations.find(s => s.id === simId);
                   const colors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'];
                   return sim ? (
                     <Line
@@ -430,7 +410,23 @@ const SimulationsView: React.FC = () => {
 
       {/* Simulations List */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {simulations.map((sim: SimulationData, index: number) => (
+        {simulationsLoading ? (
+          <div className="col-span-2 flex items-center justify-center py-12">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
+              <p className="text-gray-600 dark:text-gray-400">Lade Simulationen...</p>
+            </div>
+          </div>
+        ) : savedSimulations.length === 0 ? (
+          <div className="col-span-2 text-center py-12">
+            <div className="text-gray-500 dark:text-gray-400 mb-4">
+              <Target className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <h3 className="text-lg font-semibold mb-2">Keine Simulationen vorhanden</h3>
+              <p>Erstellen Sie Ihre erste ROI-Simulation</p>
+            </div>
+          </div>
+        ) : (
+          savedSimulations.map((sim, index) => (
           <motion.div
             key={sim.id}
             initial={{ opacity: 0, y: 20 }}
@@ -468,25 +464,25 @@ const SimulationsView: React.FC = () => {
               <div className="bg-gray-50 dark:bg-gray-900/50 rounded-xl p-3">
                 <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">Investment</div>
                 <div className="text-lg font-bold text-gray-900 dark:text-white">
-                  {formatCurrency(sim.investment)}
+                  {formatCurrency(sim.property_value)}
                 </div>
               </div>
               <div className="bg-gray-50 dark:bg-gray-900/50 rounded-xl p-3">
                 <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">Zinssatz</div>
                 <div className="text-lg font-bold text-gray-900 dark:text-white">
-                  {sim.interestRate.toFixed(2)}%
+                  {sim.interest_rate.toFixed(2)}%
                 </div>
               </div>
               <div className="bg-gray-50 dark:bg-gray-900/50 rounded-xl p-3">
                 <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">Break-Even</div>
                 <div className="text-lg font-bold text-gray-900 dark:text-white">
-                  {Math.floor(sim.breakEvenMonth / 12)}J {sim.breakEvenMonth % 12}M
+                  {Math.floor(sim.break_even_months / 12)}J {sim.break_even_months % 12}M
                 </div>
               </div>
               <div className="bg-gray-50 dark:bg-gray-900/50 rounded-xl p-3">
-                <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">Gesamt-ROI</div>
+                <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">Jährlicher ROI</div>
                 <div className="text-lg font-bold text-green-600 dark:text-green-400">
-                  {formatCurrency(sim.totalReturn)}
+                  {sim.annual_roi.toFixed(1)}%
                 </div>
               </div>
             </div>
@@ -499,11 +495,12 @@ const SimulationsView: React.FC = () => {
               </div>
             )}
           </motion.div>
-        ))}
+          ))
+        )}
       </div>
 
       {/* Empty State */}
-      {simulations.length === 0 && (
+      {savedSimulations.length === 0 && !simulationsLoading && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

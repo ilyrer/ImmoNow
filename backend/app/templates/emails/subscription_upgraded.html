@@ -1,0 +1,52 @@
+{% extends "emails/base.html" %}
+
+{% block additional_content %}
+<div class="notification-card">
+    <h4>🚀 Abo-Upgrade erfolgreich</h4>
+    <p><strong>Neuer Plan:</strong> {{ new_plan }}</p>
+    <p><strong>Vorheriger Plan:</strong> {{ old_plan }}</p>
+    <p><strong>Upgrade-Datum:</strong> {{ upgrade_date }}</p>
+    <p><strong>Neue monatliche Kosten:</strong> {{ new_price }}</p>
+    
+    {% if new_features %}
+    <p><strong>Neue Funktionen:</strong><br>{{ new_features }}</p>
+    {% endif %}
+    
+    {% if new_limits %}
+    <p><strong>Erweiterte Limits:</strong><br>{{ new_limits }}</p>
+    {% endif %}
+    
+    <div style="background-color: #e8f5e8; border: 1px solid #4caf50; border-radius: 4px; padding: 15px; margin: 20px 0;">
+        <p style="color: #2e7d32; margin: 0; font-weight: 600; font-size: 18px;">🎉 Upgrade erfolgreich abgeschlossen!</p>
+        <p style="color: #2e7d32; margin: 5px 0 0 0;">Sie haben jetzt Zugriff auf alle Premium-Funktionen Ihres neuen Plans.</p>
+    </div>
+</div>
+
+<div style="text-align: center; margin: 30px 0;">
+    <a href="{{ dashboard_url }}" class="action-button" style="background-color: #4caf50;">
+        Neue Funktionen erkunden
+    </a>
+    <a href="{{ billing_url }}" class="action-button" style="background-color: #2196f3; margin-left: 10px;">
+        Abo verwalten
+    </a>
+</div>
+
+<div style="background-color: #f8f9fa; border-radius: 6px; padding: 20px; margin: 20px 0;">
+    <h4 style="margin: 0 0 10px 0; color: #2c3e50;">✨ Ihre neuen Möglichkeiten:</h4>
+    <ul style="margin: 0; padding-left: 20px; color: #555;">
+        {% for feature in feature_list %}
+        <li>{{ feature }}</li>
+        {% endfor %}
+    </ul>
+</div>
+
+<div style="background-color: #e3f2fd; border-radius: 6px; padding: 20px; margin: 20px 0;">
+    <h4 style="margin: 0 0 10px 0; color: #1976d2;">📞 Benötigen Sie Hilfe?</h4>
+    <p style="margin: 0; color: #555;">Unser Support-Team steht Ihnen gerne zur Verfügung, um Ihnen bei der Nutzung der neuen Funktionen zu helfen.</p>
+    <div style="text-align: center; margin: 15px 0 0 0;">
+        <a href="{{ support_url }}" class="action-button" style="background-color: #00bcd4; font-size: 14px; padding: 8px 16px;">
+            Support kontaktieren
+        </a>
+    </div>
+</div>
+{% endblock %}

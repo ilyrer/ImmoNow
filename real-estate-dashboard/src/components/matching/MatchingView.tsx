@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Home, TrendingUp, Target, Star, ArrowRight } from 'lucide-react';
 import { CustomerProfile, PropertyListing, MatchRecommendation } from '../../types/matching';
-// TODO: Implement real matching API
+import { apiClient } from '../../lib/api/client';
 
 const MatchingView: React.FC = () => {
   const [view, setView] = useState<'customer-to-property' | 'property-to-customer'>('customer-to-property');
@@ -18,29 +18,97 @@ const MatchingView: React.FC = () => {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // TODO: Load real data from API
-    setCustomers([]);
-    setProperties([]);
+    (async () => {
+      try {
+        const props = await apiClient.get<any>(`/api/v1/properties?size=20`);
+        setProperties((props.items || []).map((p: any) => ({
+          id: p.id,
+          title: p.title,
+          address: p.address?.street || p.location || '',
+          city: p.address?.city || '',
+          price: p.price || 0,
+          size: p.living_area || 0,
+          status: p.status || 'available',
+        })));
+
+        const contacts = await apiClient.get<any>(`/api/v1/contacts?size=20`);
+        setCustomers((contacts.items || []).map((c: any) => ({
+          id: c.id,
+          firstName: c.name?.split(' ')[0] || c.name,
+          lastName: c.name?.split(' ').slice(1).join(' ') || '',
+          email: c.email || '',
+          status: c.status || 'lead',
+          budget: { min: c.budget_min || 0, max: c.budget || c.budget_max || 0 },
+          preferences: [],
+        })));
+      } catch (e) {
+        console.error('Fehler beim Laden von Daten:', e);
+      }
+    })();
   }, []);
 
-  const handleCustomerSelect = (customer: CustomerProfile) => {
+  const handleCustomerSelect = async (customer: CustomerProfile) => {
     setSelectedCustomer(customer);
     setLoading(true);
-    // TODO: Implement real matching API
-    setTimeout(() => {
+    try {
+      const recs = await apiClient.get<any>(`/api/v1/contacts/${customer.id}/matching-properties?limit=10`);
+      const mapped: MatchRecommendation[] = (recs || []).map((p: any, idx: number) => ({
+        id: p.id,
+        rank: idx + 1,
+        matchScore: 70, // Basiswert, kann später über Server-Score ersetzt werden
+        matchReason: 'Budget-Fit (±10%) und Status aktiv',
+        matchDetails: [
+          { criterion: 'Budget Fit', score: 85, status: 'match', description: 'Preis innerhalb des Budgets' },
+        ],
+        property: {
+          id: p.id,
+          title: p.title,
+          address: p.address?.street || p.location || '',
+          city: p.address?.city || '',
+          price: p.price || 0,
+          size: p.living_area || 0,
+          status: p.status || 'available',
+        },
+      }));
+      setRecommendations(mapped);
+    } catch (e) {
+      console.error('Fehler beim Matching:', e);
       setRecommendations([]);
+    } finally {
       setLoading(false);
-    }, 800);
+    }
   };
 
-  const handlePropertySelect = (property: PropertyListing) => {
+  const handlePropertySelect = async (property: PropertyListing) => {
     setSelectedProperty(property);
     setLoading(true);
-    // TODO: Implement real matching API
-    setTimeout(() => {
+    try {
+      const recs = await apiClient.get<any>(`/api/v1/properties/${property.id}/matching-contacts?limit=10`);
+      const mapped: MatchRecommendation[] = (recs || []).map((c: any, idx: number) => ({
+        id: c.id,
+        rank: idx + 1,
+        matchScore: 70,
+        matchReason: 'Budget-Fit (±10%) und Lead-Score',
+        matchDetails: [
+          { criterion: 'Lead Score', score: Math.min(100, (c.lead_score || 50)), status: 'partial', description: 'Qualität des Leads' },
+        ],
+        customer: {
+          id: c.id,
+          firstName: (c.name || '').split(' ')[0] || c.name,
+          lastName: (c.name || '').split(' ').slice(1).join(' ') || '',
+          email: c.email || '',
+          status: c.status || 'lead',
+          budget: { min: c.budget_min || 0, max: c.budget || c.budget_max || 0 },
+          preferences: [],
+        },
+      }));
+      setRecommendations(mapped);
+    } catch (e) {
+      console.error('Fehler beim Matching:', e);
       setRecommendations([]);
+    } finally {
       setLoading(false);
-    }, 800);
+    }
   };
 
   const getScoreColor = (score: number) => {

@@ -20,20 +20,21 @@ import {
   AlertCircle,
   Calendar
 } from 'lucide-react';
-// TODO: Implement real investor marketplace API hooks
-import { MarketplacePackage } from '../../types/investor';
+import { useMarketplacePackages, useReservePackage } from '../../hooks/useInvestor';
+import { MarketplacePackageResponse } from '../../lib/api/types';
 
 const MarketplaceView: React.FC = () => {
-  // TODO: Implement real investor marketplace API hooks
-  const packages = [];
-  const loading = false;
-  const error = null;
-  const reservePackage = (id: string) => {
-    console.log('Reserving package:', id);
-    return Promise.resolve();
-  };
-  const createListing = () => Promise.resolve();
-  const [selectedPackage, setSelectedPackage] = useState<MarketplacePackage | null>(null);
+  const { data: packages = [], isLoading: packagesLoading } = useMarketplacePackages();
+  const reservePackageMutation = useReservePackage();
+  
+  const [selectedPackage, setSelectedPackage] = useState<MarketplacePackageResponse | null>(null);
+  const [showReservationForm, setShowReservationForm] = useState(false);
+  const [filters, setFilters] = useState({
+    location: '',
+    minROI: 0,
+    maxInvestment: 1000000,
+    propertyTypes: [] as string[]
+  });
   const [showDrawer, setShowDrawer] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
@@ -73,17 +74,17 @@ const MarketplaceView: React.FC = () => {
       }
       
       // Location
-      if (filterLocation !== 'all' && pkg.city !== filterLocation) {
+      if (filterLocation !== 'all' && pkg.location !== filterLocation) {
         return false;
       }
       
       // Price range
-      if (pkg.price < priceRange[0] || pkg.price > priceRange[1]) {
+      if (pkg.total_value < priceRange[0] || pkg.total_value > priceRange[1]) {
         return false;
       }
       
       // ROI range
-      if (pkg.roi < roiRange[0] || pkg.roi > roiRange[1]) {
+      if (pkg.expected_roi < roiRange[0] || pkg.expected_roi > roiRange[1]) {
         return false;
       }
       
@@ -92,18 +93,28 @@ const MarketplaceView: React.FC = () => {
   }, [packages, searchTerm, filterStatus, filterLocation, priceRange, roiRange]);
 
   const locations = useMemo(() => {
-    return Array.from(new Set(packages.map(p => p.city)));
+    return Array.from(new Set(packages.map(p => p.location)));
   }, [packages]);
 
-  const handleViewDetails = (pkg: MarketplacePackage) => {
+  const handleViewDetails = (pkg: MarketplacePackageResponse) => {
     setSelectedPackage(pkg);
     setShowDrawer(true);
   };
 
   const handleReserve = async (id: string) => {
-    await reservePackage(id);
-    if (selectedPackage?.id === id) {
-      setSelectedPackage({ ...selectedPackage, status: 'reserved' });
+    try {
+      await reservePackageMutation.mutateAsync({
+        packageId: id,
+        data: {
+          investment_amount: 100000, // This should come from form
+          contact_preference: 'email'
+        }
+      });
+      if (selectedPackage?.id === id) {
+        setSelectedPackage({ ...selectedPackage, status: 'reserved' });
+      }
+    } catch (error) {
+      console.error('Error reserving package:', error);
     }
   };
 
@@ -125,23 +136,12 @@ const MarketplaceView: React.FC = () => {
     return labels[status as keyof typeof labels] || status;
   };
 
-  if (loading) {
+  if (packagesLoading) {
     return (
       <div className="flex items-center justify-center min-h-[600px]">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-600 dark:text-gray-400">Lade Marktplatz...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex items-center justify-center min-h-[600px]">
-        <div className="text-center">
-          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <p className="text-red-600 dark:text-red-400">{error}</p>
         </div>
       </div>
     );
@@ -235,12 +235,12 @@ const MarketplaceView: React.FC = () => {
             onClick={() => handleViewDetails(pkg)}
           >
             {/* Image */}
-            <div className="relative h-48 overflow-hidden">
-              <img
-                src={pkg.images[0]}
-                alt={pkg.title}
-                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-              />
+              <div className="relative h-48 overflow-hidden">
+                <img
+                  src={pkg.images?.[0] || '/placeholder-property.jpg'}
+                  alt={pkg.title}
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                />
               <div className="absolute top-3 right-3">
                 <span className={`px-3 py-1 text-xs font-semibold rounded-full ${getStatusBadge(pkg.status)}`}>
                   {getStatusLabel(pkg.status)}
@@ -264,14 +264,14 @@ const MarketplaceView: React.FC = () => {
                   <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">Objekte</div>
                   <div className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-1">
                     <Building2 className="w-4 h-4" />
-                    {pkg.objects}
+                    {pkg.objects || pkg.property_count}
                   </div>
                 </div>
                 <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3">
                   <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">ROI</div>
                   <div className="text-lg font-bold text-green-600 dark:text-green-400 flex items-center gap-1">
                     <TrendingUp className="w-4 h-4" />
-                    {pkg.roi.toFixed(1)}%
+                    {(pkg.roi || pkg.expected_roi).toFixed(1)}%
                   </div>
                 </div>
               </div>
@@ -280,7 +280,7 @@ const MarketplaceView: React.FC = () => {
                 <div>
                   <div className="text-xs text-gray-600 dark:text-gray-400">Preis</div>
                   <div className="text-xl font-bold text-gray-900 dark:text-white">
-                    {formatCurrency(pkg.price)}
+                    {formatCurrency(pkg.price || pkg.total_value)}
                   </div>
                 </div>
                 <button
@@ -420,7 +420,7 @@ const MarketplaceView: React.FC = () => {
                       <span className="text-sm font-medium">Gesamt-Fläche</span>
                     </div>
                     <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                      {Math.round(selectedPackage.totalSqm)} m²
+                      {Math.round(selectedPackage.totalSqm || 0)} m²
                     </div>
                   </div>
                 </div>
@@ -440,38 +440,38 @@ const MarketplaceView: React.FC = () => {
                     <div>
                       <span className="text-gray-600 dark:text-gray-400">Verkäufer:</span>
                       <div className="font-semibold text-gray-900 dark:text-white mt-1">
-                        {selectedPackage.seller}
+                        {selectedPackage.seller || 'Nicht angegeben'}
                       </div>
                     </div>
                     <div>
                       <span className="text-gray-600 dark:text-gray-400">Durchschn. Miete:</span>
                       <div className="font-semibold text-gray-900 dark:text-white mt-1">
-                        {formatCurrency(selectedPackage.details.avgRent)}/Monat
+                        {formatCurrency(selectedPackage.details?.avgRent || 0)}/Monat
                       </div>
                     </div>
                     <div>
                       <span className="text-gray-600 dark:text-gray-400">Auslastung:</span>
                       <div className="font-semibold text-gray-900 dark:text-white mt-1">
-                        {selectedPackage.details.occupancyRate.toFixed(1)}%
+                        {(selectedPackage.details?.occupancyRate || 0).toFixed(1)}%
                       </div>
                     </div>
                     <div>
                       <span className="text-gray-600 dark:text-gray-400">Baujahr:</span>
                       <div className="font-semibold text-gray-900 dark:text-white mt-1">
-                        {selectedPackage.details.yearBuilt}
+                        {selectedPackage.details?.yearBuilt || 'Nicht angegeben'}
                       </div>
                     </div>
                     <div>
                       <span className="text-gray-600 dark:text-gray-400">Zustand:</span>
                       <div className="font-semibold text-gray-900 dark:text-white mt-1">
-                        {selectedPackage.details.condition}
+                        {selectedPackage.details?.condition || 'Nicht angegeben'}
                       </div>
                     </div>
                     <div>
                       <span className="text-gray-600 dark:text-gray-400">Inseriert am:</span>
                       <div className="font-semibold text-gray-900 dark:text-white mt-1 flex items-center gap-1">
                         <Calendar className="w-4 h-4" />
-                        {formatDate(selectedPackage.listedDate)}
+                        {formatDate(selectedPackage.listedDate || selectedPackage.created_at)}
                       </div>
                     </div>
                   </div>

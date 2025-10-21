@@ -27,8 +27,28 @@ import {
   Bell,
   DollarSign,
   Home,
-  Building2
+  Building2,
+  Plus
 } from 'lucide-react';
+
+// Import new hooks and components
+import { 
+  useTeamDashboard, 
+  useActivityFeed, 
+  useTeamMetrics,
+  usePerformanceTrends,
+  useDashboardSummary,
+  useFinancialOverview,
+  useQuickActions
+} from '../../hooks/useTeamPerformance';
+import { 
+  LiveIndicator, 
+  PresenceAvatars, 
+  ActivityFeedItem, 
+  PerformanceChart 
+} from '../shared';
+
+// Legacy imports (will be removed)
 import { 
   useEmployees, 
   useProperties, 
@@ -105,7 +125,20 @@ const statsVariants = {
 
 const TeamStatusBoard: React.FC = () => {
   const navigate = useNavigate();
-  // API Hooks
+  
+  // New Live Data Hooks
+  const [timeRange, setTimeRange] = useState<'week' | 'month' | 'quarter'>('month');
+  const teamDashboard = useTeamDashboard(timeRange);
+  const activityFeed = useActivityFeed(20, 0); // Last 20 activities
+  const teamMetrics = useTeamMetrics();
+  const performanceTrends = usePerformanceTrends();
+  
+  // New Dashboard Hooks
+  const dashboardSummary = useDashboardSummary(timeRange);
+  const financialOverview = useFinancialOverview(timeRange);
+  const quickActions = useQuickActions();
+
+  // Legacy hooks (will be removed)
   const { data: employeesData, isLoading: employeesLoading } = useEmployees();
   const { data: propertiesData, isLoading: propertiesLoading } = useProperties();
   const { data: tasksData, isLoading: tasksLoading } = useTasks();
@@ -117,7 +150,6 @@ const TeamStatusBoard: React.FC = () => {
   const [selectedDepartment, setSelectedDepartment] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState<'team' | 'projects' | 'combined'>('team');
-  const [timeRange, setTimeRange] = useState<'week' | 'month' | 'quarter'>('week');
   const [isLoading, setIsLoading] = useState(false);
   const [activeView, setActiveView] = useState<'dashboard' | 'calendar' | 'kanban' | 'combined'>('dashboard');
   const [tasks, setTasks] = useState<Record<string, any[]>>({});
@@ -162,36 +194,40 @@ const TeamStatusBoard: React.FC = () => {
   };
 
   // Transform and process data
+  // Live Data Processing
   const teamMembers = useMemo(() => {
-    if (!employeesData || !Array.isArray(employeesData)) {
+    if (!teamDashboard.performance?.members) {
       return [];
     }
-
-    return employeesData
-      .filter(emp => emp.status === 'active')
-      .map(employee => ({
-        id: employee.id,
-        name: `${employee.first_name} ${employee.last_name}`,
-        position: employee.position,
-        department: employee.department,
-        avatar: employee.avatar || `https://ui-avatars.com/api/?name=${employee.first_name}+${employee.last_name}&background=random`,
-        email: employee.email,
-        phone: employee.phone,
-        performance: employee.performance_score,
-        status: employee.status === 'active' ? 'online' : 'offline',
-        activeProperties: 0,
-        completedTasks: 0,
-        upcomingAppointments: 0,
-        monthlyTarget: 0,
-        monthlyAchieved: 0,
-        skills: employee.skills || [],
-        languages: employee.languages || [],
-        lastActivity: new Date(Date.now() - Math.random() * 86400000 * 7).toISOString()
-      }));
-  }, [employeesData]);
+    
+    return teamDashboard.performance.members.map(member => ({
+      id: member.member.id,
+      name: member.member.name,
+      position: member.member.role,
+      department: member.member.department || 'Allgemein',
+      avatar: member.member.avatar || `https://ui-avatars.com/api/?name=${member.member.name}&background=random`,
+      email: member.member.email,
+      phone: '', // Not available in new API
+      performance: member.performance_score,
+      status: member.member.is_active ? 'online' : 'offline',
+      activeProperties: member.properties_active,
+      completedTasks: member.tasks_completed,
+      upcomingAppointments: member.appointments_upcoming,
+      monthlyTarget: 0, // TODO: Add to API
+      monthlyAchieved: member.monthly_target_achievement,
+      skills: [], // TODO: Add to API
+      languages: [], // TODO: Add to API
+      lastActivity: member.last_activity || new Date().toISOString()
+    }));
+  }, [teamDashboard.performance]);
 
   const teamStats = useMemo(() => {
-    if (!employeesData || !Array.isArray(employeesData) || employeesData.length === 0) {
+    // Use dashboard summary data if available, fallback to individual hooks
+    const performance = dashboardSummary.data?.performance || teamDashboard.performance;
+    const metrics = dashboardSummary.data?.metrics || teamMetrics.data;
+    const financial = dashboardSummary.data?.financial || financialOverview.data;
+    
+    if (!performance && !metrics) {
       return {
         totalMembers: 0,
         activeMembers: 0,
@@ -200,23 +236,31 @@ const TeamStatusBoard: React.FC = () => {
         totalTasks: 0,
         totalAppointments: 0,
         totalContacts: 0,
-        monthlyTarget: 0,
-        monthlyAchieved: 0
+        totalValue: 0,
+        revenue: 0,
+        growthPercentage: 0,
+        successRate: 0,
+        teamEfficiency: 0,
+        avgProcessingTime: 0
       };
     }
 
     return {
-      totalMembers: employeesData.length,
-      activeMembers: employeesData.filter((e: any) => e.status === 'active').length,
-      avgPerformance: employeesData.reduce((sum: number, e: any) => sum + (e.performance_score || 0), 0) / (employeesData.length || 1),
-      totalProperties: Array.isArray(propertiesData) ? propertiesData.length : 0,
-      totalTasks: (tasksData?.tasks?.length ?? (typeof tasksData?.total === 'number' ? tasksData.total : 0)),
-      totalAppointments: Array.isArray(appointmentsData) ? appointmentsData.length : 0,
-      totalContacts: Array.isArray(contactsData) ? contactsData.length : 0,
-      monthlyTarget: 0,
-      monthlyAchieved: 0
+      totalMembers: performance?.total_members || metrics?.total_members || 0,
+      activeMembers: performance?.active_members || metrics?.active_members || 0,
+      avgPerformance: performance?.team_performance_score || metrics?.team_performance_score || 0,
+      totalProperties: performance?.total_properties_managed || metrics?.total_properties_managed || 0,
+      totalTasks: performance?.total_tasks_completed || metrics?.tasks_completed_this_month || 0,
+      totalAppointments: performance?.total_appointments_scheduled || metrics?.total_appointments_scheduled || 0,
+      totalContacts: performance?.total_contacts_managed || metrics?.total_contacts_managed || 0,
+      totalValue: financial?.total_value || 0,
+      revenue: financial?.revenue || 0,
+      growthPercentage: financial?.growth_percentage || 0,
+      successRate: metrics?.avg_completion_rate || 0,
+      teamEfficiency: metrics?.team_performance_score || 0,
+      avgProcessingTime: metrics?.avg_task_completion_time_hours || 0
     };
-  }, [employeesData, propertiesData, tasksData, appointmentsData, contactsData]);
+  }, [dashboardSummary.data, teamDashboard.performance, teamMetrics.data, financialOverview.data]);
 
   // Debug logging
   console.log('👥 TeamStatusBoard - Debug Info:', {
@@ -288,27 +332,7 @@ const TeamStatusBoard: React.FC = () => {
                 
                 {/* Live Status Indicator */}
                 <div className="flex items-center space-x-3">
-                  <motion.div 
-                    className="relative"
-                    animate={{ scale: [1, 1.2, 1] }}
-                    transition={{ duration: 2, repeat: Infinity }}
-                  >
-                    <div className="w-3 h-3 bg-emerald-400 rounded-full"></div>
-                    <motion.div 
-                      className="absolute inset-0 w-3 h-3 bg-emerald-400 rounded-full"
-                      animate={{ 
-                        scale: [1, 2, 1],
-                        opacity: [1, 0, 1]
-                      }}
-                      transition={{ 
-                        duration: 2, 
-                        repeat: Infinity 
-                      }}
-                    />
-                  </motion.div>
-                  <span className="text-emerald-600 dark:text-emerald-400 font-semibold text-sm">
-                    Live Status
-                  </span>
+                  <LiveIndicator isLive={!teamDashboard.isLoading} pulse={true} size="sm" />
                   <div className="h-4 w-px bg-gray-300 dark:bg-gray-600"></div>
                   <span className="text-gray-600 dark:text-gray-400 text-sm font-mono">
                     {formatTime(currentTime)}
@@ -413,7 +437,15 @@ const TeamStatusBoard: React.FC = () => {
 
                 {/* Refresh Button */}
                 <button
-                  onClick={() => setIsLoading(!isLoading)}
+                  onClick={() => {
+                    setIsLoading(true);
+                    // Refresh all data
+                    dashboardSummary.refetch();
+                    financialOverview.refetch();
+                    quickActions.refetch();
+                    teamDashboard.refetchAll();
+                    setTimeout(() => setIsLoading(false), 1000);
+                  }}
                   className="px-6 py-3 bg-gradient-to-r from-emerald-500/80 to-blue-600/80 hover:from-emerald-600/90 hover:to-blue-700/90 text-white rounded-xl font-medium shadow-glass hover:shadow-glass-lg transition-all duration-200 flex items-center space-x-2 backdrop-blur-sm border border-white/20"
                 >
                   <RefreshCw className="w-4 h-4" />
@@ -425,11 +457,33 @@ const TeamStatusBoard: React.FC = () => {
 
           {/* Summary Stats */}
           <motion.div 
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8"
             variants={statsVariants}
             initial="hidden"
             animate="show"
           >
+            {/* Gesamtwert Karte */}
+            <motion.div 
+              className="bg-gradient-to-br from-blue-500/20 via-purple-500/20 to-blue-600/20 dark:from-blue-500/10 dark:via-purple-500/10 dark:to-blue-600/10 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-2xl shadow-glass p-6 hover:shadow-glass-lg hover:bg-white/30 dark:hover:bg-white/10 transition-all duration-300 group"
+              variants={itemVariants}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-14 h-14 bg-gradient-to-br from-blue-500 via-purple-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-glass group-hover:scale-105 transition-transform duration-300">
+                  <Target className="w-7 h-7 text-white" />
+                </div>
+                <div className="text-right">
+                  <div className="text-sm text-blue-600 dark:text-blue-400 font-medium">Gesamtwert</div>
+                  <div className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-blue-800 dark:from-white dark:to-blue-200 bg-clip-text text-transparent">
+                    {teamStats.totalValue > 0 ? `${(teamStats.totalValue / 1000000).toFixed(1)}M €` : '0 €'}
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center text-sm text-blue-600 dark:text-blue-400 font-medium">
+                <TrendingUp className="w-4 h-4 mr-2" />
+                <span>{teamStats.growthPercentage > 0 ? '+' : ''}{teamStats.growthPercentage.toFixed(1)}% vs. Vorquartal</span>
+              </div>
+            </motion.div>
+
             <motion.div 
               className="bg-white/20 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-2xl shadow-glass p-6 hover:shadow-glass-lg hover:bg-white/30 dark:hover:bg-white/10 transition-all duration-300 group"
               variants={itemVariants}
@@ -487,22 +541,42 @@ const TeamStatusBoard: React.FC = () => {
               </div>
             </motion.div>
 
+            {/* Performance Metriken */}
             <motion.div 
               className="bg-white/20 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-2xl shadow-glass p-6 hover:shadow-glass-lg hover:bg-white/30 dark:hover:bg-white/10 transition-all duration-300 group"
               variants={itemVariants}
             >
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-glass group-hover:scale-105 transition-transform duration-300">
-                  <Award className="w-7 h-7 text-white" />
+              <div className="mb-4">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-3">Performance</h3>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+                      <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                      <span>Erfolgsrate</span>
+                    </div>
+                    <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                      {Math.round(teamStats.successRate)}%
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
+                      <span>Team Effizienz</span>
+                    </div>
+                    <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                      {Math.round(teamStats.teamEfficiency)}%
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+                      <div className="w-2 h-2 bg-orange-500 rounded-full mr-2"></div>
+                      <span>Bearbeitungszeit</span>
+                    </div>
+                    <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                      {Math.round(teamStats.avgProcessingTime)} Tage
+                    </span>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <div className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-purple-800 dark:from-white dark:to-purple-200 bg-clip-text text-transparent">{Math.round(teamStats.avgPerformance)}%</div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400 font-medium">Performance</div>
-                </div>
-              </div>
-              <div className="flex items-center text-sm text-purple-600 dark:text-purple-400 font-medium">
-                <Star className="w-4 h-4 mr-2" />
-                <span>Team Durchschnitt</span>
               </div>
             </motion.div>
           </motion.div>
@@ -521,6 +595,257 @@ const TeamStatusBoard: React.FC = () => {
                   animate="show"
                   className="space-y-8"
                 >
+                  {/* Team Members Grid */}
+                  {(viewMode === 'team' || viewMode === 'combined') && (
+                    <motion.div 
+                      className="bg-white/20 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-2xl shadow-glass overflow-hidden"
+                      variants={itemVariants}
+                    >
+                      <div className="px-6 py-4 border-b border-white/10 bg-gradient-to-r from-emerald-500/20 via-blue-400/10 to-emerald-600/20">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-glass">
+                              <Users className="w-5 h-5 text-white" />
+                            </div>
+                            <div>
+                              <h2 className="text-xl font-bold bg-gradient-to-r from-gray-900 to-emerald-800 dark:from-white dark:to-emerald-200 bg-clip-text text-transparent">
+                                Team Members
+                              </h2>
+                              <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">{teamMembers.length} aktive Mitarbeiter</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="p-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {teamMembers.map((member) => (
+                            <motion.div
+                              key={member.id}
+                              className="bg-white/10 dark:bg-white/5 backdrop-blur-sm border border-white/20 dark:border-white/10 rounded-xl p-4 hover:bg-white/20 dark:hover:bg-white/10 transition-all duration-200 cursor-pointer"
+                              whileHover={{ scale: 1.02 }}
+                              whileTap={{ scale: 0.98 }}
+                              onClick={() => navigate(`/team/member/${member.id}`)}
+                            >
+                              <div className="flex items-center space-x-3 mb-3">
+                                <img
+                                  src={member.avatar}
+                                  alt={member.name}
+                                  className="w-10 h-10 rounded-full object-cover"
+                                />
+                                <div className="flex-1 min-w-0">
+                                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white truncate">
+                                    {member.name}
+                                  </h3>
+                                  <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
+                                    {member.position}
+                                  </p>
+                                </div>
+                                <div className={`w-2 h-2 rounded-full ${
+                                  member.status === 'online' ? 'bg-green-500' : 'bg-gray-400'
+                                }`} />
+                              </div>
+                              
+                              <div className="grid grid-cols-2 gap-3 text-center">
+                                <div>
+                                  <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
+                                    {member.activeProperties}
+                                  </div>
+                                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                                    Properties
+                                  </div>
+                                </div>
+                                <div>
+                                  <div className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                                    {member.completedTasks}
+                                  </div>
+                                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                                    Aufgaben
+                                  </div>
+                                </div>
+                              </div>
+                            </motion.div>
+                          ))}
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* Live Activity Feed */}
+                  {activityFeed.data && (
+                    <motion.div 
+                      className="bg-white/20 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-2xl shadow-glass overflow-hidden"
+                      variants={itemVariants}
+                    >
+                      <div className="px-6 py-4 border-b border-white/10 bg-gradient-to-r from-purple-500/20 via-pink-400/10 to-purple-600/20">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center shadow-glass">
+                              <Activity className="w-5 h-5 text-white" />
+                            </div>
+                            <div>
+                              <h2 className="text-xl font-bold bg-gradient-to-r from-gray-900 to-purple-800 dark:from-white dark:to-purple-200 bg-clip-text text-transparent">
+                                Live Activity Feed
+                              </h2>
+                              <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">
+                                {activityFeed.data.activities.length} Aktivitäten
+                              </p>
+                            </div>
+                          </div>
+                          <LiveIndicator isLive={!activityFeed.isLoading} pulse={true} size="sm" />
+                        </div>
+                      </div>
+                      
+                      <div className="p-6 max-h-96 overflow-y-auto">
+                        {activityFeed.isLoading ? (
+                          <div className="flex justify-center items-center h-32">
+                            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500"></div>
+                          </div>
+                        ) : activityFeed.data.activities.length > 0 ? (
+                          <div className="space-y-3">
+                            {activityFeed.data.activities.map((activity) => (
+                              <ActivityFeedItem
+                                key={activity.id}
+                                activity={activity}
+                                className="bg-white/10 dark:bg-white/5"
+                              />
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                            <Activity className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                            <p>Keine Aktivitäten verfügbar</p>
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* Performance Chart */}
+                  {teamDashboard.performance && (
+                    <motion.div 
+                      className="bg-white/20 dark:bg-white/5 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-2xl shadow-glass overflow-hidden"
+                      variants={itemVariants}
+                    >
+                      <div className="px-6 py-4 border-b border-white/10 bg-gradient-to-r from-blue-500/20 via-indigo-400/10 to-blue-600/20">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-glass">
+                            <BarChart3 className="w-5 h-5 text-white" />
+                          </div>
+                          <div>
+                            <h2 className="text-xl font-bold bg-gradient-to-r from-gray-900 to-blue-800 dark:from-white dark:to-blue-200 bg-clip-text text-transparent">
+                              Performance Übersicht
+                            </h2>
+                            <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">
+                              Zeitraum: {timeRange}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="p-6">
+                        <PerformanceChart
+                          data={[
+                            {
+                              label: 'Tasks abgeschlossen',
+                              value: teamDashboard.performance.total_tasks_completed,
+                              color: 'bg-green-500',
+                            },
+                            {
+                              label: 'Properties verwaltet',
+                              value: teamDashboard.performance.total_properties_managed,
+                              color: 'bg-blue-500',
+                            },
+                            {
+                              label: 'Termine geplant',
+                              value: teamDashboard.performance.total_appointments_scheduled,
+                              color: 'bg-purple-500',
+                            },
+                            {
+                              label: 'Kontakte verwaltet',
+                              value: teamDashboard.performance.total_contacts_managed,
+                              color: 'bg-orange-500',
+                            },
+                          ]}
+                          type="bar"
+                          showTrend={true}
+                        />
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* Schnellaktionen */}
+                  {quickActions.data && quickActions.data.length > 0 && (
+                    <motion.div 
+                      className="bg-gradient-to-br from-green-500/20 via-emerald-400/10 to-green-600/20 dark:from-green-500/10 dark:via-emerald-400/5 dark:to-green-600/10 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-2xl shadow-glass overflow-hidden"
+                      variants={itemVariants}
+                    >
+                      <div className="px-6 py-4 border-b border-white/10 bg-gradient-to-r from-green-500/20 via-emerald-400/10 to-green-600/20">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center shadow-glass">
+                            <Sparkles className="w-5 h-5 text-white" />
+                          </div>
+                          <div>
+                            <h2 className="text-xl font-bold bg-gradient-to-r from-gray-900 to-green-800 dark:from-white dark:to-green-200 bg-clip-text text-transparent">
+                              Schnellaktionen
+                            </h2>
+                            <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">
+                              {quickActions.data.length} verfügbare Aktionen
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="p-6">
+                        <div className="space-y-3">
+                          {quickActions.data.map((action) => (
+                            <motion.button
+                              key={action.id}
+                              className={`w-full flex items-center justify-between p-4 rounded-xl transition-all duration-200 ${
+                                action.available
+                                  ? 'bg-white/10 dark:bg-white/5 hover:bg-white/20 dark:hover:bg-white/10 cursor-pointer'
+                                  : 'bg-gray-100/50 dark:bg-gray-800/50 cursor-not-allowed opacity-50'
+                              }`}
+                              whileHover={action.available ? { scale: 1.02 } : {}}
+                              whileTap={action.available ? { scale: 0.98 } : {}}
+                              onClick={() => action.available && navigate(action.url)}
+                              disabled={!action.available}
+                            >
+                              <div className="flex items-center space-x-3">
+                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                                  action.priority === 'high' ? 'bg-red-500/20 text-red-600' :
+                                  action.priority === 'medium' ? 'bg-yellow-500/20 text-yellow-600' :
+                                  'bg-blue-500/20 text-blue-600'
+                                }`}>
+                                  {action.icon === 'plus' && <Plus className="w-4 h-4" />}
+                                  {action.icon === 'chart' && <BarChart3 className="w-4 h-4" />}
+                                  {action.icon === 'users' && <Users className="w-4 h-4" />}
+                                  {action.icon === 'home' && <Home className="w-4 h-4" />}
+                                </div>
+                                <div className="text-left">
+                                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+                                    {action.title}
+                                  </h3>
+                                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                                    {action.description}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                {action.badge && action.badge > 0 && (
+                                  <span className="px-2 py-1 bg-red-500 text-white text-xs rounded-full">
+                                    {action.badge}
+                                  </span>
+                                )}
+                                <ArrowRight className="w-4 h-4 text-gray-400" />
+                              </div>
+                            </motion.button>
+                          ))}
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+
                   {/* Team Members Grid */}
                   {(viewMode === 'team' || viewMode === 'combined') && (
                     <motion.div 

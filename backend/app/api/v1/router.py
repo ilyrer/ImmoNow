@@ -31,6 +31,11 @@ from app.api.v1 import (
     publishing,
     billing,
     registration,
+    profile,
+    test_email,
+    team_performance,
+    market,
+    social,
 )
 
 # Create main API router
@@ -64,5 +69,10 @@ api_router.include_router(plans.router, prefix="/plans", tags=["plans"])
 api_router.include_router(google_auth.router, prefix="/auth", tags=["google-auth"])
 api_router.include_router(payroll.router, prefix="/payroll", tags=["payroll"])
 api_router.include_router(employee_documents.router, prefix="/admin", tags=["admin-employee-documents"])
-api_router.include_router(billing.router, tags=["billing"])
-api_router.include_router(registration.router, prefix="/registration", tags=["registration"])
+api_router.include_router(billing.router)
+api_router.include_router(registration.router)
+api_router.include_router(profile.router, tags=["profile"])
+api_router.include_router(test_email.router, prefix="/test", tags=["test-email"])
+api_router.include_router(team_performance.router, prefix="/team", tags=["team"])
+api_router.include_router(market.router, prefix="/market", tags=["market"])
+api_router.include_router(social.router, prefix="/social", tags=["social"])

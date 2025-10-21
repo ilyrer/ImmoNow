@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { MessageSquare, Phone, Calendar, Bell, Search, Filter } from 'lucide-react';
 import { Tabs } from '../../components/common/Tabs';
+import ChatView from './ChatView';
+import { useConversations } from '../../api/hooks';
 
 interface CommunicationsHubProps {
   initialTab?: 'chat' | 'calls' | 'schedule' | 'notifications';
@@ -18,24 +20,29 @@ const CommunicationsHub: React.FC<CommunicationsHubProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
 
+  // Get real conversation data
+  const { data: conversationsData } = useConversations();
+  const conversations = conversationsData?.items || [];
+  
+  // Calculate unread count from real data
+  const unreadCount = conversations.reduce((total, conv) => total + (conv.unread_count || 0), 0);
+
   const tabs = [
     {
       id: 'chat',
       label: 'Chat',
       icon: <MessageSquare className="w-5 h-5" />,
-      badge: 15,
+      badge: unreadCount > 0 ? unreadCount : undefined,
     },
     {
       id: 'calls',
       label: 'Calls',
       icon: <Phone className="w-5 h-5" />,
-      badge: 2,
     },
     {
       id: 'schedule',
       label: 'Termine',
       icon: <Calendar className="w-5 h-5" />,
-      badge: 5,
     },
     {
       id: 'notifications',
@@ -65,7 +72,7 @@ const CommunicationsHub: React.FC<CommunicationsHubProps> = ({
               <span className="text-sm text-gray-600 dark:text-gray-400">Online</span>
             </div>
             <div className="text-sm text-gray-600 dark:text-gray-400">
-              15 ungelesene Nachrichten
+              {unreadCount > 0 ? `${unreadCount} ungelesene Nachrichten` : 'Alle Nachrichten gelesen'}
             </div>
           </div>
         </div>
@@ -121,17 +128,7 @@ const CommunicationsHub: React.FC<CommunicationsHubProps> = ({
 
       {/* Content Area */}
       <div className="flex-1 overflow-hidden">
-        {activeTab === 'chat' && (
-          <div className="h-full flex items-center justify-center text-gray-500">
-            <div className="text-center">
-              <MessageSquare className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-              <p className="text-lg font-medium">Chat-Ansicht</p>
-              <p className="text-sm text-gray-400 mt-2">
-                In Entwicklung - Siehe vollständige Implementation
-              </p>
-            </div>
-          </div>
-        )}
+        {activeTab === 'chat' && <ChatView />}
 
         {activeTab === 'calls' && (
           <div className="h-full flex items-center justify-center text-gray-500">

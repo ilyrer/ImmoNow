@@ -22,6 +22,7 @@ import RegistrationWithPayment from './components/Auth/RegistrationWithPayment';
 import RegistrationComplete from './pages/RegistrationComplete';
 import ModernDocumentsPage from './pages/DocumentsPage.tsx';
 import { RemovedFeatureRedirect } from './components/common/RemovedFeatureRedirect.tsx';
+import CommunicationsHub from './pages/communications/CommunicationsHub';
 import KanbanPage from './pages/KanbanPage.tsx';
 import InvestorDashboard from './pages/InvestorDashboard.tsx';
 import CIMOverview from './components/CIM/CIMOverview';
@@ -232,7 +233,7 @@ function AppContent() {
           <Route path="/matching" element={<MatchingPage />} />
           <Route path="/social-hub" element={<SocialHubIndex />} />
           <Route path="/reports" element={<RemovedFeatureRedirect />} />
-          <Route path="/communications" element={<RemovedFeatureRedirect />} />
+          <Route path="/communications" element={<CommunicationsHub />} />
           <Route path="/analytics" element={<RemovedFeatureRedirect />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

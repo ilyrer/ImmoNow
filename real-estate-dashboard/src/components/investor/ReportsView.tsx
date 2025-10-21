@@ -16,24 +16,11 @@ import {
   Plus,
   X
 } from 'lucide-react';
-// TODO: Implement real API hooks
-
-// Mock hook for investor reports
-const useInvestorReportsMock = () => {
-  const reports: any[] = [];
-  const loading = false;
-  const error = null;
-  
-  const generateNewReport = () => {
-    console.log('Generating new report');
-    return Promise.resolve();
-  };
-  
-  return { reports, loading, error, generateNewReport };
-};
+import { useInvestorReports, useGenerateReport } from '../../hooks/useInvestor';
 
 const ReportsView: React.FC = () => {
-  const { reports, loading, error, generateNewReport } = useInvestorReportsMock();
+  const { data: reports = [], isLoading: reportsLoading } = useInvestorReports();
+  const generateReportMutation = useGenerateReport();
   const [isGenerating, setIsGenerating] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
@@ -57,7 +44,13 @@ const ReportsView: React.FC = () => {
   const handleGenerateReport = async () => {
     setIsGenerating(true);
     try {
-      await generateNewReport();
+      await generateReportMutation.mutateAsync({
+        report_type: 'quarterly',
+        period_start: new Date().toISOString(),
+        period_end: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
+        include_charts: true,
+        include_recommendations: true
+      });
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
     } catch (err) {
@@ -72,23 +65,12 @@ const ReportsView: React.FC = () => {
     alert(`Export als ${format.toUpperCase()} wird vorbereitet (Mock-Funktion)`);
   };
 
-  if (loading && reports.length === 0) {
+  if (reportsLoading && reports.length === 0) {
     return (
       <div className="flex items-center justify-center min-h-[600px]">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-600 dark:text-gray-400">Lade Berichte...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex items-center justify-center min-h-[600px]">
-        <div className="text-center">
-          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <p className="text-red-600 dark:text-red-400">{error}</p>
         </div>
       </div>
     );
@@ -162,11 +144,11 @@ const ReportsView: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-gray-900 dark:text-white">
-                    {report.month} {report.year}
+                    {report.month || 'Q1'} {report.year || new Date().getFullYear()}
                   </h3>
                   <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1 mt-1">
                     <Calendar className="w-4 h-4" />
-                    {formatDate(report.generatedAt)}
+                    {formatDate(report.generated_at)}
                   </p>
                 </div>
               </div>
@@ -207,7 +189,7 @@ const ReportsView: React.FC = () => {
                   <span className="text-sm font-medium">ROI</span>
                 </div>
                 <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {report.roi.toFixed(2)}%
+                  {(report.roi || 0).toFixed(2)}%
                 </div>
               </div>
 
@@ -217,7 +199,7 @@ const ReportsView: React.FC = () => {
                   <span className="text-sm font-medium">Cashflow</span>
                 </div>
                 <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {formatCurrency(report.cashflow)}
+                  {formatCurrency(report.cashflow || 0)}
                 </div>
               </div>
 
@@ -227,7 +209,7 @@ const ReportsView: React.FC = () => {
                   <span className="text-sm font-medium">Leerstand</span>
                 </div>
                 <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {report.vacancy.toFixed(1)}%
+                  {(report.vacancy || 0).toFixed(1)}%
                 </div>
               </div>
 
@@ -237,7 +219,7 @@ const ReportsView: React.FC = () => {
                   <span className="text-sm font-medium">Assets</span>
                 </div>
                 <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {report.assetCount}
+                  {report.assetCount || 0}
                 </div>
               </div>
             </div>
@@ -247,19 +229,19 @@ const ReportsView: React.FC = () => {
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600 dark:text-gray-400">Einnahmen</span>
                 <span className="font-semibold text-gray-900 dark:text-white">
-                  {formatCurrency(report.totalRevenue)}
+                  {formatCurrency(report.totalRevenue || 0)}
                 </span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600 dark:text-gray-400">Ausgaben</span>
                 <span className="font-semibold text-red-600 dark:text-red-400">
-                  -{formatCurrency(report.totalExpenses)}
+                  -{formatCurrency(report.totalExpenses || 0)}
                 </span>
               </div>
               <div className="flex justify-between items-center pt-2 border-t border-gray-200 dark:border-gray-700">
                 <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Netto-Einkommen</span>
                 <span className="font-bold text-green-600 dark:text-green-400 text-lg">
-                  {formatCurrency(report.netIncome)}
+                  {formatCurrency(report.netIncome || 0)}
                 </span>
               </div>
             </div>

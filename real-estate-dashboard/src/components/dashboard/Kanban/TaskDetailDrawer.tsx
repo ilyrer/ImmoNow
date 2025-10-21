@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Task, TaskComment, Subtask, ActivityLogEntry, TaskDocument } from '../../../types/kanban';
+import tasksService from '../../../services/tasks';
 import { ALL_STATUSES } from './ProfessionalKanbanBoard';
 
 /**
@@ -67,6 +68,16 @@ export const TaskDetailDrawer: React.FC<TaskDetailDrawerProps> = ({
     if (task) {
       setEditedTask(task);
       setMode(initialMode);
+      // Live laden: Comments, Activity, Attachments
+      (async () => {
+        try {
+          const [comments, activity] = await Promise.all([
+            tasksService.getComments(task.id).catch(()=>task.comments),
+            tasksService.getActivity(task.id).catch(()=>task.activityLog),
+          ]);
+          setEditedTask(prev => prev ? { ...prev, comments, activityLog: activity } : prev);
+        } catch {}
+      })();
     }
   }, [task, initialMode]);
 
@@ -109,39 +120,24 @@ export const TaskDetailDrawer: React.FC<TaskDetailDrawerProps> = ({
     }
   };
 
-  const addComment = () => {
+  const addComment = async () => {
     if (newComment.trim() && editedTask) {
-      const comment: TaskComment = {
-        id: Date.now().toString(),
-        author: {
-          id: 'current-user',
-          name: 'Aktueller Benutzer',
-          avatar: 'https://ui-avatars.com/api/?name=User&background=0A84FF&color=fff',
-          role: 'Admin'
-        },
-        text: newComment,
-        timestamp: new Date().toISOString(),
-        parentId: replyTo || undefined,
-        mentions: extractMentions(newComment),
-        reactions: []
-      };
-      
-      const activityEntry: ActivityLogEntry = {
-        id: Date.now().toString(),
-        timestamp: new Date().toISOString(),
-        user: comment.author,
-        action: 'commented',
-        description: `hat kommentiert: "${newComment.substring(0, 50)}${newComment.length > 50 ? '...' : ''}"`
-      };
-
-      setEditedTask({
-        ...editedTask,
-        comments: [...editedTask.comments, comment],
-        activityLog: [activityEntry, ...editedTask.activityLog],
-        updatedAt: new Date().toISOString()
-      });
-      setNewComment('');
-      setReplyTo(null);
+      try {
+        // Optimistisch
+        const tempId = `temp-${Date.now()}`;
+        setEditedTask({
+          ...editedTask,
+          comments: [...editedTask.comments, { id: tempId, author: { id: 'me', name: 'Ich', avatar: '', role: '' }, text: newComment, timestamp: new Date().toISOString(), parentId: replyTo || undefined, mentions: extractMentions(newComment), reactions: [] }],
+        });
+        const created = await tasksService.addComment(editedTask.id, { text: newComment, parentId: replyTo || undefined });
+        // Refresh list
+        const comments = await tasksService.getComments(editedTask.id);
+        setEditedTask(prev => prev ? { ...prev, comments } : prev);
+      } catch {}
+      finally {
+        setNewComment('');
+        setReplyTo(null);
+      }
     }
   };
 

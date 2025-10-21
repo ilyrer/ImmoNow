@@ -1,0 +1,58 @@
+{% extends "emails/base.html" %}
+
+{% block additional_content %}
+<div class="notification-card">
+    <div class="priority-indicator priority-{{ priority }}">
+        📄 Dokument-Update
+    </div>
+    
+    <h3 class="notification-title">Dokument-Details</h3>
+    
+    {% if document_title %}
+    <div class="related-entity">
+        <h4 class="related-entity-title">📄 Dokument</h4>
+        <p class="related-entity-info">{{ document_title }}</p>
+    </div>
+    {% endif %}
+    
+    {% if document_type %}
+    <div class="related-entity">
+        <h4 class="related-entity-title">🏷️ Typ</h4>
+        <p class="related-entity-info">{{ document_type }}</p>
+    </div>
+    {% endif %}
+    
+    {% if document_size %}
+    <div class="related-entity">
+        <h4 class="related-entity-title">📏 Größe</h4>
+        <p class="related-entity-info">{{ document_size }}</p>
+    </div>
+    {% endif %}
+    
+    {% if document_uploaded_by %}
+    <div class="related-entity">
+        <h4 class="related-entity-title">👤 Hochgeladen von</h4>
+        <p class="related-entity-info">{{ document_uploaded_by }}</p>
+    </div>
+    {% endif %}
+    
+    {% if document_expiry_date %}
+    <div class="related-entity">
+        <h4 class="related-entity-title">⏰ Ablaufdatum</h4>
+        <p class="related-entity-info">{{ document_expiry_date }}</p>
+    </div>
+    {% endif %}
+    
+    {% if action_url %}
+    <a href="{{ action_url }}" class="action-button">
+        📋 Dokument anzeigen
+    </a>
+    {% endif %}
+</div>
+
+<div style="background: #f8f9fa; border-radius: 12px; padding: 20px; margin: 20px 0; text-align: center;">
+    <p style="margin: 0; color: #6e6e73; font-size: 14px;">
+        📁 <strong>Hinweis:</strong> Dokumente werden sicher in der Cloud gespeichert und sind jederzeit verfügbar.
+    </p>
+</div>
+{% endblock %}

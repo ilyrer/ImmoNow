@@ -3,6 +3,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { DragDropContext, Droppable, DropResult } from '@hello-pangea/dnd';
 import { Task, KanbanColumn, TaskFilters, BoardStatistics } from '../../../types/kanban';
 import { EnhancedTaskCard } from './EnhancedTaskCard';
+import TaskCard from './TaskCard';
+import { 
+  useLabels, useSprints, useEmployees, useCreateLabel, useCreateSprint,
+  useMoveTask, useUpdateTask, useDeleteTask
+} from '../../../hooks/useTasks';
 
 /**
  * ============================================================================
@@ -18,6 +23,14 @@ interface ProfessionalKanbanBoardProps {
   onDragEnd: (result: DropResult) => void;
   onCreateTask: (columnId: string) => void;
   onBulkUpdate?: (taskIds: string[], updates: Partial<Task>) => void;
+  // New Kanban features
+  showSwimlanes?: boolean;
+  swimlaneType?: 'none' | 'assignee' | 'priority' | 'epic';
+  showWipLimits?: boolean;
+  showBulkActions?: boolean;
+  showQuickFilters?: boolean;
+  showBoardSettings?: boolean;
+  currentUserId?: string;
 }
 
 // Main board columns (visible on the board)
@@ -118,7 +131,14 @@ export const ProfessionalKanbanBoard: React.FC<ProfessionalKanbanBoardProps> = (
   onTaskClick,
   onDragEnd,
   onCreateTask,
-  onBulkUpdate
+  onBulkUpdate,
+  showSwimlanes = true,
+  swimlaneType = 'assignee',
+  showWipLimits = true,
+  showBulkActions = true,
+  showQuickFilters = true,
+  showBoardSettings = true,
+  currentUserId
 }) => {
   // State
   const [filters, setFilters] = useState<TaskFilters>({});
@@ -128,6 +148,26 @@ export const ProfessionalKanbanBoard: React.FC<ProfessionalKanbanBoardProps> = (
   const [showFilters, setShowFilters] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [activeColumn, setActiveColumn] = useState<string>('');
+  
+  // New Kanban state
+  const [showBoardSettingsPanel, setShowBoardSettingsPanel] = useState(false);
+  const [wipLimits, setWipLimits] = useState<Record<string, number>>({});
+  const [boardConfig, setBoardConfig] = useState({
+    swimlaneType: swimlaneType,
+    showWipLimits: showWipLimits,
+    showBulkActions: showBulkActions,
+    showQuickFilters: showQuickFilters
+  });
+
+  // New Kanban hooks
+  const { data: labels = [] } = useLabels();
+  const { data: sprints = [] } = useSprints();
+  const { data: employees = [] } = useEmployees();
+  const createLabelMutation = useCreateLabel();
+  const createSprintMutation = useCreateSprint();
+  const moveTaskMutation = useMoveTask();
+  const updateTaskMutation = useUpdateTask();
+  const deleteTaskMutation = useDeleteTask();
 
   // Statistics
   const statistics: BoardStatistics = useMemo(() => {

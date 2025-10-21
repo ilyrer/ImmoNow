@@ -32,6 +32,7 @@ ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",") if 
 # Application definition
 
 INSTALLED_APPS = [
+    "daphne",  # Must be before django.contrib.staticfiles
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -39,11 +40,14 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "corsheaders",  # CORS headers for API access
+    "channels",  # Django Channels for WebSocket support
     "app",  # Our main app with models
 ]
 
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
+    "app.middleware.rate_limiting.RateLimitingMiddleware",  # Rate limiting
+    "app.middleware.rate_limiting.TenantRateLimitingMiddleware",  # Tenant-specific rate limiting
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -73,6 +77,17 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "backend.wsgi.application"
+
+# ASGI Application for WebSocket support
+ASGI_APPLICATION = "backend.asgi.application"
+
+# Channel Layers Configuration
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer'  # Development
+        # For production: 'channels_redis.core.RedisChannelLayer'
+    }
+}
 
 
 # Database
@@ -137,9 +152,30 @@ USE_TZ = True
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-# Media files
-MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
+# Media files (User uploads)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
+# File upload settings
+FILE_UPLOAD_MAX_MEMORY_SIZE = 10485760  # 10MB
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10485760
+FILE_UPLOAD_PERMISSIONS = 0o644
+
+# Cache Configuration
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+        'LOCATION': 'cache_table',
+    }
+}
+
+# Cache timeout settings (in seconds)
+CACHE_TIMEOUT = {
+    'conversations': 300,  # 5 minutes
+    'messages': 60,        # 1 minute
+    'user_presence': 30,   # 30 seconds
+    'reactions': 300,      # 5 minutes
+}
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field

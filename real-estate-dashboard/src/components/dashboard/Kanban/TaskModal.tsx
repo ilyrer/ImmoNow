@@ -1,5 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  useLabels, useCreateLabel, useCreateSubtask, useUpdateSubtask, useDeleteSubtask,
+  useUploadAttachment, useDeleteAttachment, useAddWatcher, useRemoveWatcher,
+  useSprints, useCreateSprint, useEmployees
+} from '../../../hooks/useTasks';
 
 interface TaskAssignee {
   id: string;
@@ -8,7 +13,7 @@ interface TaskAssignee {
   role?: string;
 }
 
-interface RealEstateTask {
+export interface RealEstateTask {
   id: string;
   title: string;
   description: string;
@@ -20,11 +25,13 @@ interface RealEstateTask {
     role: string;
   };
   dueDate: string;
+  startDate?: string;
   status: 'backlog' | 'todo' | 'inProgress' | 'review' | 'done' | 'blocked' | 'onHold' | 'cancelled';
   progress: number;
   tags: string[];
   estimatedHours: number;
   actualHours: number;
+  position: number;
   propertyType?: 'apartment' | 'house' | 'commercial' | 'land';
   location?: string;
   price?: number;
@@ -34,9 +41,15 @@ interface RealEstateTask {
   subtasks: any[];
   createdAt: string;
   updatedAt: string;
+  createdBy: {
+    id: string;
+    name: string;
+    avatar: string;
+    role: string;
+  };
   reporter: string;
   watchers: TaskAssignee[] | string[];
-  issueType: 'listing' | 'viewing' | 'contract' | 'maintenance' | 'marketing';
+  issueType: 'listing' | 'viewing' | 'contract' | 'maintenance' | 'marketing' | 'task' | 'story' | 'bug' | 'epic';
   clientId?: string;
   propertyId?: string;
   complexity: 'trivial' | 'easy' | 'medium' | 'hard' | 'epic';
@@ -46,6 +59,20 @@ interface RealEstateTask {
   blockedBy?: string;
   blocking: string[];
   customFields: Record<string, any>;
+  // New Kanban fields
+  storyPoints?: number | null;
+  sprintId?: string | null;
+  sprint?: {
+    id: string;
+    name: string;
+    status: string;
+  };
+  // Backend-specific fields
+  archived: boolean;
+  blockedReason?: string;
+  blockedByTask?: string;
+  epicLink?: string;
+  financingStatus?: string;
 }
 
 interface TaskModalProps {
@@ -65,6 +92,13 @@ interface TaskModalProps {
     name: string;
     color: string;
   }>;
+  // New Kanban props
+  availableSprints?: Array<{
+    id: string;
+    name: string;
+    status: string;
+  }>;
+  currentUserId?: string;
 }
 
 const TaskModal: React.FC<TaskModalProps> = ({
@@ -74,18 +108,50 @@ const TaskModal: React.FC<TaskModalProps> = ({
   onClose,
   onSave,
   teamMembers,
-  availableLabels
+  availableLabels,
+  availableSprints = [],
+  currentUserId
 }) => {
   const [editedTask, setEditedTask] = useState<RealEstateTask | null>(null);
   const [activeTab, setActiveTab] = useState<'details' | 'comments' | 'attachments' | 'history'>('details');
   const [newComment, setNewComment] = useState('');
   const [isEditing, setIsEditing] = useState(false);
+  
+  // New Kanban state
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
+  const [newLabelName, setNewLabelName] = useState('');
+  const [newLabelColor, setNewLabelColor] = useState('#3B82F6');
+  const [showLabelCreator, setShowLabelCreator] = useState(false);
+  const [storyPoints, setStoryPoints] = useState<number | null>(null);
+  const [selectedSprintId, setSelectedSprintId] = useState<string | null>(null);
+  const [selectedWatchers, setSelectedWatchers] = useState<string[]>([]);
+
+  // New Kanban hooks
+  const { data: labels = [] } = useLabels();
+  const { data: sprints = [] } = useSprints();
+  const { data: employees = [] } = useEmployees();
+  const createLabelMutation = useCreateLabel();
+  const createSubtaskMutation = useCreateSubtask();
+  const updateSubtaskMutation = useUpdateSubtask();
+  const deleteSubtaskMutation = useDeleteSubtask();
+  const uploadAttachmentMutation = useUploadAttachment();
+  const deleteAttachmentMutation = useDeleteAttachment();
+  const addWatcherMutation = useAddWatcher();
+  const removeWatcherMutation = useRemoveWatcher();
 
   useEffect(() => {
     if (task) {
       setEditedTask({ ...task });
       // Automatisch in Bearbeitungsmodus wenn neue Aufgabe erstellt wird
       setIsEditing(mode === 'create' || mode === 'edit');
+      
+      // Initialize Kanban features
+      setStoryPoints(task.storyPoints || null);
+      setSelectedSprintId(task.sprintId || null);
+      setSelectedWatchers(Array.isArray(task.watchers) ? 
+        task.watchers.map(w => typeof w === 'string' ? w : w.id) : 
+        []
+      );
     }
   }, [task, mode]);
 
@@ -94,6 +160,10 @@ const TaskModal: React.FC<TaskModalProps> = ({
   const handleSave = () => {
     if (editedTask) {
       editedTask.updatedAt = new Date().toISOString();
+      // Add Kanban features to task
+      editedTask.storyPoints = storyPoints;
+      editedTask.sprintId = selectedSprintId;
+      editedTask.watchers = selectedWatchers;
       onSave(editedTask);
       setIsEditing(false);
     }
@@ -150,6 +220,86 @@ const TaskModal: React.FC<TaskModalProps> = ({
           st.id === subtaskId ? { ...st, completed: !st.completed } : st
         )
       });
+    }
+  };
+
+  // New Kanban handlers
+  const handleCreateLabel = async () => {
+    if (newLabelName.trim()) {
+      try {
+        await createLabelMutation.mutateAsync({
+          name: newLabelName,
+          color: newLabelColor,
+          description: ''
+        });
+        setNewLabelName('');
+        setShowLabelCreator(false);
+      } catch (error) {
+        console.error('Error creating label:', error);
+      }
+    }
+  };
+
+  const handleCreateSubtask = async () => {
+    if (newSubtaskTitle.trim() && editedTask) {
+      try {
+        await createSubtaskMutation.mutateAsync({
+          taskId: editedTask.id,
+          payload: {
+            title: newSubtaskTitle,
+            assignee_id: editedTask.assignee.id
+          }
+        });
+        setNewSubtaskTitle('');
+      } catch (error) {
+        console.error('Error creating subtask:', error);
+      }
+    }
+  };
+
+  const handleToggleWatcher = async (userId: string) => {
+    if (!editedTask) return;
+    
+    const isWatching = selectedWatchers.includes(userId);
+    
+    try {
+      if (isWatching) {
+        await removeWatcherMutation.mutateAsync({
+          taskId: editedTask.id,
+          userId
+        });
+        setSelectedWatchers(prev => prev.filter(id => id !== userId));
+      } else {
+        await addWatcherMutation.mutateAsync({
+          taskId: editedTask.id,
+          userId
+        });
+        setSelectedWatchers(prev => [...prev, userId]);
+      }
+    } catch (error) {
+      console.error('Error toggling watcher:', error);
+    }
+  };
+
+  const handleFileUpload = async (file: File) => {
+    if (!editedTask) return;
+    
+    try {
+      // In a real implementation, you would upload the file first
+      // For now, we'll simulate the upload
+      const mockFileUrl = URL.createObjectURL(file);
+      
+      await uploadAttachmentMutation.mutateAsync({
+        taskId: editedTask.id,
+        payload: {
+          name: file.name,
+          file_url: mockFileUrl,
+          file_size: file.size,
+          mime_type: file.type
+        }
+      });
+    } catch (error) {
+      console.error('Error uploading attachment:', error);
     }
   };
 
@@ -504,6 +654,549 @@ const TaskModal: React.FC<TaskModalProps> = ({
                         </div>
                       )}
                     </div>
+
+                    {/* Enhanced Task Management Fields */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* Priority */}
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-300 mb-3">
+                          Priorität
+                        </label>
+                        {isEditing ? (
+                          <select
+                            value={editedTask.priority}
+                            onChange={(e) => setEditedTask({ ...editedTask, priority: e.target.value as any })}
+                            className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-xl text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                          >
+                            <option value="lowest">🔵 Niedrigste</option>
+                            <option value="low">🟢 Niedrig</option>
+                            <option value="medium">🟡 Mittel</option>
+                            <option value="high">🟠 Hoch</option>
+                            <option value="highest">🔴 Höchste</option>
+                          </select>
+                        ) : (
+                          <div className="p-4 bg-gray-700/30 rounded-xl">
+                            <p className="text-gray-300">
+                              {editedTask.priority === 'lowest' && '🔵 Niedrigste'}
+                              {editedTask.priority === 'low' && '🟢 Niedrig'}
+                              {editedTask.priority === 'medium' && '🟡 Mittel'}
+                              {editedTask.priority === 'high' && '🟠 Hoch'}
+                              {editedTask.priority === 'highest' && '🔴 Höchste'}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Status */}
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-300 mb-3">
+                          Status
+                        </label>
+                        {isEditing ? (
+                          <select
+                            value={editedTask.status}
+                            onChange={(e) => setEditedTask({ ...editedTask, status: e.target.value as any })}
+                            className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-xl text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                          >
+                            <option value="backlog">📋 Backlog</option>
+                            <option value="todo">📝 Zu erledigen</option>
+                            <option value="inProgress">🔄 In Bearbeitung</option>
+                            <option value="review">👀 Review</option>
+                            <option value="done">✅ Erledigt</option>
+                            <option value="blocked">🚫 Blockiert</option>
+                            <option value="onHold">⏸️ Pausiert</option>
+                            <option value="cancelled">❌ Abgebrochen</option>
+                          </select>
+                        ) : (
+                          <div className="p-4 bg-gray-700/30 rounded-xl">
+                            <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusColors[editedTask.status] || 'bg-gray-600'} text-white`}>
+                              {editedTask.status === 'backlog' && '📋 Backlog'}
+                              {editedTask.status === 'todo' && '📝 Zu erledigen'}
+                              {editedTask.status === 'inProgress' && '🔄 In Bearbeitung'}
+                              {editedTask.status === 'review' && '👀 Review'}
+                              {editedTask.status === 'done' && '✅ Erledigt'}
+                              {editedTask.status === 'blocked' && '🚫 Blockiert'}
+                              {editedTask.status === 'onHold' && '⏸️ Pausiert'}
+                              {editedTask.status === 'cancelled' && '❌ Abgebrochen'}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Enhanced Assignment Fields */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* Assignee */}
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-300 mb-3">
+                          Zugewiesen an
+                        </label>
+                        {isEditing ? (
+                          <select
+                            value={editedTask.assignee.id}
+                            onChange={(e) => {
+                              const selectedMember = teamMembers.find(m => m.id === e.target.value);
+                              if (selectedMember) {
+                                setEditedTask({
+                                  ...editedTask,
+                                  assignee: {
+                                    id: selectedMember.id,
+                                    name: selectedMember.name,
+                                    avatar: selectedMember.avatar,
+                                    role: selectedMember.role
+                                  }
+                                });
+                              }
+                            }}
+                            className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-xl text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                          >
+                            <option value="">Nicht zugewiesen</option>
+                            {teamMembers.map(member => (
+                              <option key={member.id} value={member.id}>
+                                {member.name} ({member.role})
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <div className="p-4 bg-gray-700/30 rounded-xl">
+                            <div className="flex items-center space-x-3">
+                              <img
+                                src={editedTask.assignee.avatar}
+                                alt={editedTask.assignee.name}
+                                className="w-8 h-8 rounded-full"
+                              />
+                              <div>
+                                <p className="text-white font-medium">{editedTask.assignee.name}</p>
+                                <p className="text-sm text-gray-400">{editedTask.assignee.role}</p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Due Date */}
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-300 mb-3">
+                          Fälligkeitsdatum
+                        </label>
+                        {isEditing ? (
+                          <input
+                            type="datetime-local"
+                            value={editedTask.dueDate}
+                            onChange={(e) => setEditedTask({ ...editedTask, dueDate: e.target.value })}
+                            className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-xl text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                          />
+                        ) : (
+                          <div className="p-4 bg-gray-700/30 rounded-xl">
+                            <p className="text-gray-300">
+                              {new Date(editedTask.dueDate).toLocaleDateString('de-DE', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Enhanced Time Tracking */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* Estimated Hours */}
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-300 mb-3">
+                          Geschätzte Stunden
+                        </label>
+                        {isEditing ? (
+                          <input
+                            type="number"
+                            min="0"
+                            max="1000"
+                            value={editedTask.estimatedHours}
+                            onChange={(e) => setEditedTask({ ...editedTask, estimatedHours: Number(e.target.value) })}
+                            className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-xl text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                            placeholder="Stunden eingeben..."
+                          />
+                        ) : (
+                          <div className="p-4 bg-gray-700/30 rounded-xl">
+                            <p className="text-gray-300 font-medium">{editedTask.estimatedHours}h</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Actual Hours */}
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-300 mb-3">
+                          Tatsächliche Stunden
+                        </label>
+                        {isEditing ? (
+                          <input
+                            type="number"
+                            min="0"
+                            max="1000"
+                            value={editedTask.actualHours}
+                            onChange={(e) => setEditedTask({ ...editedTask, actualHours: Number(e.target.value) })}
+                            className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-xl text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                            placeholder="Stunden eingeben..."
+                          />
+                        ) : (
+                          <div className="p-4 bg-gray-700/30 rounded-xl">
+                            <p className="text-gray-300 font-medium">{editedTask.actualHours}h</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Enhanced Tags */}
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-300 mb-3">
+                        Tags
+                      </label>
+                      {isEditing ? (
+                        <div className="space-y-3">
+                          <input
+                            type="text"
+                            placeholder="Tag hinzufügen und Enter drücken..."
+                            className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-xl text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter') {
+                                const newTag = e.currentTarget.value.trim();
+                                if (newTag && !editedTask.tags.includes(newTag)) {
+                                  setEditedTask({
+                                    ...editedTask,
+                                    tags: [...editedTask.tags, newTag]
+                                  });
+                                  e.currentTarget.value = '';
+                                }
+                              }
+                            }}
+                          />
+                          <div className="flex flex-wrap gap-2">
+                            {editedTask.tags.map((tag, index) => (
+                              <span
+                                key={index}
+                                className="px-3 py-1 bg-blue-600/20 text-blue-300 rounded-full text-sm flex items-center gap-2"
+                              >
+                                {tag}
+                                <button
+                                  onClick={() => {
+                                    setEditedTask({
+                                      ...editedTask,
+                                      tags: editedTask.tags.filter((_, i) => i !== index)
+                                    });
+                                  }}
+                                  className="text-blue-400 hover:text-blue-200"
+                                >
+                                  <i className="ri-close-line text-xs"></i>
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="p-4 bg-gray-700/30 rounded-xl">
+                          <div className="flex flex-wrap gap-2">
+                            {editedTask.tags.length > 0 ? (
+                              editedTask.tags.map((tag, index) => (
+                                <span
+                                  key={index}
+                                  className="px-3 py-1 bg-blue-600/20 text-blue-300 rounded-full text-sm"
+                                >
+                                  {tag}
+                                </span>
+                              ))
+                            ) : (
+                              <p className="text-gray-500">Keine Tags</p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Enhanced Kanban Fields */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* Story Points */}
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-300 mb-3">
+                          Story Points
+                        </label>
+                        {isEditing ? (
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            value={storyPoints || ''}
+                            onChange={(e) => setStoryPoints(Number(e.target.value) || null)}
+                            className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-xl text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                            placeholder="Story Points eingeben..."
+                          />
+                        ) : (
+                          <div className="p-4 bg-gray-700/30 rounded-xl">
+                            <p className="text-gray-300 font-medium">{storyPoints || 'Nicht gesetzt'}</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Sprint */}
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-300 mb-3">
+                          Sprint
+                        </label>
+                        {isEditing ? (
+                          <select
+                            value={selectedSprintId || ''}
+                            onChange={(e) => setSelectedSprintId(e.target.value || null)}
+                            className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-xl text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                          >
+                            <option value="">Kein Sprint</option>
+                            {availableSprints.map(sprint => (
+                              <option key={sprint.id} value={sprint.id}>
+                                {sprint.name} ({sprint.status})
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <div className="p-4 bg-gray-700/30 rounded-xl">
+                            <p className="text-gray-300">
+                              {selectedSprintId ? 
+                                availableSprints.find(s => s.id === selectedSprintId)?.name || 'Unbekannter Sprint' :
+                                'Kein Sprint'
+                              }
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Enhanced Issue Type */}
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-300 mb-3">
+                        Aufgabentyp
+                      </label>
+                      {isEditing ? (
+                        <select
+                          value={editedTask.issueType}
+                          onChange={(e) => setEditedTask({ ...editedTask, issueType: e.target.value as any })}
+                          className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-xl text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                        >
+                          <option value="listing">🏠 Immobilienliste</option>
+                          <option value="viewing">👁️ Besichtigung</option>
+                          <option value="contract">📄 Vertrag</option>
+                          <option value="maintenance">🔧 Wartung</option>
+                          <option value="marketing">📢 Marketing</option>
+                        </select>
+                      ) : (
+                        <div className="p-4 bg-gray-700/30 rounded-xl">
+                          <p className="text-gray-300">
+                            {editedTask.issueType === 'listing' && '🏠 Immobilienliste'}
+                            {editedTask.issueType === 'viewing' && '👁️ Besichtigung'}
+                            {editedTask.issueType === 'contract' && '📄 Vertrag'}
+                            {editedTask.issueType === 'maintenance' && '🔧 Wartung'}
+                            {editedTask.issueType === 'marketing' && '📢 Marketing'}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Enhanced Backend Fields */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* Start Date */}
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-300 mb-3">
+                          Startdatum
+                        </label>
+                        {isEditing ? (
+                          <input
+                            type="datetime-local"
+                            value={editedTask.startDate || ''}
+                            onChange={(e) => setEditedTask({ ...editedTask, startDate: e.target.value })}
+                            className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-xl text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                          />
+                        ) : (
+                          <div className="p-4 bg-gray-700/30 rounded-xl">
+                            <p className="text-gray-300">
+                              {editedTask.startDate ? 
+                                new Date(editedTask.startDate).toLocaleDateString('de-DE', {
+                                  year: 'numeric',
+                                  month: 'long',
+                                  day: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                }) : 'Nicht gesetzt'
+                              }
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Position */}
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-300 mb-3">
+                          Position
+                        </label>
+                        {isEditing ? (
+                          <input
+                            type="number"
+                            min="0"
+                            value={editedTask.position || 0}
+                            onChange={(e) => setEditedTask({ ...editedTask, position: Number(e.target.value) })}
+                            className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-xl text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                            placeholder="Position eingeben..."
+                          />
+                        ) : (
+                          <div className="p-4 bg-gray-700/30 rounded-xl">
+                            <p className="text-gray-300 font-medium">{editedTask.position || 0}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Enhanced Backend Fields Row 2 */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* Archived */}
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-300 mb-3">
+                          Archiviert
+                        </label>
+                        {isEditing ? (
+                          <div className="flex items-center space-x-3">
+                            <input
+                              type="checkbox"
+                              checked={editedTask.archived || false}
+                              onChange={(e) => setEditedTask({ ...editedTask, archived: e.target.checked })}
+                              className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-blue-600 focus:ring-blue-500"
+                            />
+                            <span className="text-gray-300">Task archivieren</span>
+                          </div>
+                        ) : (
+                          <div className="p-4 bg-gray-700/30 rounded-xl">
+                            <p className="text-gray-300">
+                              {editedTask.archived ? '✅ Archiviert' : '❌ Nicht archiviert'}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Blocked Reason */}
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-300 mb-3">
+                          Blockierungsgrund
+                        </label>
+                        {isEditing ? (
+                          <textarea
+                            value={editedTask.blockedReason || ''}
+                            onChange={(e) => setEditedTask({ ...editedTask, blockedReason: e.target.value })}
+                            rows={3}
+                            className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-xl text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                            placeholder="Grund für Blockierung eingeben..."
+                          />
+                        ) : (
+                          <div className="p-4 bg-gray-700/30 rounded-xl">
+                            <p className="text-gray-300">{editedTask.blockedReason || 'Nicht blockiert'}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Enhanced Backend Fields Row 3 */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* Blocked By Task */}
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-300 mb-3">
+                          Blockiert durch Task
+                        </label>
+                        {isEditing ? (
+                          <input
+                            type="text"
+                            value={editedTask.blockedByTask || ''}
+                            onChange={(e) => setEditedTask({ ...editedTask, blockedByTask: e.target.value })}
+                            className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-xl text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                            placeholder="Task-ID eingeben..."
+                          />
+                        ) : (
+                          <div className="p-4 bg-gray-700/30 rounded-xl">
+                            <p className="text-gray-300">{editedTask.blockedByTask || 'Nicht blockiert'}</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Epic Link */}
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-300 mb-3">
+                          Epic Link
+                        </label>
+                        {isEditing ? (
+                          <input
+                            type="text"
+                            value={editedTask.epicLink || ''}
+                            onChange={(e) => setEditedTask({ ...editedTask, epicLink: e.target.value })}
+                            className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-xl text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                            placeholder="Epic-Link eingeben..."
+                          />
+                        ) : (
+                          <div className="p-4 bg-gray-700/30 rounded-xl">
+                            <p className="text-gray-300">{editedTask.epicLink || 'Nicht gesetzt'}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Enhanced Backend Fields Row 4 */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* Financing Status */}
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-300 mb-3">
+                          Finanzierungsstatus
+                        </label>
+                        {isEditing ? (
+                          <select
+                            value={editedTask.financingStatus || ''}
+                            onChange={(e) => setEditedTask({ ...editedTask, financingStatus: e.target.value })}
+                            className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-xl text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                          >
+                            <option value="">Status wählen</option>
+                            <option value="pending">⏳ Ausstehend</option>
+                            <option value="approved">✅ Genehmigt</option>
+                            <option value="rejected">❌ Abgelehnt</option>
+                            <option value="in_progress">🔄 In Bearbeitung</option>
+                            <option value="completed">✅ Abgeschlossen</option>
+                          </select>
+                        ) : (
+                          <div className="p-4 bg-gray-700/30 rounded-xl">
+                            <p className="text-gray-300">
+                              {editedTask.financingStatus === 'pending' && '⏳ Ausstehend'}
+                              {editedTask.financingStatus === 'approved' && '✅ Genehmigt'}
+                              {editedTask.financingStatus === 'rejected' && '❌ Abgelehnt'}
+                              {editedTask.financingStatus === 'in_progress' && '🔄 In Bearbeitung'}
+                              {editedTask.financingStatus === 'completed' && '✅ Abgeschlossen'}
+                              {!editedTask.financingStatus && 'Nicht gesetzt'}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Created By */}
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-300 mb-3">
+                          Erstellt von
+                        </label>
+                        <div className="p-4 bg-gray-700/30 rounded-xl">
+                          <div className="flex items-center space-x-3">
+                            <img
+                              src={editedTask.createdBy?.avatar || '/default-avatar.png'}
+                              alt={editedTask.createdBy?.name || 'Unbekannt'}
+                              className="w-8 h-8 rounded-full"
+                            />
+                            <div>
+                              <p className="text-white font-medium">{editedTask.createdBy?.name || 'Unbekannt'}</p>
+                              <p className="text-sm text-gray-400">{editedTask.createdBy?.role || 'Keine Rolle'}</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
 
@@ -735,6 +1428,45 @@ const TaskModal: React.FC<TaskModalProps> = ({
                       {editedTask.priority === 'medium' && '🟡 Mittel'}
                       {editedTask.priority === 'low' && '🔽 Niedrig'}
                       {editedTask.priority === 'lowest' && '⬇️ Niedrigste'}
+                    </div>
+                  )}
+                </div>
+
+                {/* Sprint Auswahl */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-300 mb-3">Sprint</label>
+                  {isEditing ? (
+                    <select
+                      value={selectedSprintId || ''}
+                      onChange={(e) => setSelectedSprintId(e.target.value || null)}
+                      className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-xl text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                    >
+                      <option value="">Kein Sprint</option>
+                      {availableSprints.map((s) => (
+                        <option key={s.id} value={s.id}>{s.name}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="p-3 bg-gray-700/30 rounded-xl text-center">
+                      <p className="text-gray-300 font-medium">{selectedSprintId ? (availableSprints.find(s => s.id === selectedSprintId)?.name || 'Sprint') : 'Kein Sprint'}</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Story Points */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-300 mb-3">Story Points</label>
+                  {isEditing ? (
+                    <input
+                      type="number"
+                      value={storyPoints ?? ''}
+                      onChange={(e) => setStoryPoints(e.target.value === '' ? null : Number(e.target.value))}
+                      className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-xl text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                      placeholder="z.B. 3"
+                    />
+                  ) : (
+                    <div className="p-3 bg-gray-700/30 rounded-xl text-center">
+                      <p className="text-gray-300 font-medium">{storyPoints ?? 'Nicht gesetzt'}</p>
                     </div>
                   )}
                 </div>

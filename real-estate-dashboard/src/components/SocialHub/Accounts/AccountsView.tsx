@@ -6,14 +6,14 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '../../common/Card';
 import { SimpleSocialAccount, SocialPlatform, Profile, PLATFORM_INFO } from './types';
-// TODO: Implement real accounts API
+import { useSocialAccounts, useConnectAccount, useDisconnectAccount } from '../../../hooks/useSocial';
+import { SocialAccount } from '../../../api/social';
 
 interface AccountsViewProps {
   onBack: () => void;
 }
 
 const AccountsView: React.FC<AccountsViewProps> = ({ onBack }) => {
-  const [accounts, setAccounts] = useState<SimpleSocialAccount[]>([]);
   const [loading, setLoading] = useState<string | null>(null);
   const [showOAuthModal, setShowOAuthModal] = useState(false);
   const [selectedPlatform, setSelectedPlatform] = useState<SocialPlatform | null>(null);
@@ -21,15 +21,21 @@ const AccountsView: React.FC<AccountsViewProps> = ({ onBack }) => {
   const [selectedProfile, setSelectedProfile] = useState<string>('');
   const [showAddAccountModal, setShowAddAccountModal] = useState(false);
 
-  // Load accounts on mount
-  useEffect(() => {
-    loadAccounts();
-  }, []);
+  // Use React Query hooks for data management
+  const { data: accounts = [], isLoading: accountsLoading, error: accountsError } = useSocialAccounts();
+  const connectAccountMutation = useConnectAccount();
+  const disconnectAccountMutation = useDisconnectAccount();
 
-  const loadAccounts = () => {
-    // TODO: Load from real API
-    setAccounts([]);
-  };
+  // Convert backend accounts to frontend format
+  const convertedAccounts: SimpleSocialAccount[] = accounts.map((account: SocialAccount) => ({
+    id: account.id,
+    platform: account.platform as SocialPlatform,
+    connected: account.status === 'active',
+    profiles: [], // TODO: Get profiles from platform API
+    displayName: account.account_name,
+    defaultProfileName: account.account_name,
+    isConnected: account.status === 'active'
+  }));
 
   const handleConnectClick = (platform: SocialPlatform) => {
     setSelectedPlatform(platform);
@@ -46,17 +52,12 @@ const AccountsView: React.FC<AccountsViewProps> = ({ onBack }) => {
     setShowOAuthModal(false);
     
     try {
-      // TODO: Implement real OAuth connection
-      const updatedAccount: SimpleSocialAccount = { 
-        id: '1', 
-        platform: selectedPlatform, 
-        connected: true, 
-        profiles: [],
-        displayName: `${selectedPlatform} Account`
-      };
-      setAccounts(prev => prev.map(acc => 
-        acc.platform === selectedPlatform ? updatedAccount : acc
-      ));
+      // Use the connect account mutation
+      await connectAccountMutation.mutateAsync({
+        platform: selectedPlatform,
+        token: 'mock_token', // In real implementation, this would come from OAuth flow
+        accountId: `${selectedPlatform}_${Date.now()}`
+      });
     } catch (error) {
       console.error('Connection failed:', error);
     } finally {
@@ -73,11 +74,8 @@ const AccountsView: React.FC<AccountsViewProps> = ({ onBack }) => {
     setLoading(account.platform);
     
     try {
-      // TODO: Implement real disconnect
-      const updatedAccount = { ...account, isConnected: false };
-      setAccounts(prev => prev.map(acc => 
-        acc.id === account.id ? updatedAccount : acc
-      ));
+      // Use the disconnect account mutation
+      await disconnectAccountMutation.mutateAsync(account.id);
     } catch (error) {
       console.error('Disconnect failed:', error);
     } finally {
@@ -89,11 +87,8 @@ const AccountsView: React.FC<AccountsViewProps> = ({ onBack }) => {
     setLoading(account.platform);
     
     try {
-      // TODO: Implement real profile update
-      const updatedAccount = { ...account, defaultProfile: profileName };
-      setAccounts(prev => prev.map(acc => 
-        acc.id === account.id ? updatedAccount : acc
-      ));
+      // TODO: Implement real profile update - would need a backend endpoint for this
+      console.log('Profile update:', account.id, profileName);
     } catch (error) {
       console.error('Profile update failed:', error);
     } finally {
@@ -101,7 +96,63 @@ const AccountsView: React.FC<AccountsViewProps> = ({ onBack }) => {
     }
   };
 
-  const connectedCount = accounts.filter(acc => acc.connected).length;
+  const connectedCount = convertedAccounts.filter(acc => acc.connected).length;
+
+  // Show loading state while accounts are being fetched
+  if (accountsLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center space-x-4">
+          <button
+            onClick={onBack}
+            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+          >
+            <i className="ri-arrow-left-line text-xl text-gray-600 dark:text-gray-400"></i>
+          </button>
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+              Social Media Konten
+            </h2>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">
+              Lade Konten...
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state if accounts failed to load
+  if (accountsError) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center space-x-4">
+          <button
+            onClick={onBack}
+            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+          >
+            <i className="ri-arrow-left-line text-xl text-gray-600 dark:text-gray-400"></i>
+          </button>
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+              Social Media Konten
+            </h2>
+            <p className="text-red-600 dark:text-red-400 mt-1">
+              Fehler beim Laden der Konten
+            </p>
+          </div>
+        </div>
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+          <p className="text-red-800 dark:text-red-300">
+            {accountsError.message || 'Unbekannter Fehler beim Laden der Konten'}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -127,7 +178,7 @@ const AccountsView: React.FC<AccountsViewProps> = ({ onBack }) => {
           <div className="text-right">
             <p className="text-sm text-gray-600 dark:text-gray-400">Verbunden</p>
             <p className="text-2xl font-bold text-gray-900 dark:text-white">
-              {connectedCount} / {accounts.length}
+              {connectedCount} / {convertedAccounts.length}
             </p>
           </div>
           <button
@@ -142,7 +193,7 @@ const AccountsView: React.FC<AccountsViewProps> = ({ onBack }) => {
 
       {/* Platform Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {accounts.map((account) => {
+        {convertedAccounts.map((account) => {
           const platformInfo = PLATFORM_INFO[account.platform];
           const isLoading = loading === account.platform;
           const profiles: any[] = []; // TODO: Get from real API
@@ -420,7 +471,7 @@ const AccountsView: React.FC<AccountsViewProps> = ({ onBack }) => {
             {/* Content */}
             <div className="p-8">
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
-                {accounts.filter(acc => !acc.connected).map((account) => {
+                {convertedAccounts.filter(acc => !acc.connected).map((account) => {
                   const platformInfo = PLATFORM_INFO[account.platform];
                   return (
                     <button
@@ -443,14 +494,14 @@ const AccountsView: React.FC<AccountsViewProps> = ({ onBack }) => {
               </div>
 
               {/* Already Connected Section */}
-              {accounts.some(acc => acc.connected) && (
+              {convertedAccounts.some(acc => acc.connected) && (
                 <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
                   <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
                     <i className="ri-check-line text-green-600 dark:text-green-400"></i>
                     Bereits verbunden
                   </h4>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                    {accounts.filter(acc => acc.connected).map((account) => {
+                    {convertedAccounts.filter(acc => acc.connected).map((account) => {
                       const platformInfo = PLATFORM_INFO[account.platform];
                       return (
                         <div

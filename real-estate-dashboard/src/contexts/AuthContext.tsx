@@ -59,7 +59,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const clearAuth = () => {
-    console.log('🚪 AuthContext: MANUAL clear auth - nur auf expliziten Aufruf');
+    console.log('🚪 AuthContext: Clearing auth (manual or automatic)');
     setToken(null);
     setTenantId(null);
     
@@ -88,10 +88,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     });
     
     if (savedToken && savedTenantId) {
-      setToken(savedToken);
-      setTenantId(savedTenantId);
-      apiClient.setAuthToken(savedToken, savedTenantId);
-      console.log('✅ AuthContext: Tokens loaded from localStorage');
+      // Prüfe Token-Ablauf vor dem Laden
+      if (apiClient.checkTokenExpiry()) {
+        setToken(savedToken);
+        setTenantId(savedTenantId);
+        apiClient.setAuthToken(savedToken, savedTenantId);
+        console.log('✅ AuthContext: Tokens loaded from localStorage');
+      } else {
+        console.log('⚠️ AuthContext: Token abgelaufen - nicht geladen');
+      }
     } else {
       console.log('⚠️ AuthContext: No tokens found in localStorage');
     }

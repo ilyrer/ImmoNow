@@ -332,15 +332,23 @@ const apiService = {
 
   getCurrentUserInfo: async () => {
     console.warn("Legacy getCurrentUserInfo called. Please use src/contexts/UserContext.tsx");
-    return {
-      id: '1',
-      name: 'Test User',
-      email: 'test@example.com',
-      role: 'admin',
-      tenant_id: 'mock-tenant',
-      first_name: 'Test',
-      last_name: 'User'
-    };
+    try {
+      // Verwende die echte API statt Mock-Daten
+      const response = await apiClient.get('/api/v1/auth/me') as any;
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching current user info:', error);
+      // Fallback zu Mock-Daten nur bei Fehlern
+      return {
+        id: '1',
+        name: 'Test User',
+        email: 'test@example.com',
+        role: 'admin',
+        tenant_id: 'mock-tenant',
+        first_name: 'Test',
+        last_name: 'User'
+      };
+    }
   },
 
   // Generic HTTP methods

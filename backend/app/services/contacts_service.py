@@ -200,6 +200,43 @@ class ContactsService:
         
         properties = await get_matching_sync()
         return [self._build_property_response(prop) for prop in properties]
+
+    async def get_matching_contacts_for_property(
+        self,
+        property_id: str,
+        limit: int = 10,
+    ) -> List[ContactResponse]:
+        """Finde Kontakte, deren Budget zur Immobilie passt (±10%)."""
+
+        @sync_to_async
+        def get_matching_sync():
+            try:
+                prop = Property.objects.get(id=property_id, tenant_id=self.tenant_id)
+            except Property.DoesNotExist:
+                raise NotFoundError("Property not found")
+
+            price = float(prop.price) if prop.price else None
+            if price is None:
+                return []
+
+            lower = price * 0.9
+            upper = price * 1.1
+
+            qs = Contact.objects.filter(
+                tenant_id=self.tenant_id,
+            ).filter(
+                models.Q(budget__gte=lower, budget__lte=upper)
+                | (
+                    models.Q(budget__isnull=True)
+                    & models.Q(budget_max__gte=lower)
+                    & models.Q(budget_min__lte=upper)
+                )
+            ).order_by('-lead_score', '-updated_at')[:limit]
+
+            return list(qs)
+
+        contacts = await get_matching_sync()
+        return [self._build_contact_response(c) for c in contacts]
     
     def _build_property_response(self, property_obj: Property) -> PropertyResponse:
         """Build PropertyResponse from Property model"""

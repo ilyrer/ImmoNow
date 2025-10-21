@@ -1,0 +1,39 @@
+{% extends "emails/base.html" %}
+
+{% block additional_content %}
+<div class="notification-card">
+    <h4>⚙️ System-Benachrichtigung</h4>
+    <p><strong>Typ:</strong> {{ system_type }}</p>
+    <p><strong>Priorität:</strong> {{ priority }}</p>
+    
+    {% if system_action %}
+    <p><strong>Aktion erforderlich:</strong> {{ system_action }}</p>
+    {% endif %}
+    
+    {% if maintenance_window %}
+    <div style="background-color: #fff3e0; border: 1px solid #ff9800; border-radius: 4px; padding: 10px; margin: 10px 0;">
+        <p style="color: #f57c00; margin: 0; font-weight: 600;">🔧 Wartungsfenster: {{ maintenance_window }}</p>
+    </div>
+    {% endif %}
+    
+    {% if feature_update %}
+    <div style="background-color: #e8f5e8; border: 1px solid #4caf50; border-radius: 4px; padding: 10px; margin: 10px 0;">
+        <p style="color: #2e7d32; margin: 0; font-weight: 600;">✨ Neue Funktion verfügbar: {{ feature_update }}</p>
+    </div>
+    {% endif %}
+    
+    {% if security_alert %}
+    <div style="background-color: #ffebee; border: 1px solid #f44336; border-radius: 4px; padding: 10px; margin: 10px 0;">
+        <p style="color: #d32f2f; margin: 0; font-weight: 600;">🔒 Sicherheitshinweis: {{ security_alert }}</p>
+    </div>
+    {% endif %}
+</div>
+
+{% if action_url %}
+<div style="text-align: center; margin: 30px 0;">
+    <a href="{{ action_url }}" class="action-button" style="background-color: #607d8b;">
+        Mehr erfahren
+    </a>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useCurrentUser } from '../../hooks/useApi';
+import { useCurrentUser } from '../../api/hooks';
 import { useAuth } from '../../contexts/AuthContext';
 import { Sun, Moon, Bell, User, Settings, LogOut, HelpCircle, Shield, CreditCard } from 'lucide-react';
 import GlobalSearch from './GlobalSearch';

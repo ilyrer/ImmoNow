@@ -9,4 +9,4 @@ export * from './TasksBoardViews';
 export * from './TasksBoardHooks';
 
 // Types
-export type { RealEstateTask } from './TasksBoard'; 
+export type { RealEstateTask } from './TaskModal'; 

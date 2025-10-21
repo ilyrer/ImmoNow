@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { dashboardAnalyticsService } from '../../../../api/services';
+import { marketService } from '../../../../services/market.service';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface MarketData {
@@ -35,28 +35,31 @@ const MarketTrendsWidget: React.FC = () => {
     let mounted = true;
     (async () => {
       try {
-        const props = await dashboardAnalyticsService.getPropertyAnalytics();
+        // Default-Region (kann später aus User-/Tenant-Settings kommen)
+        const city = 'München';
+        const postal = '80331';
+        const data = await marketService.getTrends(city, postal);
         if (!mounted) return;
-        // Synthesize monthly trend using property monthly_trends
-        const monthly = (props?.data?.monthly_trends || []).map((m: any, i: number) => ({
-          month: m.month,
-          avgPrice: props?.data?.price_statistics?.avg_price || 0,
-          avgDaysOnMarket: 30 + (i % 5),
-          salesVolume: m.count,
-          priceChange: 0.4,
+
+        const monthly = (data.trends || []).map((t: any) => ({
+          month: t.date,
+          avgPrice: t.average_price,
+          avgDaysOnMarket: 60,
+          salesVolume: t.transaction_count,
+          priceChange: 0,
         }));
         setMarketData(monthly as any);
 
-        // Regional/Types placeholders from analytics aggregates
+        // Einfache Ableitungen für Regional/Types Tabs (können später mit echten Endpunkten ersetzt werden)
+        const latest = data.trends?.[data.trends.length - 1];
+        const avg = latest?.average_price || 0;
         setRegionalData([
-          { region: 'Top Ort', avgPrice: props?.data?.price_statistics?.avg_price || 0, change: 0.4, volume: (props?.data?.total_properties || 0) },
+          { region: data.city, avgPrice: avg, change: 0, volume: (latest?.transaction_count || 0) },
         ] as any);
-        setPropertyTypeData((props?.data?.by_type || []).map((t: any) => ({
-          type: t.property_type,
-          avgPrice: props?.data?.price_statistics?.avg_price || 0,
-          demand: Math.min(100, 20 + (t.count * 10)),
-          supply: Math.min(100, 10 + (t.count * 5)),
-        })) as any);
+        setPropertyTypeData([
+          { type: 'Wohnung', avgPrice: avg, demand: 60, supply: 40 },
+          { type: 'Haus', avgPrice: avg * 1.4, demand: 55, supply: 45 },
+        ] as any);
       } catch (e) {
         console.error('Fehler beim Laden der Markttrend-Daten:', e);
       }

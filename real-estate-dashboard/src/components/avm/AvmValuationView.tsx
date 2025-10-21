@@ -30,6 +30,8 @@ import {
 } from '../../lib/api/types';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useAVMIntelligence } from '../../hooks/useAVMIntelligence';
+import { marketService } from '../../services/market.service';
+import LLMService from '../../services/llm.service';
 
 const AvmValuationView: React.FC = () => {
   const avmValuationMutation = useAvmValuation();
@@ -63,6 +65,15 @@ const AvmValuationView: React.FC = () => {
   const [investmentAdvice, setInvestmentAdvice] = useState<any>(null);
   const [pricePrediction, setPricePrediction] = useState<any>(null);
   const [marketComparison, setMarketComparison] = useState<any>(null);
+  const [llmTrends, setLlmTrends] = useState<any>(null);
+  const [poiLat, setPoiLat] = useState<string>('');
+  const [poiLng, setPoiLng] = useState<string>('');
+  const [poiSummary, setPoiSummary] = useState<any>(null);
+  const [pricingStrategy, setPricingStrategy] = useState<any>(null);
+  const [renovationPlan, setRenovationPlan] = useState<any>(null);
+  const [buyerPersona, setBuyerPersona] = useState<any>(null);
+  const [salesPlaybook, setSalesPlaybook] = useState<any>(null);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const handleInputChange = (field: keyof AvmRequest, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -72,10 +83,46 @@ const AvmValuationView: React.FC = () => {
     e.preventDefault();
     
     try {
-      const result = await avmValuationMutation.mutateAsync(formData);
-      setResult(result);
-      setComparables(result.comparables || []);
-      setMarketData(result.market_intelligence || null);
+      // Client-Validierung gegen Backend-Schema: address (>=5), postal_code (5 Ziffern)
+      const postalOk = /^\d{5}$/.test(formData.postal_code || '');
+      const addressOk = (formData.address || '').trim().length >= 5;
+      if (!postalOk || !addressOk) {
+        setFormError(!addressOk ? 'Bitte eine gültige Adresse (min. 5 Zeichen) eingeben.' : 'Bitte eine gültige PLZ (5 Ziffern) eingeben.');
+        return;
+      }
+      setFormError(null);
+
+      const response = await avmValuationMutation.mutateAsync(formData as any);
+      // response hat Struktur AvmResponse
+      setResult(response.result as any);
+      setComparables(response.comparables || []);
+      setMarketData(response.market_intelligence || null);
+      // Fallback: Falls Backend (vorübergehend) keine MarketIntelligence liefert, lade Trends live
+      if (!result.market_intelligence) {
+        try {
+          const live = await marketService.getTrends(formData.city, formData.postal_code);
+          setMarketData({
+            region: live.city,
+            postal_code: live.postal_code,
+            demand_level: 'medium',
+            supply_level: 'medium',
+            price_growth_12m: 0,
+            price_growth_36m: 0,
+            average_days_on_market: 60,
+            competition_index: 5,
+            trends: (live.trends || []).map((t: any) => ({
+              date: t.date,
+              average_price: t.average_price,
+              average_price_per_sqm: t.average_price_per_sqm,
+              transaction_count: t.transaction_count,
+              median_price: t.median_price,
+              region: t.region,
+            }))
+          } as any);
+        } catch (e) {
+          console.error('Fehler beim Laden der Live-Marktdaten:', e);
+        }
+      }
       
       // Reset KI-Analysen
       setAiInsights(null);
@@ -89,7 +136,7 @@ const AvmValuationView: React.FC = () => {
 
   // Automatisch KI-Analysen laden wenn Bewertung verfügbar ist
   useEffect(() => {
-    if (result && result.estimated_value > 0) {
+    if (result && typeof result.estimated_value === 'number' && result.estimated_value > 0) {
       // KI-Insights laden
       analyzeAVMResult({
         estimated_value: result.estimated_value,
@@ -130,6 +177,46 @@ const AvmValuationView: React.FC = () => {
           formData.city
         ).then(comparison => setMarketComparison(comparison));
       }
+
+      // LLM Markttrend-Erklärung
+      LLMService.explainMarketTrends(`${formData.city} ${formData.postal_code}`, String(formData.property_type))
+        .then(expl => setLlmTrends(expl))
+        .catch(() => setLlmTrends(null));
+
+      // Preisstrategie
+      LLMService.generatePricingStrategy({
+        location: `${formData.city} ${formData.postal_code}`,
+        propertyType: String(formData.property_type),
+        estimatedValue: result.estimated_value,
+        rangeMin: result.valuation_range.min,
+        rangeMax: result.valuation_range.max,
+        pricePerSqm: result.price_per_sqm,
+        size: formData.size,
+        demandLevel: marketData?.demand_level,
+        competitionIndex: marketData?.competition_index,
+      }).then(setPricingStrategy).catch(() => setPricingStrategy(null));
+
+      // Renovierungsplan
+      LLMService.generateRenovationPlan({
+        condition: formData.condition,
+        propertyType: String(formData.property_type),
+        location: formData.city,
+        size: formData.size,
+      }).then(setRenovationPlan).catch(() => setRenovationPlan(null));
+
+      // Buyer Personas & Playbook
+      LLMService.generateBuyerPersona({
+        location: formData.city,
+        propertyType: String(formData.property_type),
+        size: formData.size,
+        price: result.estimated_value,
+      }).then(setBuyerPersona).catch(() => setBuyerPersona(null));
+      LLMService.generateSalesPlaybook({
+        location: formData.city,
+        type: String(formData.property_type),
+        demandLevel: marketData?.demand_level,
+        competitionIndex: marketData?.competition_index,
+      }).then(setSalesPlaybook).catch(() => setSalesPlaybook(null));
     }
   }, [result, marketData]);
 
@@ -154,7 +241,7 @@ const AvmValuationView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-[1400px] mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -181,17 +268,24 @@ const AvmValuationView: React.FC = () => {
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Stadt
               </label>
-              <select
+              <input
+                type="text"
+                list="city-suggestions"
                 value={formData.city}
                 onChange={(e) => handleInputChange('city', e.target.value)}
+                placeholder="Stadt eingeben (z. B. München, Berlin, ...)"
                 className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
-              >
-                <option>München</option>
-                <option>Berlin</option>
-                <option>Hamburg</option>
-                <option>Frankfurt</option>
-                <option>Köln</option>
-              </select>
+              />
+              <datalist id="city-suggestions">
+                <option value="München" />
+                <option value="Berlin" />
+                <option value="Hamburg" />
+                <option value="Frankfurt" />
+                <option value="Köln" />
+                <option value="Stuttgart" />
+                <option value="Düsseldorf" />
+                <option value="Leipzig" />
+              </datalist>
             </div>
             
             <div>
@@ -222,6 +316,46 @@ const AvmValuationView: React.FC = () => {
                 <option value="land">Grundstück</option>
               </select>
             </div>
+            {/* POI optional: Koordinaten */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Latitude (optional)</label>
+              <input
+                type="text"
+                value={poiLat}
+                onChange={(e) => {
+                  const v = e.target.value.trim();
+                  if (v === '' || /^-?\d{1,2}(?:\.\d+)?$/.test(v)) setPoiLat(v);
+                }}
+                placeholder="z.B. 48.137"
+                className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Longitude (optional)</label>
+              <input
+                type="text"
+                value={poiLng}
+                onChange={(e) => {
+                  const v = e.target.value.trim();
+                  if (v === '' || /^-?\d{1,3}(?:\.\d+)?$/.test(v)) setPoiLng(v);
+                }}
+                placeholder="z.B. 11.575"
+                className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+          {/* Adresse */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Adresse
+            </label>
+            <input
+              type="text"
+              value={formData.address}
+              onChange={(e) => handleInputChange('address', e.target.value)}
+              placeholder="Straße und Hausnummer (min. 5 Zeichen)"
+              className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+            />
           </div>
 
           {/* Objektdaten */}
@@ -283,7 +417,8 @@ const AvmValuationView: React.FC = () => {
             </div>
           </div>
 
-          <button
+          <div className="flex flex-col md:flex-row md:items-center gap-3">
+            <button
             type="submit"
             disabled={avmValuationMutation.isPending}
             className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
@@ -299,9 +434,73 @@ const AvmValuationView: React.FC = () => {
                 Immobilie bewerten
               </>
             )}
-          </button>
+            </button>
+            {/* Export Buttons */}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm font-medium"
+              >
+                PDF Export (Druck)
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const html = document.documentElement.outerHTML;
+                  const blob = new Blob([html], { type: 'application/msword' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `AVM_Report_${formData.city}_${formData.postal_code}.doc`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                }}
+                className="px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm font-medium"
+              >
+                Word Export
+              </button>
+            </div>
+          </div>
+          {formError && (
+            <div className="mt-3 text-sm text-red-600 dark:text-red-400">
+              {formError}
+            </div>
+          )}
         </form>
       </div>
+
+      {/* Sticky KPI-Bar */}
+      {result && (
+        <div className="sticky top-16 z-20 backdrop-blur supports-[backdrop-filter]:bg-white/70 dark:supports-[backdrop-filter]:bg-gray-900/60 bg-white/80 dark:bg-gray-800/80 shadow-sm border border-white/20 dark:border-gray-700/50 rounded-xl p-4">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">Marktwert</div>
+              <div className="text-xl font-bold text-gray-900 dark:text-white">
+                {typeof result.estimated_value === 'number' ? result.estimated_value.toLocaleString('de-DE') : '-'} €
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">€/m²</div>
+              <div className="text-xl font-bold text-gray-900 dark:text-white">
+                {typeof result.price_per_sqm === 'number' ? result.price_per_sqm.toLocaleString('de-DE') : '-'}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">Konfidenz</div>
+              <div className={`text-sm font-semibold ${getConfidenceColor(result.confidence_level)}`}>
+                {result.confidence_level === 'high' ? 'Hoch' : result.confidence_level === 'medium' ? 'Mittel' : 'Niedrig'}
+              </div>
+            </div>
+            <div className="col-span-2">
+              <div className="text-xs text-gray-500 dark:text-gray-400">Preisband</div>
+              <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                {typeof result.valuation_range?.min === 'number' ? result.valuation_range.min.toLocaleString('de-DE') : '-'} € – {typeof result.valuation_range?.max === 'number' ? result.valuation_range.max.toLocaleString('de-DE') : '-'} €
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Ergebnis-Panel */}
       {result && (
@@ -325,10 +524,10 @@ const AvmValuationView: React.FC = () => {
               <DollarSign className="w-8 h-8 mx-auto text-blue-600 dark:text-blue-400 mb-2" />
               <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Geschätzter Marktwert</p>
               <p className="text-3xl font-bold text-gray-900 dark:text-white">
-                {result.estimated_value.toLocaleString('de-DE')} €
+                {typeof result.estimated_value === 'number' ? result.estimated_value.toLocaleString('de-DE') : '-'} €
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
-                {result.price_per_sqm.toLocaleString('de-DE')} € / m²
+                {typeof result.price_per_sqm === 'number' ? result.price_per_sqm.toLocaleString('de-DE') : '-'} € / m²
               </p>
             </div>
 
@@ -337,10 +536,10 @@ const AvmValuationView: React.FC = () => {
               <TrendingUp className="w-6 h-6 text-green-600 dark:text-green-400 mb-2" />
               <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Wertebereich</p>
               <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                {result.valuation_range.min.toLocaleString('de-DE')} € -
+                {typeof result.valuation_range?.min === 'number' ? result.valuation_range.min.toLocaleString('de-DE') : '-'} € -
               </p>
               <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                {result.valuation_range.max.toLocaleString('de-DE')} €
+                {typeof result.valuation_range?.max === 'number' ? result.valuation_range.max.toLocaleString('de-DE') : '-'} €
               </p>
             </div>
 
@@ -430,10 +629,10 @@ const AvmValuationView: React.FC = () => {
                       {getConditionLabel(comp.condition)}
                     </td>
                     <td className="py-3 px-4 text-sm font-semibold text-gray-900 dark:text-white text-right">
-                      {comp.price.toLocaleString('de-DE')} €
+                      {typeof comp.price === 'number' ? comp.price.toLocaleString('de-DE') : '-'} €
                     </td>
                     <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400 text-right">
-                      {comp.price_per_sqm.toLocaleString('de-DE')}
+                      {typeof comp.price_per_sqm === 'number' ? comp.price_per_sqm.toLocaleString('de-DE') : '-'}
                     </td>
                     <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400 text-right">
                       {comp.distance} km
@@ -515,6 +714,108 @@ const AvmValuationView: React.FC = () => {
               <p className="text-lg font-bold text-purple-600 dark:text-purple-400">
                 {marketData.competition_index}/100
               </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* POI-Indikatoren */}
+      {poiSummary && (
+        <div className="glass rounded-xl p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Umfeld-Indikatoren (Radius {poiSummary.radius} m)
+            </h2>
+            <button
+              type="button"
+              onClick={async () => {
+                if (!poiLat || !poiLng) return;
+                try {
+                  const poi = await marketService.getPoi(parseFloat(poiLat), parseFloat(poiLng), 1200);
+                  setPoiSummary(poi);
+                } catch (e) {
+                  console.error('Fehler beim Laden der POI-Daten:', e);
+                }
+              }}
+              className="px-3 py-1.5 text-xs rounded-md bg-blue-600 text-white hover:bg-blue-700"
+            >
+              Aktualisieren
+            </button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+              <div className="text-xs text-gray-600 dark:text-gray-400">Schulen</div>
+              <div className="text-lg font-bold text-blue-700 dark:text-blue-300">{poiSummary.schools}</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">Dichte: {poiSummary.schools_density}</div>
+            </div>
+            <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
+              <div className="text-xs text-gray-600 dark:text-gray-400">ÖPNV-Haltestellen</div>
+              <div className="text-lg font-bold text-green-700 dark:text-green-300">{poiSummary.stops}</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">Dichte: {poiSummary.stops_density}</div>
+            </div>
+            <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg">
+              <div className="text-xs text-gray-600 dark:text-gray-400">Parks</div>
+              <div className="text-lg font-bold text-emerald-700 dark:text-emerald-300">{poiSummary.parks}</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">Dichte: {poiSummary.parks_density}</div>
+            </div>
+          </div>
+          <div className="mt-3 text-xs text-gray-600 dark:text-gray-400">
+            Komposit-Score: <span className="font-semibold">{poiSummary.composite_score}</span>
+          </div>
+          {/* Einfache Karten-Vorschau mit OSM */}
+          {poiLat && poiLng && (
+            <div className="mt-4">
+              <div className="text-xs text-gray-600 dark:text-gray-400 mb-2">Karte (OpenStreetMap)</div>
+              <iframe
+                title="map"
+                width="100%"
+                height="300"
+                style={{ border: 0 }}
+                src={`https://www.openstreetmap.org/export/embed.html?bbox=${parseFloat(poiLng)-0.01}%2C${parseFloat(poiLat)-0.01}%2C${parseFloat(poiLng)+0.01}%2C${parseFloat(poiLat)+0.01}&layer=mapnik&marker=${poiLat}%2C${poiLng}`}
+              />
+              <div className="text-xs mt-1">
+                <a
+                  href={`https://www.openstreetmap.org/?mlat=${poiLat}&mlon=${poiLng}#map=14/${poiLat}/${poiLng}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-blue-600 dark:text-blue-400 hover:underline"
+                >
+                  In OSM öffnen
+                </a>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* LLM Trend-Erklärung */}
+      {llmTrends && (
+        <div className="glass rounded-xl p-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">KI-Erklärung der Markttrends</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <div>
+              <div className="font-semibold text-gray-900 dark:text-white mb-1">Zusammenfassung</div>
+              <p className="text-gray-700 dark:text-gray-300">{llmTrends.trendSummary}</p>
+            </div>
+            <div>
+              <div className="font-semibold text-gray-900 dark:text-white mb-1">Preisentwicklung</div>
+              <p className="text-gray-700 dark:text-gray-300">{llmTrends.priceEvolution}</p>
+            </div>
+            <div>
+              <div className="font-semibold text-gray-900 dark:text-white mb-1">Nachfrage</div>
+              <p className="text-gray-700 dark:text-gray-300">{llmTrends.demandAnalysis}</p>
+            </div>
+            <div>
+              <div className="font-semibold text-gray-900 dark:text-white mb-1">Prognose 12M</div>
+              <p className="text-gray-700 dark:text-gray-300">{llmTrends.forecast12Months}</p>
+            </div>
+            <div className="md:col-span-2">
+              <div className="font-semibold text-gray-900 dark:text-white mb-1">Schlüsselfaktoren</div>
+              <ul className="list-disc ml-5 text-gray-700 dark:text-gray-300">
+                {(llmTrends.keyFactors || []).map((f: string, i: number) => (
+                  <li key={i}>{f}</li>
+                ))}
+              </ul>
             </div>
           </div>
         </div>
@@ -706,7 +1007,7 @@ const AvmValuationView: React.FC = () => {
             <div className="glass p-6 rounded-xl text-center">
               <p className="text-xs text-gray-500 dark:text-gray-500 uppercase mb-2">Aktuell</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {result.estimated_value.toLocaleString('de-DE')} €
+                {typeof result.estimated_value === 'number' ? result.estimated_value.toLocaleString('de-DE') : '-'} €
               </p>
             </div>
 
@@ -714,7 +1015,7 @@ const AvmValuationView: React.FC = () => {
             <div className="glass p-6 rounded-xl text-center bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20">
               <p className="text-xs text-gray-500 dark:text-gray-500 uppercase mb-2">Prognose 12M</p>
               <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                {pricePrediction.predictedPrice.toLocaleString('de-DE')} €
+                {pricePrediction && typeof pricePrediction.predictedPrice === 'number' ? pricePrediction.predictedPrice.toLocaleString('de-DE') : '-'} €
               </p>
             </div>
 
@@ -725,7 +1026,7 @@ const AvmValuationView: React.FC = () => {
                 {pricePrediction.priceChange >= 0 ? '+' : ''}{pricePrediction.priceChangePercent}%
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                {pricePrediction.priceChange >= 0 ? '+' : ''}{pricePrediction.priceChange.toLocaleString('de-DE')} €
+                {pricePrediction ? (pricePrediction.priceChange >= 0 ? '+' : '') : ''}{pricePrediction && typeof pricePrediction.priceChange === 'number' ? pricePrediction.priceChange.toLocaleString('de-DE') : '-'} €
               </p>
             </div>
           </div>
@@ -822,6 +1123,140 @@ const AvmValuationView: React.FC = () => {
               </p>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* PREISSTRATEGIE */}
+      {pricingStrategy && (
+        <div className="glass rounded-xl p-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Preisstrategie</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div className="glass p-4 rounded-lg">
+              <p className="text-xs text-gray-500 dark:text-gray-500">Empfohlener Angebotspreis</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                {typeof pricingStrategy.recommendedListingPrice === 'number' ? pricingStrategy.recommendedListingPrice.toLocaleString('de-DE') : '-'} €
+              </p>
+            </div>
+            <div className="glass p-4 rounded-lg">
+              <p className="text-xs text-gray-500 dark:text-gray-500">Positionierung</p>
+              <p className="text-lg font-semibold text-blue-600 dark:text-blue-400">{pricingStrategy.positioning}</p>
+            </div>
+            <div className="glass p-4 rounded-lg">
+              <p className="text-xs text-gray-500 dark:text-gray-500">Preisband</p>
+              <p className="text-sm text-gray-900 dark:text-white">
+                {typeof pricingStrategy.priceBand?.softFloor === 'number' ? pricingStrategy.priceBand.softFloor.toLocaleString('de-DE') : '-'} €
+                {' '}–{' '}
+                {typeof pricingStrategy.priceBand?.softCeil === 'number' ? pricingStrategy.priceBand.softCeil.toLocaleString('de-DE') : '-'} €
+              </p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="glass p-4 rounded-lg">
+              <h4 className="text-sm font-semibold mb-2">Strategie-Notizen</h4>
+              <ul className="list-disc ml-5 text-sm text-gray-700 dark:text-gray-300">
+                {(pricingStrategy.strategyNotes || []).map((n: string, i: number) => <li key={i}>{n}</li>)}
+              </ul>
+            </div>
+            <div className="glass p-4 rounded-lg">
+              <h4 className="text-sm font-semibold mb-2">Dringlichkeit – Tipps</h4>
+              <ul className="list-disc ml-5 text-sm text-gray-700 dark:text-gray-300">
+                {(pricingStrategy.urgencyTips || []).map((n: string, i: number) => <li key={i}>{n}</li>)}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* RENOVIERUNG / ROI */}
+      {renovationPlan && (
+        <div className="glass rounded-xl p-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Renovierungs-ROI</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <h4 className="text-sm font-semibold mb-2">Quick Wins</h4>
+              <div className="space-y-2">
+                {(renovationPlan.quickWins || []).map((q: any, i: number) => (
+                  <div key={i} className="glass p-3 rounded-lg flex items-center justify-between">
+                    <span className="text-sm">{q.measure}</span>
+                    <span className="text-sm font-medium">
+                      {typeof q.cost === 'number' ? q.cost.toLocaleString('de-DE') : '-'} € → +{typeof q.uplift === 'number' ? q.uplift.toLocaleString('de-DE') : '-'} €
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold mb-2">Größere Upgrades</h4>
+              <div className="space-y-2">
+                {(renovationPlan.majorUpgrades || []).map((q: any, i: number) => (
+                  <div key={i} className="glass p-3 rounded-lg flex items-center justify-between">
+                    <span className="text-sm">{q.measure}</span>
+                    <span className="text-sm font-medium">
+                      {typeof q.cost === 'number' ? q.cost.toLocaleString('de-DE') : '-'} € → +{typeof q.uplift === 'number' ? q.uplift.toLocaleString('de-DE') : '-'} €
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="mt-3 text-sm text-gray-700 dark:text-gray-300">
+            Gesamtpotenzial: <span className="font-semibold">{typeof renovationPlan.totalPotentialUplift === 'number' ? renovationPlan.totalPotentialUplift.toLocaleString('de-DE') : '-'} €</span>
+          </div>
+          <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">{renovationPlan.remarks}</p>
+        </div>
+      )}
+
+      {/* BUYER PERSONAS & PLAYBOOK */}
+      {(buyerPersona || salesPlaybook) && (
+        <div className="glass rounded-xl p-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Vermarktung – Personas & Playbook</h2>
+          {buyerPersona && (
+            <div className="mb-4">
+              <h4 className="text-sm font-semibold mb-2">Buyer Personas</h4>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {(buyerPersona.personas || []).map((p: any, i: number) => (
+                  <div key={i} className="glass p-3 rounded-lg">
+                    <div className="text-sm font-semibold">{p.name}</div>
+                    <div className="text-xs text-gray-600 dark:text-gray-400">{p.description}</div>
+                    <ul className="list-disc ml-5 mt-2 text-xs">
+                      {(p.keyNeeds || []).map((k: string, j: number) => <li key={j}>{k}</li>)}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 text-xs text-gray-700 dark:text-gray-300">
+                Kanäle: {(buyerPersona.channels || []).join(', ')}
+              </div>
+              <div className="mt-1 text-xs text-gray-700 dark:text-gray-300">
+                Messages: {(buyerPersona.messaging || []).join(' • ')}
+              </div>
+            </div>
+          )}
+          {salesPlaybook && (
+            <div>
+              <h4 className="text-sm font-semibold mb-2">Playbook</h4>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="glass p-3 rounded-lg">
+                  <div className="text-xs font-semibold mb-1">Nächste Schritte</div>
+                  <ul className="list-disc ml-5 text-xs">
+                    {(salesPlaybook.nextSteps || []).map((s: string, i: number) => <li key={i}>{s}</li>)}
+                  </ul>
+                </div>
+                <div className="glass p-3 rounded-lg">
+                  <div className="text-xs font-semibold mb-1">Checklist</div>
+                  <ul className="list-disc ml-5 text-xs">
+                    {(salesPlaybook.checklist || []).map((s: string, i: number) => <li key={i}>{s}</li>)}
+                  </ul>
+                </div>
+                <div className="glass p-3 rounded-lg">
+                  <div className="text-xs font-semibold mb-1">KPIs</div>
+                  <ul className="list-disc ml-5 text-xs">
+                    {(salesPlaybook.kpis || []).map((k: any, i: number) => <li key={i}>{k.name}: {k.target}</li>)}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

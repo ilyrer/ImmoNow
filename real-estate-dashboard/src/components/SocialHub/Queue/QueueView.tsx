@@ -5,7 +5,8 @@
 
 import React, { useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../common/Card';
-// TODO: Implement real queue API
+import { useSocialQueue, usePublishPost, useSchedulePost } from '../../../hooks/useSocial';
+import { SocialPost } from '../../../api/social';
 import {
   QueueItem,
   PLATFORM_ICONS,
@@ -17,65 +18,130 @@ interface QueueViewProps {
 }
 
 const QueueView: React.FC<QueueViewProps> = ({ onBack }) => {
-  const [queueItems] = useState<QueueItem[]>([]); // TODO: Load from real API
   const [filter, setFilter] = useState<'all' | 'queued' | 'processing' | 'failed'>('all');
+
+  // Use React Query hooks for data management
+  const { data: queueData, isLoading: queueLoading, error: queueError } = useSocialQueue();
+  const publishPostMutation = usePublishPost();
+  const schedulePostMutation = useSchedulePost();
+
+  // Handle different data structures - ensure queueData is always an array
+  const queueArray = Array.isArray(queueData) ? queueData : ((queueData as any)?.items || []);
+
+  // Convert queue data to queue items
+  const queueItems: QueueItem[] = queueArray.map((post: SocialPost) => ({
+    id: post.id,
+    post: {
+      id: post.id,
+      content: {
+        text: post.content,
+        hashtags: [],
+        mentions: [],
+        links: []
+      },
+      platform: post.platform as any,
+      type: post.post_type as any,
+      status: post.status as any,
+      media: (post.media_urls || []).map((url: string) => ({
+        id: url,
+        type: 'image' as any,
+        url: url,
+        filename: url.split('/').pop() || 'media',
+        size: 0,
+        uploadedAt: new Date().toISOString()
+      })),
+      platforms: [post.platform as any],
+      author: 'User',
+      published_at: post.published_at,
+      engagement: post.engagement,
+      createdAt: post.created_at,
+      updatedAt: post.updated_at
+    },
+    platforms: [post.platform as any],
+    scheduledFor: post.scheduled_at || post.created_at,
+    status: post.status === 'scheduled' ? 'queued' : 
+            post.status === 'published' ? 'posted' : 'failed',
+    priority: 'medium' as const,
+    retryCount: 0,
+    error: undefined,
+    createdAt: post.created_at
+  }));
 
   const filteredItems = queueItems.filter(item => 
     filter === 'all' || item.status === filter
   );
 
-  const formatDateTime = (dateString: string): string => {
-    return new Date(dateString).toLocaleDateString('de-DE', {
-      day: '2-digit',
-      month: 'short',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
-  const getTimeUntil = (dateString: string): string => {
-    const now = new Date();
-    const scheduled = new Date(dateString);
-    const diff = scheduled.getTime() - now.getTime();
-    
-    if (diff < 0) return 'Überfällig';
-    
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    
-    if (hours > 24) {
-      const days = Math.floor(hours / 24);
-      return `in ${days} Tag${days > 1 ? 'en' : ''}`;
-    }
-    if (hours > 0) return `in ${hours} Std. ${minutes} Min.`;
-    return `in ${minutes} Min.`;
-  };
-
-  const getPriorityColor = (priority: QueueItem['priority']): string => {
-    switch (priority) {
-      case 'high': return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300';
-      case 'medium': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300';
-      case 'low': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300';
+  const handlePublishNow = async (itemId: string) => {
+    try {
+      await publishPostMutation.mutateAsync({
+        postId: itemId,
+        data: { platforms: [] } // Will be determined by the post's platforms
+      });
+    } catch (error) {
+      console.error('Failed to publish post:', error);
     }
   };
 
-  const getStatusColor = (status: QueueItem['status']): string => {
-    switch (status) {
-      case 'queued': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300';
-      case 'processing': return 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300';
-      case 'posted': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300';
-      case 'failed': return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300';
-    }
+  const handleReschedule = async (itemId: string) => {
+    // TODO: Open reschedule modal
+    console.log('Reschedule post:', itemId);
   };
 
-  const getStatusLabel = (status: QueueItem['status']): string => {
-    switch (status) {
-      case 'queued': return 'In Warteschlange';
-      case 'processing': return 'Wird verarbeitet';
-      case 'posted': return 'Veröffentlicht';
-      case 'failed': return 'Fehlgeschlagen';
-    }
-  };
+  // Show loading state while queue is being fetched
+  if (queueLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center space-x-4">
+          <button
+            onClick={onBack}
+            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+          >
+            <i className="ri-arrow-left-line text-xl text-gray-600 dark:text-gray-400"></i>
+          </button>
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+              Warteschlange
+            </h2>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">
+              Lade Warteschlange...
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state if queue failed to load
+  if (queueError) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center space-x-4">
+          <button
+            onClick={onBack}
+            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+          >
+            <i className="ri-arrow-left-line text-xl text-gray-600 dark:text-gray-400"></i>
+          </button>
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+              Warteschlange
+            </h2>
+            <p className="text-red-600 dark:text-red-400 mt-1">
+              Fehler beim Laden der Warteschlange
+            </p>
+          </div>
+        </div>
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+          <p className="text-red-800 dark:text-red-300">
+            {queueError.message || 'Unbekannter Fehler beim Laden der Warteschlange'}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -300,14 +366,25 @@ const QueueView: React.FC<QueueViewProps> = ({ onBack }) => {
                               <i className="ri-edit-line mr-1"></i>
                               Bearbeiten
                             </button>
-                            <button className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-lg hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors text-sm">
-                              <i className="ri-send-plane-line mr-1"></i>
+                            <button 
+                              onClick={() => handlePublishNow(item.id)}
+                              disabled={publishPostMutation.isPending}
+                              className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-lg hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors text-sm disabled:opacity-50"
+                            >
+                              {publishPostMutation.isPending ? (
+                                <i className="ri-loader-4-line animate-spin mr-1"></i>
+                              ) : (
+                                <i className="ri-send-plane-line mr-1"></i>
+                              )}
                               Jetzt senden
                             </button>
                           </>
                         )}
                         {item.status === 'failed' && (
-                          <button className="px-3 py-1 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 rounded-lg hover:bg-orange-200 dark:hover:bg-orange-900/50 transition-colors text-sm">
+                          <button 
+                            onClick={() => handleReschedule(item.id)}
+                            className="px-3 py-1 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 rounded-lg hover:bg-orange-200 dark:hover:bg-orange-900/50 transition-colors text-sm"
+                          >
                             <i className="ri-refresh-line mr-1"></i>
                             Wiederholen
                           </button>
@@ -330,6 +407,60 @@ const QueueView: React.FC<QueueViewProps> = ({ onBack }) => {
       </Card>
     </div>
   );
+};
+
+// Helper functions
+const formatDateTime = (dateString: string): string => {
+  return new Date(dateString).toLocaleDateString('de-DE', {
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
+const getTimeUntil = (dateString: string): string => {
+  const now = new Date();
+  const scheduled = new Date(dateString);
+  const diff = scheduled.getTime() - now.getTime();
+  
+  if (diff < 0) return 'Überfällig';
+  
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  
+  if (hours > 24) {
+    const days = Math.floor(hours / 24);
+    return `in ${days} Tag${days > 1 ? 'en' : ''}`;
+  }
+  if (hours > 0) return `in ${hours} Std. ${minutes} Min.`;
+  return `in ${minutes} Min.`;
+};
+
+const getPriorityColor = (priority: QueueItem['priority']): string => {
+  switch (priority) {
+    case 'high': return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300';
+    case 'medium': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300';
+    case 'low': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300';
+  }
+};
+
+const getStatusColor = (status: QueueItem['status']): string => {
+  switch (status) {
+    case 'queued': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300';
+    case 'processing': return 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300';
+    case 'posted': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300';
+    case 'failed': return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300';
+  }
+};
+
+const getStatusLabel = (status: QueueItem['status']): string => {
+  switch (status) {
+    case 'queued': return 'In Warteschlange';
+    case 'processing': return 'Wird verarbeitet';
+    case 'posted': return 'Veröffentlicht';
+    case 'failed': return 'Fehlgeschlagen';
+  }
 };
 
 export default QueueView;

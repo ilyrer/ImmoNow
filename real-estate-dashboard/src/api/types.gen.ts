@@ -165,8 +165,17 @@ export interface TenantUserInfo {
 }
 
 export interface MessageResponse {
-  message: string;
-  success: boolean;
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  sender_name: string;
+  content: string;
+  message_type: string;
+  metadata?: { [key: string]: any };
+  created_at: string;
+  updated_at: string;
+  is_read: boolean;
+  read_at?: string;
 }
 
 // Property Types
@@ -446,6 +455,7 @@ export interface CreateConversationRequest {
   title: string;
   participant_ids: string[];
   initial_message?: string;
+  is_group?: boolean;
   metadata?: { [key: string]: any };
 }
 

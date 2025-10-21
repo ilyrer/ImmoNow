@@ -1,0 +1,40 @@
+{% extends "emails/base.html" %}
+
+{% block additional_content %}
+<div class="notification-card">
+    <h4>🧪 Test-E-Mail erfolgreich</h4>
+    <p><strong>Hallo {{ user_name }},</strong></p>
+    <p>Diese E-Mail bestätigt, dass Ihr E-Mail-System korrekt konfiguriert ist.</p>
+    
+    <div style="background-color: #e8f5e8; border: 1px solid #4caf50; border-radius: 4px; padding: 15px; margin: 20px 0;">
+        <p style="color: #2e7d32; margin: 0; font-weight: 600; font-size: 18px;">✅ E-Mail-System funktioniert!</p>
+        <p style="color: #2e7d32; margin: 5px 0 0 0;">Sie erhalten jetzt Benachrichtigungen per E-Mail.</p>
+    </div>
+</div>
+
+<div style="background-color: #f8f9fa; border-radius: 6px; padding: 20px; margin: 20px 0;">
+    <h4 style="margin: 0 0 10px 0; color: #2c3e50;">📧 E-Mail-Konfiguration:</h4>
+    <ul style="margin: 0; padding-left: 20px; color: #555;">
+        <li><strong>Provider:</strong> {{ email_provider }}</li>
+        <li><strong>Absender:</strong> {{ from_email }}</li>
+        <li><strong>Zeitstempel:</strong> {{ timestamp }}</li>
+        <li><strong>Template:</strong> {{ template_name }}</li>
+    </ul>
+</div>
+
+<div style="background-color: #e3f2fd; border-radius: 6px; padding: 20px; margin: 20px 0;">
+    <h4 style="margin: 0 0 10px 0; color: #1976d2;">⚙️ E-Mail-Einstellungen verwalten:</h4>
+    <p style="margin: 0; color: #555;">Sie können Ihre E-Mail-Benachrichtigungseinstellungen jederzeit in Ihrem Profil anpassen.</p>
+    <div style="text-align: center; margin: 15px 0 0 0;">
+        <a href="{{ preferences_url }}" class="action-button" style="background-color: #00bcd4; font-size: 14px; padding: 8px 16px;">
+            Einstellungen anzeigen
+        </a>
+    </div>
+</div>
+
+<div style="text-align: center; margin: 30px 0;">
+    <a href="{{ dashboard_url }}" class="action-button" style="background-color: #4caf50;">
+        Zum Dashboard
+    </a>
+</div>
+{% endblock %}
