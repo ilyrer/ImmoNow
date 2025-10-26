@@ -165,6 +165,35 @@ class PropertyResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     created_by: str
+    match_score: Optional[float] = Field(None, description="Match score 0-100 for recommendations")
+    match_reason: Optional[str] = Field(None, description="Reason for the match")
+    
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ContactResponse(BaseModel):
+    """Contact response model (used in matching)"""
+    id: str
+    name: str
+    email: str
+    phone: str
+    company: Optional[str] = None
+    category: Optional[str] = None
+    status: str
+    priority: str
+    location: Optional[str] = None
+    avatar: Optional[str] = None
+    budget: Optional[float] = None
+    budget_currency: str = "EUR"
+    budget_min: Optional[float] = None
+    budget_max: Optional[float] = None
+    preferences: dict = Field(default_factory=dict)
+    lead_score: int = 0
+    last_contact: Optional[datetime] = None
+    created_at: datetime
+    updated_at: datetime
+    match_score: Optional[float] = Field(None, description="Match score 0-100 for recommendations")
+    match_reason: Optional[str] = Field(None, description="Reason for the match")
     
     model_config = ConfigDict(from_attributes=True)
 

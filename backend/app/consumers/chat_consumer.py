@@ -6,14 +6,14 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.contrib.auth import get_user_model
 from app.db.models import Conversation, Message, ConversationParticipant, UserPresence
-from app.core.security import JWTService
+from app.core.security import SecurityManager
 from app.core.errors import NotFoundError
 from datetime import datetime
 
 User = get_user_model()
 
-# Create JWT service instance
-jwt_service = JWTService()
+# Create security manager instance
+security_manager = SecurityManager()
 
 
 class ChatConsumer(AsyncWebsocketConsumer):
@@ -35,7 +35,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         
         try:
             # Decode token to get user info
-            token_data = jwt_service.verify_token(token)
+            token_data = security_manager.verify_token(token)
             self.user_id = token_data.user_id
             self.tenant_id = token_data.tenant_id
                     

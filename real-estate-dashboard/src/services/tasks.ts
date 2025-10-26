@@ -78,11 +78,12 @@ class TasksService {
   }
 
   /**
-   * GET /api/v1/employees - Mitarbeiter auflisten
+   * GET /api/v1/admin/employees - Mitarbeiter auflisten
    */
   async listEmployees(): Promise<EmployeeResponse[]> {
-    const response = await apiClient.get<EmployeeResponse[]>('/api/v1/employees');
-    return response;
+    const response = await apiClient.get<any>('/api/v1/admin/employees');
+    // Handle both array and paginated response
+    return Array.isArray(response) ? response : response.items || [];
   }
 
   /**

@@ -34,9 +34,18 @@ export const KanbanPage: React.FC = () => {
   ];
 
   const employees = useMemo(() => {
+    console.log('employeesData:', employeesData);
     const list = Array.isArray(employeesData) ? employeesData : (employeesData as any)?.items;
+    console.log('list:', list);
     if (!list || !Array.isArray(list)) return [];
-    return list.map((e: any) => ({ id: e.id, name: e.name || `${e.first_name ?? ''} ${e.last_name ?? ''}`.trim(), avatar: e.avatar || '/default-avatar.png', role: e.role || 'Mitarbeiter' }));
+    const mapped = list.map((e: any) => ({ 
+      id: e.id, 
+      name: e.name || `${e.first_name ?? ''} ${e.last_name ?? ''}`.trim(), 
+      avatar: e.avatar || '/default-avatar.png', 
+      role: e.role || 'Mitarbeiter' 
+    }));
+    console.log('Mapped employees:', mapped);
+    return mapped;
   }, [employeesData]);
 
   const mapBackendStatusToFrontend = (backendStatus: string): string => {

@@ -650,17 +650,20 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
         <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
           Zugewiesen an
         </label>
-        {mode === 'edit' && availableAssignees.length > 0 ? (
+        {availableAssignees.length > 0 ? (
           <select
-            value={editedTask.assignee.id}
+            value={editedTask.assignee.id || ''}
             onChange={(e) => {
               const assignee = availableAssignees.find(a => a.id === e.target.value);
-              if (assignee) setEditedTask({ ...editedTask, assignee });
+              if (assignee) {
+                setEditedTask({ ...editedTask, assignee });
+              }
             }}
             className="w-full px-4 py-3 bg-white/40 dark:bg-white/10 backdrop-blur-2xl 
               border border-white/20 dark:border-white/10 rounded-xl text-gray-900 
               dark:text-white focus:ring-2 focus:ring-blue-500/50"
           >
+            <option value="">Unzugewiesen</option>
             {availableAssignees.map(assignee => (
               <option key={assignee.id} value={assignee.id}>
                 {assignee.name}

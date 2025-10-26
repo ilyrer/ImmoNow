@@ -163,6 +163,7 @@ class AVMService:
             'condition_multiplier': 1.0,
             'age_multiplier': 1.0,
             'features_multiplier': 1.0,
+            'amenities_multiplier': 1.0,  # Neu: für Ausstattungsmerkmale
             'total_multiplier': 1.0
         }
         
@@ -200,9 +201,77 @@ class AVMService:
             elif age > 50:
                 adjustments['age_multiplier'] = 0.9
         
-        # Features adjustment
+        # Features adjustment (alte features Liste)
         feature_bonus = len(avm_request.features) * 0.02
         adjustments['features_multiplier'] = 1.0 + feature_bonus
+        
+        # Neue Ausstattungsmerkmale-Bewertung
+        amenities_score = 1.0
+        
+        # Balkon/Terrasse (+2-3%)
+        if avm_request.balcony:
+            amenities_score += 0.02
+        if avm_request.terrace:
+            amenities_score += 0.03
+        
+        # Garten (abhängig von Größe, +3-8%)
+        if avm_request.garden:
+            base_garden_bonus = 0.03
+            if avm_request.garden_size:
+                # Größerer Garten = höherer Bonus
+                if avm_request.garden_size > 100:
+                    base_garden_bonus = 0.08
+                elif avm_request.garden_size > 50:
+                    base_garden_bonus = 0.05
+            amenities_score += base_garden_bonus
+        
+        # Garage (+2%)
+        if avm_request.garage:
+            amenities_score += 0.02
+        
+        # Stellplätze (+1% pro Stellplatz, max 3%)
+        if avm_request.parking_spaces:
+            amenities_score += min(avm_request.parking_spaces * 0.01, 0.03)
+        
+        # Keller (+1.5%)
+        if avm_request.basement:
+            amenities_score += 0.015
+        
+        # Aufzug (+2-5%, abhängig von Etage)
+        if avm_request.elevator:
+            elevator_bonus = 0.02
+            if avm_request.floor and avm_request.floor > 2:
+                elevator_bonus = 0.05
+            amenities_score += elevator_bonus
+        
+        # Etage (Einfluss: Erdgeschoss -2%, Oberste Etage +3%, mittlere Etagen neutral)
+        if avm_request.floor is not None and avm_request.total_floors:
+            if avm_request.floor == 0:
+                amenities_score -= 0.02  # Erdgeschoss oft weniger begehrt
+            elif avm_request.floor == avm_request.total_floors - 1:
+                amenities_score += 0.03  # Oberste Etage (z.B. Penthouse)
+        
+        # Badezimmer (mehrere Bäder +2% pro zusätzlichem Bad)
+        if avm_request.bathrooms and avm_request.bathrooms > 1:
+            amenities_score += (avm_request.bathrooms - 1) * 0.02
+        
+        # Gäste-WC (+1%)
+        if avm_request.guest_toilet:
+            amenities_score += 0.01
+        
+        # Einbauküche (+2%)
+        if avm_request.fitted_kitchen:
+            amenities_score += 0.02
+        
+        # Kamin (+1.5%)
+        if avm_request.fireplace:
+            amenities_score += 0.015
+        
+        # Klimaanlage (+1.5%)
+        if avm_request.air_conditioning:
+            amenities_score += 0.015
+        
+        adjustments['amenities_multiplier'] = amenities_score
         
         # Calculate total multiplier
         adjustments['total_multiplier'] = (
@@ -210,7 +279,8 @@ class AVMService:
             adjustments['rooms_multiplier'] *
             adjustments['condition_multiplier'] *
             adjustments['age_multiplier'] *
-            adjustments['features_multiplier']
+            adjustments['features_multiplier'] *
+            adjustments['amenities_multiplier']
         )
         
         return adjustments
@@ -232,9 +302,30 @@ class AVMService:
         if 30 <= avm_request.size <= 200:
             confidence_score += 1
         
-        if confidence_score >= 4:
+        # Neue optionale Felder erhöhen Konfidenz
+        optional_fields_count = sum([
+            1 if avm_request.balcony else 0,
+            1 if avm_request.terrace else 0,
+            1 if avm_request.garden else 0,
+            1 if avm_request.garage else 0,
+            1 if avm_request.parking_spaces else 0,
+            1 if avm_request.basement else 0,
+            1 if avm_request.elevator is not None else 0,
+            1 if avm_request.floor is not None else 0,
+            1 if avm_request.total_floors else 0,
+            1 if avm_request.bathrooms else 0,
+            1 if avm_request.guest_toilet else 0,
+            1 if avm_request.fitted_kitchen else 0,
+            1 if avm_request.fireplace else 0,
+            1 if avm_request.air_conditioning else 0,
+        ])
+        
+        # Je mehr optionale Felder ausgefüllt, desto höher die Konfidenz
+        confidence_score += optional_fields_count * 0.3
+        
+        if confidence_score >= 5:
             return 'high'
-        elif confidence_score >= 2:
+        elif confidence_score >= 3:
             return 'medium'
         else:
             return 'low'
@@ -283,6 +374,58 @@ class AVMService:
                 weight=20,
                 description=f"Property needs {avm_request.condition}"
             ))
+        
+        # Amenities factor (neue Ausstattungsmerkmale)
+        if adjustments['amenities_multiplier'] > 1.05:
+            amenities_list = []
+            if avm_request.balcony:
+                amenities_list.append("Balkon")
+            if avm_request.terrace:
+                amenities_list.append("Terrasse")
+            if avm_request.garden:
+                size_text = f" ({avm_request.garden_size}m²)" if avm_request.garden_size else ""
+                amenities_list.append(f"Garten{size_text}")
+            if avm_request.garage:
+                amenities_list.append("Garage")
+            if avm_request.parking_spaces:
+                amenities_list.append(f"{avm_request.parking_spaces} Stellplätze")
+            if avm_request.basement:
+                amenities_list.append("Keller")
+            if avm_request.elevator:
+                amenities_list.append("Aufzug")
+            if avm_request.fitted_kitchen:
+                amenities_list.append("Einbauküche")
+            if avm_request.fireplace:
+                amenities_list.append("Kamin")
+            if avm_request.air_conditioning:
+                amenities_list.append("Klimaanlage")
+            
+            if amenities_list:
+                factors.append(ValuationFactor(
+                    name="Ausstattung",
+                    impact="positive",
+                    weight=int((adjustments['amenities_multiplier'] - 1.0) * 100),
+                    description=f"Hochwertige Ausstattung: {', '.join(amenities_list)}"
+                ))
+        
+        # Age factor
+        if avm_request.build_year:
+            current_year = datetime.now().year
+            age = current_year - avm_request.build_year
+            if age < 10:
+                factors.append(ValuationFactor(
+                    name="Baujahr",
+                    impact="positive",
+                    weight=10,
+                    description=f"Neueres Gebäude ({avm_request.build_year})"
+                ))
+            elif age > 40:
+                factors.append(ValuationFactor(
+                    name="Baujahr",
+                    impact="neutral",
+                    weight=5,
+                    description=f"Älteres Gebäude ({avm_request.build_year})"
+                ))
         
         return factors
     

@@ -16,9 +16,28 @@ class AvmRequest(BaseModel):
     property_type: PropertyType
     size: int = Field(..., ge=10, le=10000)
     rooms: Optional[int] = Field(None, ge=1, le=20)
-    build_year: Optional[int] = Field(None, ge=1800, le=2024)
+    build_year: Optional[int] = Field(None, ge=1800, le=2025)
     condition: Literal['new', 'renovated', 'good', 'needs_renovation', 'poor']
     features: List[str] = Field(default_factory=list)
+    
+    # Optionale Ausstattungsmerkmale für präzisere Bewertung
+    balcony: Optional[bool] = Field(None, description="Hat die Immobilie einen Balkon?")
+    terrace: Optional[bool] = Field(None, description="Hat die Immobilie eine Terrasse?")
+    garden: Optional[bool] = Field(None, description="Hat die Immobilie einen Garten?")
+    garden_size: Optional[int] = Field(None, ge=0, le=10000, description="Gartengröße in m²")
+    garage: Optional[bool] = Field(None, description="Hat die Immobilie eine Garage?")
+    parking_spaces: Optional[int] = Field(None, ge=0, le=10, description="Anzahl der Stellplätze")
+    basement: Optional[bool] = Field(None, description="Hat die Immobilie einen Keller?")
+    elevator: Optional[bool] = Field(None, description="Ist ein Aufzug vorhanden?")
+    floor: Optional[int] = Field(None, ge=0, le=100, description="Etage der Wohnung")
+    total_floors: Optional[int] = Field(None, ge=1, le=100, description="Anzahl der Stockwerke im Gebäude")
+    
+    # Zusätzliche optionale Details
+    bathrooms: Optional[int] = Field(None, ge=1, le=10, description="Anzahl der Badezimmer")
+    guest_toilet: Optional[bool] = Field(None, description="Separates Gäste-WC vorhanden?")
+    fitted_kitchen: Optional[bool] = Field(None, description="Einbauküche vorhanden?")
+    fireplace: Optional[bool] = Field(None, description="Kamin vorhanden?")
+    air_conditioning: Optional[bool] = Field(None, description="Klimaanlage vorhanden?")
 
 
 class ValuationRange(BaseModel):

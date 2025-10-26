@@ -71,6 +71,12 @@ security_manager = SecurityManager()
 security = HTTPBearer()
 
 
+# Backward compatibility functions
+def decode_token(token: str) -> TokenData:
+    """Decode JWT token - backward compatibility wrapper"""
+    return security_manager.verify_token(token)
+
+
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> TokenData:
     """Get current authenticated user from JWT token"""
     try:

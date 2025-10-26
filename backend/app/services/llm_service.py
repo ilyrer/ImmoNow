@@ -371,3 +371,180 @@ Aktuelle Daten (Beispiel):
                 mentioned_kpis.append(kpi_name)
         
         return mentioned_kpis
+    
+    async def analyze_property_contact_match(
+        self,
+        property_data: Dict[str, Any],
+        contact_data: Dict[str, Any],
+        match_score: float
+    ) -> Dict[str, Any]:
+        """Use LLM to analyze and explain property-contact match"""
+        
+        messages = [
+            {
+                "role": "system",
+                "content": """Du bist ein KI-Experte für Immobilien-Matching. 
+                Analysiere die Passung zwischen Immobilie und Kunde und gib detaillierte Einschätzungen.
+                Antworte auf Deutsch in einem professionellen, aber verständlichen Ton.
+                Fokussiere auf konkrete Match-Faktoren und gib praktische Empfehlungen."""
+            },
+            {
+                "role": "user",
+                "content": f"""Analysiere das Matching zwischen dieser Immobilie und diesem Kunden:
+
+**Immobilie:**
+- Titel: {property_data.get('title', 'N/A')}
+- Typ: {property_data.get('property_type', 'N/A')}
+- Preis: {property_data.get('price', 0):,.0f} €
+- Größe: {property_data.get('living_area', 0)} m²
+- Zimmer: {property_data.get('rooms', 'N/A')}
+- Standort: {property_data.get('location', 'N/A')}
+- Status: {property_data.get('status', 'N/A')}
+
+**Kunde:**
+- Name: {contact_data.get('name', 'N/A')}
+- Budget: {contact_data.get('budget_min', 0):,.0f} € - {contact_data.get('budget', 0):,.0f} €
+- Präferenzen: {contact_data.get('preferences', {})}
+- Lead-Score: {contact_data.get('lead_score', 0)}/100
+- Priorität: {contact_data.get('priority', 'medium')}
+- Status: {contact_data.get('status', 'N/A')}
+
+**Aktueller Match-Score: {match_score:.1f}/100**
+
+Bitte analysiere:
+1. Stärken des Matches (2-3 Hauptpunkte)
+2. Potenzielle Herausforderungen (1-2 Punkte)
+3. Konkrete Handlungsempfehlung für den Makler
+4. Einschätzung der Abschlusswahrscheinlichkeit (gering/mittel/hoch)
+
+Format die Antwort als JSON mit folgender Struktur:
+{{
+  "strengths": ["Punkt 1", "Punkt 2", "Punkt 3"],
+  "challenges": ["Punkt 1", "Punkt 2"],
+  "recommendation": "Konkrete Empfehlung",
+  "closing_probability": "gering|mittel|hoch",
+  "summary": "Zusammenfassung in 1-2 Sätzen"
+}}"""
+            }
+        ]
+        
+        try:
+            response_data = await self._make_openrouter_request(
+                messages=messages,
+                max_tokens=1024,
+                temperature=0.5
+            )
+            
+            response_text = response_data['choices'][0]['message']['content']
+            
+            # Parse JSON response
+            import json
+            # Extract JSON from response (might be wrapped in markdown code blocks)
+            if '```json' in response_text:
+                json_str = response_text.split('```json')[1].split('```')[0].strip()
+            elif '```' in response_text:
+                json_str = response_text.split('```')[1].split('```')[0].strip()
+            else:
+                json_str = response_text
+            
+            result = json.loads(json_str)
+            result['tokens_used'] = response_data['usage']['total_tokens']
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"LLM match analysis error: {str(e)}")
+            # Fallback to simple analysis
+            return {
+                "strengths": ["Budget-Übereinstimmung", "Verfügbarkeit"],
+                "challenges": ["Weitere Details prüfen"],
+                "recommendation": "Präsentation vereinbaren und Kundenwünsche detailliert besprechen",
+                "closing_probability": "mittel",
+                "summary": f"Match-Score von {match_score:.0f}% zeigt grundsätzliche Passung.",
+                "tokens_used": 0
+            }
+    
+    async def generate_match_insights(
+        self,
+        matches: list,
+        context: str = "property"
+    ) -> Dict[str, Any]:
+        """Generate insights about a list of matches using LLM"""
+        
+        # Prepare match summary
+        match_summary = []
+        for i, match in enumerate(matches[:5], 1):  # Top 5 matches
+            score = match.get('match_score', 0)
+            if context == "property":
+                match_summary.append(
+                    f"{i}. {match.get('title', 'N/A')} - {score:.0f}% Match "
+                    f"({match.get('price', 0):,.0f} €, {match.get('living_area', 0)} m²)"
+                )
+            else:
+                match_summary.append(
+                    f"{i}. {match.get('name', 'N/A')} - {score:.0f}% Match "
+                    f"(Budget: {match.get('budget', 0):,.0f} €, Lead-Score: {match.get('lead_score', 0)})"
+                )
+        
+        messages = [
+            {
+                "role": "system",
+                "content": """Du bist ein KI-Analyst für Immobilien-Matching.
+                Analysiere Match-Listen und gib strategische Empfehlungen.
+                Antworte prägnant und praxisorientiert auf Deutsch."""
+            },
+            {
+                "role": "user",
+                "content": f"""Analysiere diese Top-Matches:
+
+{chr(10).join(match_summary)}
+
+Kontext: {'Immobilien für einen Kunden' if context == 'property' else 'Kunden für eine Immobilie'}
+
+Gib mir:
+1. Eine Gesamtbewertung der Match-Qualität
+2. Den vielversprechendsten Match mit Begründung
+3. Eine priorisierte Handlungsempfehlung (max. 3 Schritte)
+
+Format als JSON:
+{{
+  "overall_quality": "excellent|good|moderate|poor",
+  "best_match_index": 1,
+  "best_match_reason": "Begründung",
+  "action_steps": ["Schritt 1", "Schritt 2", "Schritt 3"]
+}}"""
+            }
+        ]
+        
+        try:
+            response_data = await self._make_openrouter_request(
+                messages=messages,
+                max_tokens=512,
+                temperature=0.4
+            )
+            
+            response_text = response_data['choices'][0]['message']['content']
+            
+            # Parse JSON
+            import json
+            if '```json' in response_text:
+                json_str = response_text.split('```json')[1].split('```')[0].strip()
+            elif '```' in response_text:
+                json_str = response_text.split('```')[1].split('```')[0].strip()
+            else:
+                json_str = response_text
+            
+            result = json.loads(json_str)
+            result['tokens_used'] = response_data['usage']['total_tokens']
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"LLM insights error: {str(e)}")
+            return {
+                "overall_quality": "good",
+                "best_match_index": 1,
+                "best_match_reason": "Höchster Match-Score",
+                "action_steps": ["Kontakt aufnehmen", "Präsentation vorbereiten", "Termin vereinbaren"],
+                "tokens_used": 0
+            }

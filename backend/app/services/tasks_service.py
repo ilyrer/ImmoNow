@@ -16,7 +16,7 @@ from app.schemas.tasks import (
     # New Kanban schemas
     CreateSubtaskRequest, UpdateSubtaskRequest, CreateLabelRequest, UpdateLabelRequest,
     UploadAttachmentRequest, CreateSprintRequest, UpdateSprintRequest, SprintResponse,
-    TaskDocument
+    TaskDocument, Subtask
 )
 from app.core.errors import NotFoundError, ValidationError
 from app.services.audit import AuditService
@@ -509,6 +509,50 @@ class TasksService:
                 email=task.created_by.email
             )
             
+            # Get labels - MUST be inside sync_to_async
+            labels = []
+            for label in task.labels.all():
+                labels.append(TaskLabelSchema(
+                    id=str(label.id),
+                    name=label.name,
+                    color=label.color,
+                    description=label.description
+                ))
+            
+            # Get subtasks - MUST be inside sync_to_async  
+            subtasks = []
+            for subtask in TaskSubtask.objects.filter(task=task).order_by('order'):
+                subtasks.append(Subtask(
+                    id=str(subtask.id),
+                    title=subtask.title,
+                    completed=subtask.completed,
+                    order=subtask.order
+                ))
+            
+            # Get attachments - MUST be inside sync_to_async
+            attachments = []
+            for attachment in TaskAttachment.objects.filter(task=task):
+                # Get uploader info
+                uploader = attachment.uploaded_by
+                uploader_name = f"{uploader.first_name} {uploader.last_name}" if uploader else "Unknown"
+                uploader_avatar = getattr(uploader.profile, 'avatar', '') if hasattr(uploader, 'profile') and uploader.profile else ''
+                
+                attachments.append(TaskDocument(
+                    id=str(attachment.id),
+                    name=attachment.name,
+                    file_url=attachment.file_url,
+                    file_size=attachment.file_size,
+                    mime_type=attachment.mime_type,
+                    uploaded_by=TaskAssignee(
+                        id=str(uploader.id),
+                        name=uploader_name,
+                        avatar=uploader_avatar,
+                        role=getattr(uploader.profile, 'role', '') if hasattr(uploader, 'profile') and uploader.profile else '',
+                        email=uploader.email
+                    ),
+                    uploaded_at=attachment.uploaded_at
+                ))
+            
             return TaskResponse(
                 id=str(task.id),
                 title=task.title,
@@ -522,13 +566,13 @@ class TasksService:
                 estimated_hours=task.estimated_hours,
                 actual_hours=task.actual_hours,
                 tags=task.tags or [],
-                labels=[],  # TODO: Implement labels
-                subtasks=[],  # TODO: Implement subtasks
-                comments=[],  # TODO: Implement comments
-                attachments=[],  # TODO: Implement attachments
+                labels=labels,
+                subtasks=subtasks,
+                comments=[],  # Loaded separately via API
+                attachments=attachments,
                 property=None,  # TODO: Implement property info
                 financing_status=None,  # TODO: Implement financing status
-                activity_log=[],  # TODO: Implement activity log
+                activity_log=[],  # Loaded separately via API
                 created_at=task.created_at,
                 updated_at=task.updated_at,
                 created_by=created_by,
@@ -1008,13 +1052,24 @@ class TasksService:
         @sync_to_async
         def create_sync():
             task = Task.objects.get(id=task_id, tenant=self._get_tenant())
-            return TaskAttachment.objects.create(
+            attachment = TaskAttachment.objects.create(
                 task=task,
                 name=attachment_data.name,
                 file_url=attachment_data.file_url,
                 file_size=attachment_data.file_size,
                 mime_type=attachment_data.mime_type,
                 uploaded_by_id=user_id
+            )
+            # Convert to schema with string IDs
+            from app.schemas.tasks import TaskAttachment as TaskAttachmentSchema
+            return TaskAttachmentSchema(
+                id=str(attachment.id),
+                name=attachment.name,
+                file_url=attachment.file_url,
+                file_size=attachment.file_size,
+                mime_type=attachment.mime_type,
+                uploaded_by_id=str(attachment.uploaded_by_id),
+                uploaded_at=attachment.uploaded_at
             )
         return await create_sync()
     

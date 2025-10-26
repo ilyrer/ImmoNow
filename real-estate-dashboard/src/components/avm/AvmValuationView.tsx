@@ -44,7 +44,23 @@ const AvmValuationView: React.FC = () => {
     rooms: 3,
     build_year: 2010,
     condition: 'good',
-    features: []
+    features: [],
+    // Neue optionale Felder initialisieren
+    balcony: false,
+    terrace: false,
+    garden: false,
+    garden_size: undefined,
+    garage: false,
+    parking_spaces: undefined,
+    basement: false,
+    elevator: false,
+    floor: undefined,
+    total_floors: undefined,
+    bathrooms: undefined,
+    guest_toilet: false,
+    fitted_kitchen: false,
+    fireplace: false,
+    air_conditioning: false,
   });
   
   const [result, setResult] = useState<AvmResult | null>(null);
@@ -414,6 +430,186 @@ const AvmValuationView: React.FC = () => {
                 <option value="needs_renovation">Renovierungsbedarf</option>
                 <option value="poor">Sanierungsbedarf</option>
               </select>
+            </div>
+          </div>
+
+          {/* Optionale Ausstattungsmerkmale */}
+          <div className="mt-6">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-4">
+              Ausstattungsmerkmale (optional - verbessert die Bewertungsgenauigkeit)
+            </h3>
+            
+            {/* Checkboxen für boolean Features */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.balcony || false}
+                  onChange={(e) => handleInputChange('balcony', e.target.checked)}
+                  className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700 dark:text-gray-300">Balkon</span>
+              </label>
+              
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.terrace || false}
+                  onChange={(e) => handleInputChange('terrace', e.target.checked)}
+                  className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700 dark:text-gray-300">Terrasse</span>
+              </label>
+              
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.garden || false}
+                  onChange={(e) => handleInputChange('garden', e.target.checked)}
+                  className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700 dark:text-gray-300">Garten</span>
+              </label>
+              
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.garage || false}
+                  onChange={(e) => handleInputChange('garage', e.target.checked)}
+                  className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700 dark:text-gray-300">Garage</span>
+              </label>
+              
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.basement || false}
+                  onChange={(e) => handleInputChange('basement', e.target.checked)}
+                  className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700 dark:text-gray-300">Keller</span>
+              </label>
+              
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.elevator || false}
+                  onChange={(e) => handleInputChange('elevator', e.target.checked)}
+                  className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700 dark:text-gray-300">Aufzug</span>
+              </label>
+              
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.guest_toilet || false}
+                  onChange={(e) => handleInputChange('guest_toilet', e.target.checked)}
+                  className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700 dark:text-gray-300">Gäste-WC</span>
+              </label>
+              
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.fitted_kitchen || false}
+                  onChange={(e) => handleInputChange('fitted_kitchen', e.target.checked)}
+                  className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700 dark:text-gray-300">Einbauküche</span>
+              </label>
+              
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.fireplace || false}
+                  onChange={(e) => handleInputChange('fireplace', e.target.checked)}
+                  className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700 dark:text-gray-300">Kamin</span>
+              </label>
+              
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.air_conditioning || false}
+                  onChange={(e) => handleInputChange('air_conditioning', e.target.checked)}
+                  className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700 dark:text-gray-300">Klimaanlage</span>
+              </label>
+            </div>
+            
+            {/* Numerische Felder */}
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+              {formData.garden && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Gartengröße (m²)
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.garden_size || ''}
+                    onChange={(e) => handleInputChange('garden_size', parseInt(e.target.value) || undefined)}
+                    placeholder="z.B. 50"
+                    className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              )}
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Stellplätze
+                </label>
+                <input
+                  type="number"
+                  value={formData.parking_spaces || ''}
+                  onChange={(e) => handleInputChange('parking_spaces', parseInt(e.target.value) || undefined)}
+                  placeholder="Anzahl"
+                  className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Etage
+                </label>
+                <input
+                  type="number"
+                  value={formData.floor || ''}
+                  onChange={(e) => handleInputChange('floor', parseInt(e.target.value) || undefined)}
+                  placeholder="z.B. 3"
+                  className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Gesamt-Etagen
+                </label>
+                <input
+                  type="number"
+                  value={formData.total_floors || ''}
+                  onChange={(e) => handleInputChange('total_floors', parseInt(e.target.value) || undefined)}
+                  placeholder="z.B. 5"
+                  className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Badezimmer
+                </label>
+                <input
+                  type="number"
+                  value={formData.bathrooms || ''}
+                  onChange={(e) => handleInputChange('bathrooms', parseInt(e.target.value) || undefined)}
+                  placeholder="Anzahl"
+                  className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
             </div>
           </div>
 

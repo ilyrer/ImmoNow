@@ -55,10 +55,10 @@ const MatchingView: React.FC = () => {
       const mapped: MatchRecommendation[] = (recs || []).map((p: any, idx: number) => ({
         id: p.id,
         rank: idx + 1,
-        matchScore: 70, // Basiswert, kann später über Server-Score ersetzt werden
-        matchReason: 'Budget-Fit (±10%) und Status aktiv',
+        matchScore: p.match_score || 70,
+        matchReason: p.match_reason || 'Budget-Fit und Präferenzen',
         matchDetails: [
-          { criterion: 'Budget Fit', score: 85, status: 'match', description: 'Preis innerhalb des Budgets' },
+          { criterion: 'Budget Fit', score: p.match_score || 70, status: p.match_score >= 75 ? 'match' : 'partial', description: 'Preis innerhalb des Budgets' },
         ],
         property: {
           id: p.id,
@@ -87,10 +87,10 @@ const MatchingView: React.FC = () => {
       const mapped: MatchRecommendation[] = (recs || []).map((c: any, idx: number) => ({
         id: c.id,
         rank: idx + 1,
-        matchScore: 70,
-        matchReason: 'Budget-Fit (±10%) und Lead-Score',
+        matchScore: c.match_score || 70,
+        matchReason: c.match_reason || 'Budget-Fit und Lead-Score',
         matchDetails: [
-          { criterion: 'Lead Score', score: Math.min(100, (c.lead_score || 50)), status: 'partial', description: 'Qualität des Leads' },
+          { criterion: 'Lead Score', score: c.match_score || 70, status: c.match_score >= 75 ? 'match' : 'partial', description: 'Qualität des Leads' },
         ],
         customer: {
           id: c.id,
@@ -99,7 +99,7 @@ const MatchingView: React.FC = () => {
           email: c.email || '',
           status: c.status || 'lead',
           budget: { min: c.budget_min || 0, max: c.budget || c.budget_max || 0 },
-          preferences: [],
+          preferences: c.preferences || [],
         },
       }));
       setRecommendations(mapped);

@@ -74,4 +74,22 @@ export interface AvmRequest {
   features?: string[]; // ['balkon', 'garage', 'garten', etc.]
   floor?: number;
   hasElevator?: boolean;
+  
+  // Erweiterte optionale Ausstattungsmerkmale
+  balcony?: boolean;
+  terrace?: boolean;
+  garden?: boolean;
+  gardenSize?: number; // m²
+  garage?: boolean;
+  parkingSpaces?: number;
+  basement?: boolean;
+  elevator?: boolean;
+  totalFloors?: number;
+  
+  // Zusätzliche Details
+  bathrooms?: number;
+  guestToilet?: boolean;
+  fittedKitchen?: boolean;
+  fireplace?: boolean;
+  airConditioning?: boolean;
 }

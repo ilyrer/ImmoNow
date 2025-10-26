@@ -106,19 +106,6 @@ class BulkMoveTasksRequest(BaseModel):
     })
 
 
-class TaskDocument(BaseModel):
-    """Task document model"""
-    id: str
-    name: str
-    url: str
-    size: int
-    mime_type: str
-    
-    model_config = ConfigDict(from_attributes=True, json_encoders={
-        datetime: lambda v: v.isoformat() if v else None
-    })
-
-
 class PropertyInfo(BaseModel):
     """Property info model"""
     id: str
@@ -161,6 +148,21 @@ class BlockedInfo(BaseModel):
     reason: str
     blocked_by: Optional[str] = None
     blocked_at: Optional[datetime] = None
+    
+    model_config = ConfigDict(from_attributes=True, json_encoders={
+        datetime: lambda v: v.isoformat() if v else None
+    })
+
+
+class TaskDocument(BaseModel):
+    """Task document/attachment"""
+    id: str
+    name: str
+    file_url: str
+    file_size: int
+    mime_type: str
+    uploaded_by: TaskAssignee
+    uploaded_at: datetime
     
     model_config = ConfigDict(from_attributes=True, json_encoders={
         datetime: lambda v: v.isoformat() if v else None
@@ -439,21 +441,6 @@ class ActivityLogEntry(BaseModel):
     action: str
     timestamp: datetime
     details: str
-    
-    model_config = ConfigDict(from_attributes=True, json_encoders={
-        datetime: lambda v: v.isoformat() if v else None
-    })
-
-
-class TaskDocument(BaseModel):
-    """Task document/attachment"""
-    id: str
-    name: str
-    file_url: str
-    file_size: int
-    mime_type: str
-    uploaded_by: TaskAssignee
-    uploaded_at: datetime
     
     model_config = ConfigDict(from_attributes=True, json_encoders={
         datetime: lambda v: v.isoformat() if v else None
