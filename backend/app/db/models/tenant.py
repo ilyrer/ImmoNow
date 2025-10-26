@@ -117,26 +117,21 @@ class Tenant(models.Model):
             tenant = cls.objects.get(name=company_name)
             return tenant, False
         except cls.DoesNotExist:
-            try:
-                # Falls nicht gefunden, versuche nach Email zu finden
-                tenant = cls.objects.get(email=company_email)
-                return tenant, False
-            except cls.DoesNotExist:
-                # Erstelle neuen Tenant
-                from django.utils.text import slugify
-                slug = slugify(company_name)
-                
-                # Stelle sicher, dass der Slug eindeutig ist
-                counter = 1
-                original_slug = slug
-                while cls.objects.filter(slug=slug).exists():
-                    slug = f"{original_slug}-{counter}"
-                    counter += 1
-                
-                tenant = cls.objects.create(
-                    name=company_name,
-                    email=company_email,
-                    slug=slug,
-                    **extra_fields
-                )
-                return tenant, True
+            # Erstelle neuen Tenant
+            from django.utils.text import slugify
+            slug = slugify(company_name)
+            
+            # Stelle sicher, dass der Slug eindeutig ist
+            counter = 1
+            original_slug = slug
+            while cls.objects.filter(slug=slug).exists():
+                slug = f"{original_slug}-{counter}"
+                counter += 1
+            
+            tenant = cls.objects.create(
+                name=company_name,
+                email=company_email,
+                slug=slug,
+                **extra_fields
+            )
+            return tenant, True

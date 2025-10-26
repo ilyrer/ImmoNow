@@ -49,6 +49,26 @@ async def get_property_analytics(
     return analytics
 
 
+@router.get("/properties/top")
+async def get_top_properties(
+    limit: int = Query(5, ge=1, le=50, description="Number of top properties to return"),
+    metric: str = Query("views", description="Metric to rank by: views, inquiries, favorites"),
+    timeframe: str = Query("month", description="Timeframe: week, month, quarter, year"),
+    current_user: TokenData = Depends(require_read_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Get top performing properties"""
+    
+    analytics_service = AnalyticsService(tenant_id)
+    top_properties = await analytics_service.get_top_properties(
+        limit=limit,
+        metric=metric,
+        timeframe=timeframe
+    )
+    
+    return top_properties
+
+
 @router.get("/contacts")
 async def get_contact_analytics(
     start_date: Optional[datetime] = Query(None, description="Start date for analytics"),

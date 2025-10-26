@@ -1,0 +1,52 @@
+name: Mock Pattern Check
+
+on:
+  pull_request:
+    branches: [ main, master, develop ]
+  push:
+    branches: [ main, master, develop ]
+
+jobs:
+  mock-check:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r backend/requirements.txt
+        
+    - name: Run Mock Pattern Scanner
+      run: |
+        python scripts/ci/check_mocks.py --allow-file scripts/ci/check_mocks.allow --exit-on-error
+        
+    - name: Comment PR with results
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const { execSync } = require('child_process');
+          try {
+            const output = execSync('python scripts/ci/check_mocks.py --allow-file scripts/ci/check_mocks.allow', { encoding: 'utf8' });
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## Mock Pattern Check Results\n\n\`\`\`\n${output}\n\`\`\``
+            });
+          } catch (error) {
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## Mock Pattern Check Failed\n\n❌ Mock patterns found that need to be addressed:\n\n\`\`\`\n${error.stdout}\n\`\`\``
+            });
+          }

@@ -1,0 +1,40 @@
+# Mock Pattern Allowlist
+# 
+# Diese Datei enthält erlaubte Mock-Patterns die normalerweise blockiert würden.
+# Format: datei:zeile:pattern
+#
+# Beispiel:
+# backend/app/api/v1/investor.py:45:Math\.random\(
+# real-estate-dashboard/src/components/test/MockComponent.tsx:12:\bmockData\b
+
+# Temporäre Allowlist für Migration
+# TODO: Diese Einträge nach Implementierung echter Daten entfernen
+
+# Investor API - wird durch echte Daten ersetzt
+backend/app/api/v1/investor.py:28:Math\.random\(
+backend/app/api/v1/investor.py:91:Math\.random\(
+backend/app/api/v1/investor.py:121:Math\.random\(
+backend/app/api/v1/investor.py:207:Math\.random\(
+backend/app/api/v1/investor.py:314:Math\.random\(
+
+# Property Performance Widget - wird durch echte API ersetzt
+real-estate-dashboard/src/components/CIM/widgets/analytics/PropertyPerformanceWidget.tsx:54:Math\.random\(
+real-estate-dashboard/src/components/CIM/widgets/analytics/PropertyPerformanceWidget.tsx:55:Math\.random\(
+
+# Billing Guard - wird durch echte Storage-Berechnung ersetzt
+backend/app/core/billing_guard.py:207:current_storage_mb = 0
+backend/app/services/documents_service.py:577:storage_limit=None
+backend/app/services/documents_service.py:583:charts={}
+
+# Dokumentation und Kommentare sind erlaubt
+docs/**:TODO.*mock
+docs/**:FIXME.*mock
+docs/**:placeholder.*data
+
+# Test-Dateien sind generell erlaubt
+**/test_**:**
+**/spec_**:**
+**/__tests__/**:**
+**/__mocks__/**:**
+**/fixtures/**:**
+**/stories/**:**

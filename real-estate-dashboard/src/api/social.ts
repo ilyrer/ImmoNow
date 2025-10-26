@@ -178,6 +178,28 @@ export const socialApi = {
   
   refreshAccountToken: (accountId: string) =>
     apiClient.post(`/api/v1/social/accounts/${accountId}/refresh`),
+
+  // OAuth
+  startOAuthFlow: (platform: string) =>
+    apiClient.post<{ auth_url: string }>(`/api/v1/social/oauth/${platform}/authorize`),
+  
+  handleOAuthCallback: (platform: string, code: string, state: string) =>
+    apiClient.get<SocialAccount>(`/api/v1/social/oauth/${platform}/callback`, {
+      params: { code, state }
+    }),
+  
+  // Account Management
+  testAccountConnection: (accountId: string) =>
+    apiClient.post<{ connected: boolean }>(`/api/v1/social/accounts/${accountId}/test`),
+  
+  syncAccountData: (accountId: string) =>
+    apiClient.post<SocialAccount>(`/api/v1/social/accounts/${accountId}/sync`),
+  
+  // Post Publishing
+  publishPostToPlatform: (postId: string, platform: string, accountId: string) =>
+    apiClient.post(`/api/v1/social/posts/${postId}/publish/${platform}`, null, {
+      params: { account_id: accountId }
+    }),
   
   // Posts
   getPosts: (params?: {
@@ -239,8 +261,8 @@ export const socialApi = {
       params: { code, state }
     }),
   
-  refreshOAuthToken: (platform: string) =>
-    apiClient.post(`/api/v1/social/oauth/${platform}/refresh`),
+  refreshOAuthToken: (platform: string, accountId: string) =>
+    apiClient.post(`/api/v1/social/oauth/${platform}/refresh`, { account_id: accountId }),
 
   // Media
   uploadMedia: (file: File) => {

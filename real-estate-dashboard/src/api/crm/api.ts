@@ -4,39 +4,63 @@
  * Use the new services in src/services/ instead.
  */
 
-import { API_BASE_URL } from '../../config';
-import { apiClient } from '../../lib/api/client';
+import apiClient from '../enhancedClient';
 
-// Mock CRM API for backward compatibility
+// Legacy CRM API for backward compatibility - now uses enhanced client
 export const crmApi = {
   getContacts: async (params: any) => {
-    console.warn('Legacy CRM API call - please update to new services');
-    return { data: [] };
+    try {
+      const response = await apiClient.getContacts(params);
+      return { data: response.data };
+    } catch (error) {
+      console.error('Error getting contacts:', error);
+      return { data: [] };
+    }
   },
   createContact: async (data: any) => {
-    console.warn('Legacy CRM API call - please update to new services');
-    return { data: null };
+    try {
+      const response = await apiClient.createContact(data);
+      return { data: response.data };
+    } catch (error) {
+      console.error('Error creating contact:', error);
+      return { data: null };
+    }
   },
   updateContact: async (id: string, data: any) => {
-    console.warn('Legacy CRM API call - please update to new services');
-    return { data: null };
+    try {
+      const response = await apiClient.updateContact(id, data);
+      return { data: response.data };
+    } catch (error) {
+      console.error('Error updating contact:', error);
+      return { data: null };
+    }
   },
   deleteContact: async (id: string) => {
-    console.warn('Legacy CRM API call - please update to new services');
-    return { data: null };
+    try {
+      await apiClient.deleteContact(id);
+      return { data: null };
+    } catch (error) {
+      console.error('Error deleting contact:', error);
+      return { data: null };
+    }
   },
   getRecommendations: async (contactId: string, limit: number = 10) => {
     try {
-      const response = await apiClient.get(`/api/v1/contacts/${contactId}/matching-properties?limit=${limit}`);
-      return { properties: response };
+      const response = await apiClient.getMatchingProperties(contactId, limit);
+      return { properties: response.data };
     } catch (error) {
       console.error('Error getting recommendations:', error);
       return { properties: [] };
     }
   },
   getContactOverview: async (contactId: string) => {
-    console.warn('Legacy CRM API call - please update to new services');
-    return { data: null };
+    try {
+      const response = await apiClient.getContact(contactId);
+      return { data: response.data };
+    } catch (error) {
+      console.error('Error getting contact overview:', error);
+      return { data: null };
+    }
   },
 };
 

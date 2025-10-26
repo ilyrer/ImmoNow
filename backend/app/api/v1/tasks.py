@@ -115,8 +115,44 @@ async def get_task_statistics(
     return statistics
 
 
-# Labels endpoints
-@router.post("/labels", response_model=TaskLabel)
+@router.put("/sprints/{sprint_id}", response_model=SprintResponse)
+async def update_sprint(
+    sprint_id: str,
+    sprint_data: UpdateSprintRequest,
+    current_user: TokenData = Depends(require_write_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Update a sprint"""
+    tasks_service = TasksService(tenant_id)
+    return await tasks_service.update_sprint(sprint_id, sprint_data)
+
+
+@router.post("/sprints/{sprint_id}/start", response_model=SprintResponse)
+async def start_sprint(
+    sprint_id: str,
+    current_user: TokenData = Depends(require_write_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Start a sprint by changing its status to active"""
+    tasks_service = TasksService(tenant_id)
+    sprint_data = UpdateSprintRequest(status='active')
+    return await tasks_service.update_sprint(sprint_id, sprint_data)
+
+
+@router.delete("/sprints/{sprint_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_sprint(
+    sprint_id: str,
+    current_user: TokenData = Depends(require_delete_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Delete a sprint"""
+    tasks_service = TasksService(tenant_id)
+    await tasks_service.delete_sprint(sprint_id)
+
+
+# ============================================================================
+# LABEL ENDPOINTS  
+# ============================================================================
 async def create_label(
     label_data: CreateLabelRequest,
     current_user: TokenData = Depends(require_write_scope),
@@ -199,13 +235,23 @@ async def update_task(
 ):
     """Update a task"""
     
-    tasks_service = TasksService(tenant_id)
-    task = await tasks_service.update_task(task_id, task_data, current_user.user_id)
-    
-    if not task:
-        raise NotFoundError("Task not found")
-    
-    return task
+    try:
+        print(f"DEBUG: Update task {task_id} with data: {task_data.model_dump(exclude_unset=True)}")
+        print(f"DEBUG: current_user: {current_user.user_id}, tenant_id: {tenant_id}")
+        
+        tasks_service = TasksService(tenant_id)
+        task = await tasks_service.update_task(task_id, task_data, current_user.user_id)
+        
+        if not task:
+            raise NotFoundError("Task not found")
+        
+        print(f"DEBUG: Task updated successfully: {task.id}")
+        return task
+    except Exception as e:
+        print(f"ERROR in update_task API: {type(e).__name__}: {e}")
+        import traceback
+        traceback.print_exc()
+        raise e
 
 
 @router.patch("/{task_id}/move", response_model=TaskResponse)
@@ -236,19 +282,6 @@ async def delete_task(
     
     tasks_service = TasksService(tenant_id)
     await tasks_service.delete_task(task_id, current_user.user_id)
-
-
-@router.get("/statistics", response_model=TaskStatisticsResponse)
-async def get_task_statistics(
-    current_user: TokenData = Depends(require_read_scope),
-    tenant_id: str = Depends(get_tenant_id)
-):
-    """Get task statistics"""
-    
-    tasks_service = TasksService(tenant_id)
-    statistics = await tasks_service.get_statistics()
-    
-    return statistics
 
 
 # ============================================================================
@@ -398,60 +431,9 @@ async def bulk_move_tasks(
     return moved_tasks
 
 
-# Labels endpoints
-@router.post("/labels", response_model=TaskLabel)
-async def create_label(
-    label_data: CreateLabelRequest,
-    current_user: TokenData = Depends(require_write_scope),
-    tenant_id: str = Depends(get_tenant_id)
-):
-    """Create a new task label"""
-    tasks_service = TasksService(tenant_id)
-    return await tasks_service.create_label(label_data)
-
-
-@router.get("/labels", response_model=List[TaskLabel])
-async def get_labels(
-    current_user: TokenData = Depends(require_read_scope),
-    tenant_id: str = Depends(get_tenant_id)
-):
-    """Get all task labels"""
-    try:
-        print(f"DEBUG: API get_labels called with tenant_id={tenant_id}")
-        tasks_service = TasksService(tenant_id)
-        result = await tasks_service.get_labels()
-        print(f"DEBUG: API get_labels result: {result}")
-        return result
-    except Exception as e:
-        print(f"ERROR in API get_labels: {type(e).__name__}: {e}")
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
-
-
-@router.put("/labels/{label_id}", response_model=TaskLabel)
-async def update_label(
-    label_id: str,
-    label_data: UpdateLabelRequest,
-    current_user: TokenData = Depends(require_write_scope),
-    tenant_id: str = Depends(get_tenant_id)
-):
-    """Update a task label"""
-    tasks_service = TasksService(tenant_id)
-    return await tasks_service.update_label(label_id, label_data)
-
-
-@router.delete("/labels/{label_id}")
-async def delete_label(
-    label_id: str,
-    current_user: TokenData = Depends(require_delete_scope),
-    tenant_id: str = Depends(get_tenant_id)
-):
-    """Delete a task label"""
-    tasks_service = TasksService(tenant_id)
-    await tasks_service.delete_label(label_id)
-    return {"message": "Label deleted successfully"}
-
+# ============================================================================
+# SUBTASK ENDPOINTS
+# ============================================================================
 
 # Subtasks endpoints
 @router.post("/{task_id}/subtasks", response_model=TaskSubtask)
@@ -490,6 +472,10 @@ async def delete_subtask(
     return {"message": "Subtask deleted successfully"}
 
 
+# ============================================================================
+# ATTACHMENT ENDPOINTS
+# ============================================================================
+
 # Attachments endpoints
 @router.post("/{task_id}/attachments", response_model=TaskAttachment)
 async def upload_attachment(
@@ -514,6 +500,10 @@ async def delete_attachment(
     await tasks_service.delete_attachment(attachment_id)
     return {"message": "Attachment deleted successfully"}
 
+
+# ============================================================================
+# WATCHER ENDPOINTS
+# ============================================================================
 
 # Watchers endpoints
 @router.post("/{task_id}/watchers/{user_id}")
@@ -542,90 +532,7 @@ async def remove_watcher(
     return {"message": "Watcher removed successfully"}
 
 
-# Sprints endpoints
-@router.post("/sprints", response_model=SprintResponse)
-async def create_sprint(
-    sprint_data: CreateSprintRequest,
-    current_user: TokenData = Depends(require_write_scope),
-    tenant_id: str = Depends(get_tenant_id)
-):
-    """Create a new sprint"""
-    tasks_service = TasksService(tenant_id)
-    return await tasks_service.create_sprint(sprint_data)
-
-
-@router.get("/sprints", response_model=List[SprintResponse])
-async def get_sprints(
-    current_user: TokenData = Depends(require_read_scope),
-    tenant_id: str = Depends(get_tenant_id)
-):
-    """Get all sprints"""
-    try:
-        print(f"DEBUG: API get_sprints called with tenant_id={tenant_id}")
-        
-        tasks_service = TasksService(tenant_id)
-        result = await tasks_service.get_sprints(None)  # Kein status Parameter
-        print(f"DEBUG: API get_sprints result: {result}")
-        return result
-    except Exception as e:
-        print(f"ERROR in API get_sprints: {type(e).__name__}: {e}")
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
-
-
-@router.put("/sprints/{sprint_id}", response_model=SprintResponse)
-async def update_sprint(
-    sprint_id: str,
-    sprint_data: UpdateSprintRequest,
-    current_user: TokenData = Depends(require_write_scope),
-    tenant_id: str = Depends(get_tenant_id)
-):
-    """Update a sprint"""
-    tasks_service = TasksService(tenant_id)
-    return await tasks_service.update_sprint(sprint_id, sprint_data)
-
-
-@router.get("/{task_id}/activity")
-async def get_task_activity(
-    task_id: str,
-    current_user: TokenData = Depends(require_read_scope),
-    tenant_id: str = Depends(get_tenant_id)
-):
-    """Get task activity log"""
-    tasks_service = TasksService(tenant_id)
-    return await tasks_service.get_task_activity(task_id)
-
-
-@router.get("/{task_id}/comments")
-async def get_task_comments(
-    task_id: str,
-    current_user: TokenData = Depends(require_read_scope),
-    tenant_id: str = Depends(get_tenant_id)
-):
-    """Get task comments"""
-    tasks_service = TasksService(tenant_id)
-    return await tasks_service.get_task_comments(task_id)
-
-
-@router.post("/{task_id}/comments")
-async def add_task_comment(
-    task_id: str,
-    comment_data: CreateTaskCommentRequest,
-    current_user: TokenData = Depends(require_write_scope),
-    tenant_id: str = Depends(get_tenant_id)
-):
-    """Add a comment to a task"""
-    tasks_service = TasksService(tenant_id)
-    return await tasks_service.add_task_comment(task_id, comment_data, current_user.id)
-
-
-@router.get("/{task_id}/attachments")
-async def get_task_attachments(
-    task_id: str,
-    current_user: TokenData = Depends(require_read_scope),
-    tenant_id: str = Depends(get_tenant_id)
-):
-    """Get task attachments"""
-    tasks_service = TasksService(tenant_id)
-    return await tasks_service.get_task_attachments(task_id)
+# ============================================================================
+# SPRINT ENDPOINTS - REMOVED DUPLICATES
+# ============================================================================
+# Note: Sprint endpoints are already defined above before /{task_id} routes

@@ -9,7 +9,7 @@ import ProjectStatusOverview from './components/dashboard/TeamStatusComponents/P
 import TasksBoard from './components/dashboard/Kanban/TasksBoard';
 import PropertiesPage from './components/properties/PropertiesPage.tsx';
 import PropertyCreateWizard from './components/properties/PropertyCreateWizard.tsx';
-import PropertyDetail from './components/properties/PropertyDetail.tsx';
+import PropertyDetailNew from './components/properties/PropertyDetailNew.tsx';
 import { ContactsList, ContactDetail } from './components/contacts';
 import ProfessionalFinancingCalculator from './components/finance/ProfessionalFinancingCalculator';
 import LoginPage from './components/Auth/LoginPage';
@@ -35,6 +35,9 @@ import MatchingPage from './pages/MatchingPage.tsx';
 import SocialHubIndex from './components/SocialHub';
 import ProfilePage from './components/profile/ProfilePage.tsx';
 import AdminConsole from './components/admin/AdminConsole.tsx';
+import EmployeeDetailPage from './components/hr/EmployeeDetailPage';
+import AcceptInvitation from './pages/AcceptInvitation';
+import OAuthCallback from './pages/OAuthCallback';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { UserProvider } from './contexts/UserContext';
 import { useCurrentUser, useCurrentTenant, useLogin, useLogout } from './api/hooks';
@@ -192,6 +195,7 @@ function AppContent() {
           <Route path="/register/details" element={<RegistrationWithPayment />} />
           <Route path="/registration/complete" element={<RegistrationComplete />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/accept-invitation/:token" element={<AcceptInvitation />} />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </div>
@@ -213,7 +217,7 @@ function AppContent() {
           <Route path="/kanban" element={<KanbanPage />} />
           <Route path="/properties" element={<PropertiesPage user={user} />} />
           <Route path="/properties/create" element={<PropertyCreateWizard />} />
-          <Route path="/properties/:id" element={<PropertyDetail />} />
+          <Route path="/properties/:id" element={<PropertyDetailNew />} />
           <Route path="/contacts" element={<ContactsList user={user} />} />
           <Route path="/contacts/:id" element={<ContactDetail />} />
           <Route path="/documents" element={<ModernDocumentsPage />} />
@@ -228,10 +232,13 @@ function AppContent() {
           <Route path="/cim/kpi" element={<CIMKPI />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/admin" element={<AdminConsole />} />
+          <Route path="/admin/employees/:id" element={<EmployeeDetailPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/avm" element={<AvmPage />} />
           <Route path="/matching" element={<MatchingPage />} />
           <Route path="/social-hub" element={<SocialHubIndex />} />
+          <Route path="/oauth/callback" element={<OAuthCallback />} />
+          <Route path="/oauth/:platform/callback" element={<OAuthCallback />} />
           <Route path="/reports" element={<RemovedFeatureRedirect />} />
           <Route path="/communications" element={<CommunicationsHub />} />
           <Route path="/analytics" element={<RemovedFeatureRedirect />} />

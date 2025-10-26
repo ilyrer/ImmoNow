@@ -101,7 +101,7 @@ const apiClient = baseClient as ExtendedApiClient;
  */
 apiClient.uploadFile = async <T = any>(url: string, file: File, metadata?: any): Promise<T> => {
   const formData = new FormData();
-  formData.append('file', file);
+  formData.append('files', file); // Backend expects 'files' field name
   
   const token = localStorage.getItem('authToken');
   const tenantId = localStorage.getItem('tenantId');

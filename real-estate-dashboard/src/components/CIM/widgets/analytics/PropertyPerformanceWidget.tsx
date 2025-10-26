@@ -33,26 +33,29 @@ const PropertyPerformanceWidget: React.FC = () => {
         setError(null);
 
         // Fetch property analytics and properties in parallel
-        const [analyticsRes, propertiesRes] = await Promise.all([
+        const [analyticsRes, propertiesRes, topPropertiesRes] = await Promise.all([
           apiClient.get('/api/v1/analytics/properties'),
-          apiClient.get('/api/v1/properties?page=1&size=10')
+          apiClient.get('/api/v1/properties?page=1&size=10'),
+          apiClient.get('/api/v1/analytics/properties/top?limit=3')
         ]);
 
         console.log('📊 Property Analytics:', analyticsRes);
         console.log('🏠 Properties List:', propertiesRes);
+        console.log('🏆 Top Properties:', topPropertiesRes);
 
         // No .data wrapper - direct response
         const analyticsData = analyticsRes as any;
         const propertiesData = (propertiesRes as any)?.items || (propertiesRes as any)?.properties || [];
+        const topPropertiesData = (topPropertiesRes as any)?.properties || [];
 
-        // Use first 3 properties from real data
-        const topProperties: PropertyPerformance[] = propertiesData.slice(0, 3).map((prop: any) => ({
+        // Use top performing properties with real metrics
+        const topProperties: PropertyPerformance[] = topPropertiesData.map((prop: any) => ({
           id: prop.id,
           title: prop.title || 'Immobilie',
-          location: prop.location || 'Unbekannt',
+          location: prop.address || 'Unbekannt',
           price: prop.price || 0,
-          views: Math.floor(Math.random() * 250), // TODO: Add views tracking
-          inquiries: Math.floor(Math.random() * 20), // TODO: Add inquiries tracking
+          views: prop.views || 0, // Real views from metrics API
+          inquiries: prop.inquiries || 0, // Real inquiries from metrics API
           status: prop.status || 'active',
           type: prop.property_type
         }));
@@ -62,8 +65,8 @@ const PropertyPerformanceWidget: React.FC = () => {
         setProperties(topProperties);
         setAnalytics({
           total_properties: analyticsData.total_properties || 0,
-          avg_views: 197, // TODO: Calculate from real data
-          avg_inquiries: 13, // TODO: Calculate from real data
+          avg_views: analyticsData.avg_views_per_property || 0, // Real average from API
+          avg_inquiries: analyticsData.avg_inquiries_per_property || 0, // Real average from API
           conversion_rate: analyticsData.conversion_rate || 0,
           top_performing: topProperties
         });
@@ -150,7 +153,7 @@ const PropertyPerformanceWidget: React.FC = () => {
           </h3>
         </div>
         <div className="text-center text-red-600 dark:text-red-400 py-8">
-          {error}
+          {typeof error === 'string' ? error : JSON.stringify(error)}
         </div>
       </div>
     );

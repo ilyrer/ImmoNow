@@ -187,23 +187,34 @@ class PropertiesService {
     files: File[],
     options?: { onProgress?: (progress: number) => void }
   ): Promise<PropertyMedia[]> {
-    const uploadedMedia: PropertyMedia[] = [];
+    // Upload all files at once as FormData
+    const formData = new FormData();
+    files.forEach((file, index) => {
+      formData.append('files', file);
+    });
     
-    for (const file of files) {
-      try {
-        const media = await apiClient.uploadFile<PropertyMedia>(
-          `${this.baseUrl}/${id}/media`,
-          file,
-          { property_id: id },
-          options?.onProgress
-        );
-        uploadedMedia.push(media);
-      } catch (error) {
-        console.error('Error uploading file:', file.name, error);
-      }
+    console.log('🔍 Frontend: Uploading files:', files.map(f => f.name));
+    console.log('🔍 Frontend: FormData entries:', Array.from(formData.entries()));
+    
+    try {
+      const response = await apiClient.post<PropertyMedia[]>(
+        `${this.baseUrl}/${id}/media`,
+        formData,
+        {
+          headers: {
+            'Accept': 'application/json',
+          },
+          onUploadProgress: options?.onProgress ? (progressEvent) => {
+            const percentCompleted = Math.round((progressEvent.loaded * 100) / (progressEvent.total || 1));
+            options.onProgress?.(percentCompleted);
+          } : undefined,
+        }
+      );
+      return response;
+    } catch (error) {
+      console.error('Error uploading files:', error);
+      throw error;
     }
-    
-    return uploadedMedia;
   }
 
   /**
@@ -262,6 +273,99 @@ class PropertiesService {
       action,
       property_ids: propertyIds,
     });
+  }
+
+  /**
+   * PATCH /api/v1/properties/{id}/field/{field_name} - Einzelfeld-Update
+   */
+  async updatePropertyField(id: string, field: string, value: any): Promise<PropertyResponse> {
+    const response = await apiClient.patch(`${this.baseUrl}/${id}/field/${field}`, value);
+    return (response as any).data;
+  }
+
+  /**
+   * GET /api/v1/properties/{id}/contacts - Verknüpfte Kontakte abrufen
+   */
+  async getPropertyContacts(id: string): Promise<any[]> {
+    const response = await apiClient.get(`${this.baseUrl}/${id}/contacts`);
+    return (response as any).data;
+  }
+
+  /**
+   * POST /api/v1/properties/{id}/contacts - Kontakt verknüpfen
+   */
+  async linkContact(id: string, contactData: { contact_id: string; role: string; is_primary?: boolean; notes?: string }): Promise<any> {
+    const response = await apiClient.post(`${this.baseUrl}/${id}/contacts`, contactData);
+    return (response as any).data;
+  }
+
+  /**
+   * DELETE /api/v1/properties/{id}/contacts/{contact_id} - Kontakt-Verknüpfung löschen
+   */
+  async unlinkContact(id: string, contactId: string, role: string): Promise<void> {
+    await apiClient.delete(`${this.baseUrl}/${id}/contacts/${contactId}?role=${role}`);
+  }
+
+  /**
+   * GET /api/v1/properties/{id}/portal-status - Portal-Status abrufen
+   */
+  async getPortalStatus(id: string): Promise<any> {
+    try {
+      const response = await apiClient.get(`${this.baseUrl}/${id}/portal-status`);
+      return (response as any).data;
+    } catch (error) {
+      // Fallback für noch nicht implementierte Endpoints
+      return {
+        immoscout24: { status: 'not_published', last_sync: null },
+        immowelt: { status: 'not_published', last_sync: null },
+        kleinanzeigen: { status: 'not_published', last_sync: null },
+      };
+    }
+  }
+
+  /**
+   * Portal OAuth und Publishing Services
+   */
+  async initiatePortalOAuth(portal: string, redirectUri: string): Promise<any> {
+    const response = await apiClient.post('/api/v1/portals/oauth/initiate', {
+      portal,
+      redirect_uri: redirectUri,
+    });
+    return (response as any).data;
+  }
+
+  async getPortalConnections(): Promise<any[]> {
+    const response = await apiClient.get('/api/v1/portals/connections');
+    return (response as any).data;
+  }
+
+  async publishToPortal(propertyId: string, portal: string, portalData?: any): Promise<any> {
+    const response = await apiClient.post(`/api/v1/portals/properties/${propertyId}/publish`, {
+      portal,
+      property_id: propertyId,
+      portal_data: portalData,
+    });
+    return (response as any).data;
+  }
+
+  async syncPortal(propertyId: string, portal: string): Promise<any[]> {
+    const response = await apiClient.post(`/api/v1/portals/properties/${propertyId}/sync`, {
+      portal,
+      property_id: propertyId,
+    });
+    return (response as any).data;
+  }
+
+  async unpublishFromPortal(propertyId: string, portal: string): Promise<any> {
+    const response = await apiClient.post(`/api/v1/portals/properties/${propertyId}/unpublish`, {
+      portal,
+      property_id: propertyId,
+    });
+    return (response as any).data;
+  }
+
+  async deletePortalConnection(portal: string): Promise<void> {
+    await apiClient.delete(`/api/v1/portals/connections/${portal}`);
   }
 }
 

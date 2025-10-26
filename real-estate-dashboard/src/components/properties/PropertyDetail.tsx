@@ -21,6 +21,7 @@ import EnergyEfficiencyTab from './EnergyEfficiencyTab';
 import LocationTab from './LocationTab';
 import MediaManager from './MediaManager';
 import PerformanceTab from './PerformanceTab';
+import PortalPublishingModal from './PortalPublishingModal';
 
 interface Property {
   id: string;
@@ -70,8 +71,8 @@ interface Property {
   priority: 'high' | 'medium' | 'low';
   tags: string[];
   locationDescription?: string;
-  equipmentDescription?: string;
-  additionalInfo?: string;
+  equipment_description?: string;
+  additional_info?: string;
   coordinates?: {
     lat: number;
     lng: number;
@@ -85,6 +86,9 @@ interface Property {
     floors?: number;
   };
   buildYear?: number;
+  floors?: number;
+  energy_class?: string;
+  heating_type?: string;
   energyClass?: {
     efficiency?: string;
     energyValue?: number;
@@ -112,6 +116,7 @@ const PropertyDetail: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [editingProperty, setEditingProperty] = useState<Property | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isPortalModalOpen, setIsPortalModalOpen] = useState(false);
 
   // Tab Configuration
   const tabs = [
@@ -145,7 +150,7 @@ const PropertyDetail: React.FC = () => {
         bathrooms: (p.bathrooms || p.anzahl_badezimmer)?.toString() || '0',
         area: (p.living_area || p.wohnflaeche)?.toString() || '0',
         yearBuilt: (p.year_built || p.baujahr)?.toString() || '',
-        parking: p.anzahl_parkplaetze?.toString() || '0',
+        parking: p.parking_spaces?.toString() || p.anzahl_parkplaetze?.toString() || '0',
         energyClass: p.energieeffizienzklasse || '',
         heatingType: p.heizungsart || '',
         floor: p.etage?.toString() || '',
@@ -180,23 +185,27 @@ const PropertyDetail: React.FC = () => {
       priority: 'medium',
       tags: [],
       locationDescription: p.lagebeschreibung,
-      equipmentDescription: p.ausstattung,
-      additionalInfo: p.sonstiges,
+      equipment_description: p.ausstattung,
+      additional_info: p.sonstiges,
       coordinates: p.coordinates || (p.latitude && p.longitude ? { lat: p.latitude, lng: p.longitude } : undefined),
       areas: {
-        living: p.wohnflaeche,
-        plot: p.grundstuecksflaeche,
-        usable: p.nutzflaeche,
+        living: p.living_area || p.wohnflaeche,
+        plot: p.plot_area || p.grundstuecksflaeche,
+        usable: p.total_area || p.nutzflaeche,
       },
-      buildYear: p.baujahr,
+      buildYear: p.year_built || p.baujahr,
+      floors: p.floors || p.etage || undefined,
       energyClass: {
-        efficiency: p.energieeffizienzklasse,
+        efficiency: p.energy_class || p.energieeffizienzklasse,
         energyValue: p.endenergiebedarf,
         co2Emissions: p.co2_emissionen,
         validUntil: p.energieausweis_gueltig_bis,
         certificateType: p.energieausweis_typ,
-        heatingType: p.heizungsart,
+        heatingType: p.heating_type || p.heizungsart,
       },
+      // Direkte Felder für einfacheren Zugriff
+      energy_class: p.energy_class || p.energieeffizienzklasse,
+      heating_type: p.heating_type || p.heizungsart,
     };
 
     setProperty(mapped);
@@ -229,6 +238,10 @@ const PropertyDetail: React.FC = () => {
   // Handle Edit Mode
   const handleEdit = () => {
     setIsEditing(true);
+    // Verwende die aktuelle property State
+    console.log('🔍 Setting editing property with current property data:', property);
+    console.log('🔍 Year Built from property:', property?.buildYear);
+    console.log('🔍 Parking Spaces from property:', property?.features?.parking);
     setEditingProperty(property);
   };
 
@@ -259,8 +272,11 @@ const PropertyDetail: React.FC = () => {
       const yearBuiltValue = editingProperty.buildYear 
         ? Number(editingProperty.buildYear) 
         : undefined;
+      const parkingValue = editingProperty.features?.parking 
+        ? Number(editingProperty.features.parking) 
+        : undefined;
       const livingAreaValue = editingProperty.areas?.living || editingProperty.features?.area || undefined;
-      const floorsValue = editingProperty.features?.floor ? Number(editingProperty.features.floor) : undefined;
+      const floorsValue = editingProperty.floors ? Number(editingProperty.floors) : undefined;
       
       // Build API payload - flache Felder für Property Model
       const payload: any = {
@@ -294,14 +310,17 @@ const PropertyDetail: React.FC = () => {
       if (floorsValue !== undefined && floorsValue !== null) {
         payload.floors = Number(floorsValue);
       }
-      if (heatingTypeValue) {
-        payload.heating_type = heatingTypeValue;
+      if (editingProperty.heating_type) {
+        payload.heating_type = editingProperty.heating_type;
       }
-      if (energyClassValue) {
-        payload.energy_class = energyClassValue;
+      if (editingProperty.energy_class) {
+        payload.energy_class = editingProperty.energy_class;
       }
       if (yearBuiltValue) {
         payload.year_built = Number(yearBuiltValue);
+      }
+      if (parkingValue !== undefined && parkingValue !== null) {
+        payload.parking_spaces = parkingValue;
       }
 
       // Features Objekt für PropertyFeatures Model
@@ -311,7 +330,7 @@ const PropertyDetail: React.FC = () => {
         year_built: yearBuiltValue || null,
         energy_class: energyClassValue || null,
         heating_type: heatingTypeValue || null,
-        parking_spaces: editingProperty.features?.parking ? Number(editingProperty.features.parking) : null,
+        parking_spaces: parkingValue || null,
         balcony: false,
         garden: false,
         elevator: false,
@@ -332,17 +351,49 @@ const PropertyDetail: React.FC = () => {
       if (editingProperty.locationDescription) {
         payload.location_description = editingProperty.locationDescription;
       }
-      if (editingProperty.equipmentDescription) {
-        payload.equipment_description = editingProperty.equipmentDescription;
+      if (editingProperty.equipment_description) {
+        payload.equipment_description = editingProperty.equipment_description;
       }
-      if (editingProperty.additionalInfo) {
-        payload.additional_info = editingProperty.additionalInfo;
+      if (editingProperty.additional_info) {
+        payload.additional_info = editingProperty.additional_info;
       }
+      
+      // Remove undefined values and empty nested objects
+      const cleanPayload = (obj: any): any => {
+        if (obj === null || obj === undefined) return undefined;
+        
+        if (typeof obj === 'object' && !Array.isArray(obj)) {
+          const cleaned: any = {};
+          for (const [key, value] of Object.entries(obj)) {
+            // Skip undefined, null, empty strings, but allow 0 for numeric fields like parking_spaces
+            if (value === undefined || value === null || value === '') continue;
+            
+            if (typeof value === 'object' && !Array.isArray(value)) {
+              const cleanedNested = cleanPayload(value);
+              if (cleanedNested && Object.keys(cleanedNested).length > 0) {
+                cleaned[key] = cleanedNested;
+              }
+            } else {
+              cleaned[key] = value;
+            }
+          }
+          return Object.keys(cleaned).length > 0 ? cleaned : undefined;
+        }
+        
+        return obj;
+      };
+
+      const cleanedPayload = cleanPayload(payload);
+      
+      // Debug logging
+      console.log('🔍 Year Built Value:', yearBuiltValue);
+      console.log('🔍 Parking Value:', parkingValue);
+      console.log('🔍 Sending payload:', JSON.stringify(cleanedPayload, null, 2));
       
       // Führe Update aus
       await updateMutation.mutateAsync({
         id: editingProperty.id,
-        payload: payload as UpdatePropertyPayload,
+        payload: cleanedPayload as UpdatePropertyPayload,
       });
       
       // Warte kurz, damit die Query-Invalidierung wirkt
@@ -354,9 +405,34 @@ const PropertyDetail: React.FC = () => {
       setIsEditing(false);
       setEditingProperty(null);
       toast.success('Immobilie erfolgreich aktualisiert!');
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Save error:', error);
-      toast.error('Fehler beim Speichern');
+      
+      // Extract detailed error message
+      let errorMessage = 'Fehler beim Speichern';
+      
+      if (error?.response?.data?.detail) {
+        const detail = error.response.data.detail;
+        if (Array.isArray(detail)) {
+          // Pydantic validation errors
+          errorMessage = detail.map((e: any) => {
+            const field = e.loc?.join('.') || 'unknown';
+            return `${field}: ${e.msg}`;
+          }).join(', ');
+        } else if (typeof detail === 'string') {
+          errorMessage = detail;
+        } else if (typeof detail === 'object') {
+          // Single validation error object
+          const field = detail.loc?.join('.') || 'unknown';
+          errorMessage = `${field}: ${detail.msg}`;
+        }
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
+      // Ensure errorMessage is always a string
+      const safeErrorMessage = typeof errorMessage === 'string' ? errorMessage : JSON.stringify(errorMessage);
+      toast.error(safeErrorMessage);
     } finally {
       setIsSaving(false);
     }
@@ -378,16 +454,22 @@ const PropertyDetail: React.FC = () => {
   const updateEditingProperty = (field: string, value: any) => {
     if (!editingProperty) return;
     
+    console.log(`🔄 Updating field: ${field} = ${value}`);
+    
     const fields = field.split('.');
     const updated = { ...editingProperty };
     let current: any = updated;
     
     for (let i = 0; i < fields.length - 1; i++) {
+      if (!current[fields[i]]) {
+        current[fields[i]] = {};
+      }
       current[fields[i]] = { ...current[fields[i]] };
       current = current[fields[i]];
     }
     
     current[fields[fields.length - 1]] = value;
+    console.log(`✅ Updated property:`, updated);
     setEditingProperty(updated);
   };
 
@@ -489,13 +571,22 @@ const PropertyDetail: React.FC = () => {
                   </button>
                 </>
               ) : (
-                <button
-                  onClick={handleEdit}
-                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-lg transition-all"
-                >
-                  <Edit2 className="w-4 h-4" />
-                  Bearbeiten
-                </button>
+                <>
+                  <button
+                    onClick={() => setIsPortalModalOpen(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white rounded-lg transition-all"
+                  >
+                    <Share2 className="w-4 h-4" />
+                    Veröffentlichen
+                  </button>
+                  <button
+                    onClick={handleEdit}
+                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-lg transition-all"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                    Bearbeiten
+                  </button>
+                </>
               )}
             </div>
           </div>
@@ -648,16 +739,19 @@ const PropertyDetail: React.FC = () => {
                     )}
 
                     {/* Key Metrics Grid */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                      <div className="p-6 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl border border-blue-200 dark:border-blue-700 hover:shadow-lg transition-all">
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
+                      <div className="p-6 bg-white/10 dark:bg-gray-800/20 backdrop-blur-md rounded-2xl border border-white/20 dark:border-gray-700/30 hover:shadow-xl hover:shadow-blue-500/10 transition-all duration-300 hover:scale-105">
                         <Euro className="w-10 h-10 text-blue-600 dark:text-blue-400 mb-3" />
                         {isEditing ? (
-                          <input
-                            type="number"
-                            value={editingProperty?.price || ''}
-                            onChange={(e) => updateEditingProperty('price', Number(e.target.value))}
-                            className="w-full text-2xl font-bold bg-transparent border-b border-blue-300 dark:border-blue-600 text-gray-900 dark:text-white mb-1 focus:outline-none focus:border-blue-500"
-                          />
+                          <div className="flex items-center gap-2 mb-1">
+                            <input
+                              type="number"
+                              value={editingProperty?.price || ''}
+                              onChange={(e) => updateEditingProperty('price', Number(e.target.value))}
+                              className="text-2xl font-bold bg-transparent border-b border-blue-300 dark:border-blue-600 text-gray-900 dark:text-white focus:outline-none focus:border-blue-500 w-auto min-w-0"
+                            />
+                            <span className="text-2xl font-bold text-gray-900 dark:text-white">€</span>
+                          </div>
                         ) : (
                           <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
                             {property.price.toLocaleString('de-DE')} €
@@ -666,7 +760,7 @@ const PropertyDetail: React.FC = () => {
                         <div className="text-sm text-gray-500 dark:text-gray-400">Kaufpreis</div>
                       </div>
 
-                      <div className="p-6 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-2xl border border-purple-200 dark:border-purple-700 hover:shadow-lg transition-all">
+                      <div className="p-6 bg-white/10 dark:bg-gray-800/20 backdrop-blur-md rounded-2xl border border-white/20 dark:border-gray-700/30 hover:shadow-xl hover:shadow-purple-500/10 transition-all duration-300 hover:scale-105">
                         <Ruler className="w-10 h-10 text-purple-600 dark:text-purple-400 mb-3" />
                         {isEditing ? (
                           <input
@@ -683,7 +777,7 @@ const PropertyDetail: React.FC = () => {
                         <div className="text-sm text-gray-500 dark:text-gray-400">Wohnfläche</div>
                       </div>
 
-                      <div className="p-6 bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20 rounded-2xl border border-emerald-200 dark:border-emerald-700 hover:shadow-lg transition-all">
+                      <div className="p-6 bg-white/10 dark:bg-gray-800/20 backdrop-blur-md rounded-2xl border border-white/20 dark:border-gray-700/30 hover:shadow-xl hover:shadow-emerald-500/10 transition-all duration-300 hover:scale-105">
                         <Bed className="w-10 h-10 text-emerald-600 dark:text-emerald-400 mb-3" />
                         {isEditing ? (
                           <input
@@ -700,7 +794,7 @@ const PropertyDetail: React.FC = () => {
                         <div className="text-sm text-gray-500 dark:text-gray-400">Zimmer</div>
                       </div>
 
-                      <div className="p-6 bg-gradient-to-br from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20 rounded-2xl border border-orange-200 dark:border-orange-700 hover:shadow-lg transition-all">
+                      <div className="p-6 bg-white/10 dark:bg-gray-800/20 backdrop-blur-md rounded-2xl border border-white/20 dark:border-gray-700/30 hover:shadow-xl hover:shadow-orange-500/10 transition-all duration-300 hover:scale-105">
                         <Bath className="w-10 h-10 text-orange-600 dark:text-orange-400 mb-3" />
                         {isEditing ? (
                           <input
@@ -716,19 +810,53 @@ const PropertyDetail: React.FC = () => {
                         )}
                         <div className="text-sm text-gray-500 dark:text-gray-400">Badezimmer</div>
                       </div>
+
+                      <div className="p-6 bg-white/10 dark:bg-gray-800/20 backdrop-blur-md rounded-2xl border border-white/20 dark:border-gray-700/30 hover:shadow-xl hover:shadow-cyan-500/10 transition-all duration-300 hover:scale-105">
+                        <Calendar className="w-10 h-10 text-cyan-600 dark:text-cyan-400 mb-3" />
+                        {isEditing ? (
+                          <input
+                            type="number"
+                            value={editingProperty?.buildYear || ''}
+                            onChange={(e) => updateEditingProperty('buildYear', Number(e.target.value))}
+                            className="w-full text-2xl font-bold bg-transparent border-b border-cyan-300 dark:border-cyan-600 text-gray-900 dark:text-white mb-1 focus:outline-none focus:border-cyan-500"
+                          />
+                        ) : (
+                          <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
+                            {property.buildYear || property.features.yearBuilt || 'N/A'}
+                          </div>
+                        )}
+                        <div className="text-sm text-gray-500 dark:text-gray-400">Baujahr</div>
+                      </div>
                     </div>
 
                     {/* Additional Fields in Edit Mode */}
                     {isEditing && (
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mt-8">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Status
+                          </label>
+                          <select
+                            value={editingProperty?.status || 'vorbereitung'}
+                            onChange={(e) => updateEditingProperty('status', e.target.value as Property['status'])}
+                            className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          >
+                            <option value="vorbereitung">Vorbereitung</option>
+                            <option value="available">Verfügbar</option>
+                            <option value="reserved">Reserviert</option>
+                            <option value="sold">Verkauft</option>
+                            <option value="akquise">Akquise</option>
+                          </select>
+                        </div>
+
                         <div>
                           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                             Gesamtfläche (m²)
                           </label>
                           <input
                             type="number"
-                            value={editingProperty?.areas?.living || ''}
-                            onChange={(e) => updateEditingProperty('areas.living', Number(e.target.value))}
+                            value={editingProperty?.areas?.usable || ''}
+                            onChange={(e) => updateEditingProperty('areas.usable', Number(e.target.value))}
                             className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           />
                         </div>
@@ -762,8 +890,8 @@ const PropertyDetail: React.FC = () => {
                             Energieklasse
                           </label>
                           <select
-                            value={editingProperty?.energyClass?.efficiency || ''}
-                            onChange={(e) => updateEditingProperty('energyClass.efficiency', e.target.value)}
+                            value={editingProperty?.energy_class || ''}
+                            onChange={(e) => updateEditingProperty('energy_class', e.target.value)}
                             className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           >
                             <option value="">Nicht angegeben</option>
@@ -785,8 +913,8 @@ const PropertyDetail: React.FC = () => {
                           </label>
                           <input
                             type="text"
-                            value={editingProperty?.features?.heatingType || ''}
-                            onChange={(e) => updateEditingProperty('features.heatingType', e.target.value)}
+                            value={editingProperty?.heating_type || ''}
+                            onChange={(e) => updateEditingProperty('heating_type', e.target.value)}
                             className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             placeholder="z.B. Gas, Öl, Wärmepumpe"
                           />
@@ -798,9 +926,22 @@ const PropertyDetail: React.FC = () => {
                           </label>
                           <input
                             type="number"
-                            value={editingProperty?.features?.floor || ''}
-                            onChange={(e) => updateEditingProperty('features.floor', e.target.value)}
+                            value={editingProperty?.floors || ''}
+                            onChange={(e) => updateEditingProperty('floors', Number(e.target.value))}
                             className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Parkplätze
+                          </label>
+                          <input
+                            type="number"
+                            value={editingProperty?.features?.parking || ''}
+                            onChange={(e) => updateEditingProperty('features.parking', e.target.value)}
+                            className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            min="0"
                           />
                         </div>
                       </div>
@@ -835,15 +976,15 @@ const PropertyDetail: React.FC = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                       {[
                         { label: 'Objektart', value: property.type === 'apartment' ? 'Wohnung' : property.type === 'house' ? 'Haus' : 'Gewerbe', icon: Building2 },
-                        { label: 'Baujahr', value: property.features.yearBuilt || 'Nicht angegeben', icon: Calendar },
-                        { label: 'Etage', value: property.features.floor || 'Nicht angegeben', icon: Building2 },
+                        { label: 'Baujahr', value: property.buildYear || property.features.yearBuilt || 'Nicht angegeben', icon: Calendar },
+                        { label: 'Etage', value: property.floors || property.features.floor || 'Nicht angegeben', icon: Building2 },
                         { label: 'Parkplätze', value: property.features.parking || '0', icon: Car },
-                        { label: 'Heizungsart', value: property.features.heatingType || 'Nicht angegeben', icon: Flame },
-                        { label: 'Energieklasse', value: property.features.energyClass || 'Nicht angegeben', icon: Zap },
+                        { label: 'Heizungsart', value: property.heating_type || property.features.heatingType || 'Nicht angegeben', icon: Flame },
+                        { label: 'Energieklasse', value: property.energy_class || property.features.energyClass || 'Nicht angegeben', icon: Zap },
                       ].map((item, idx) => {
                         const Icon = item.icon;
                         return (
-                          <div key={idx} className="p-5 bg-gray-50/50 dark:bg-gray-700/30 rounded-2xl border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-all">
+                          <div key={idx} className="p-5 bg-white/10 dark:bg-gray-800/20 backdrop-blur-md rounded-2xl border border-white/20 dark:border-gray-700/30 hover:shadow-xl hover:shadow-blue-500/10 transition-all duration-300 hover:scale-105">
                             <div className="flex items-center gap-4">
                               <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-xl flex items-center justify-center flex-shrink-0">
                                 <Icon className="w-6 h-6 text-white" />
@@ -899,15 +1040,15 @@ const PropertyDetail: React.FC = () => {
                       <h4 className="font-semibold text-gray-900 dark:text-white mb-3">Ausstattungsbeschreibung</h4>
                       {isEditing ? (
                         <textarea
-                          value={editingProperty?.equipmentDescription || ''}
-                          onChange={(e) => updateEditingProperty('equipmentDescription', e.target.value)}
+                          value={editingProperty?.equipment_description || ''}
+                          onChange={(e) => updateEditingProperty('equipment_description', e.target.value)}
                           rows={6}
                           className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           placeholder="Beschreiben Sie die Ausstattung..."
                         />
                       ) : (
                         <p className="text-gray-600 dark:text-gray-300 leading-relaxed">
-                          {property.equipmentDescription || 'Keine Ausstattungsbeschreibung verfügbar'}
+                          {property.equipment_description || 'Keine Ausstattungsbeschreibung verfügbar'}
                         </p>
                       )}
                     </div>
@@ -917,15 +1058,15 @@ const PropertyDetail: React.FC = () => {
                       <h4 className="font-semibold text-gray-900 dark:text-white mb-3">Sonstige Angaben</h4>
                       {isEditing ? (
                         <textarea
-                          value={editingProperty?.additionalInfo || ''}
-                          onChange={(e) => updateEditingProperty('additionalInfo', e.target.value)}
+                          value={editingProperty?.additional_info || ''}
+                          onChange={(e) => updateEditingProperty('additional_info', e.target.value)}
                           rows={4}
                           className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           placeholder="Weitere Informationen..."
                         />
                       ) : (
                         <p className="text-gray-600 dark:text-gray-300 leading-relaxed">
-                          {property.additionalInfo || 'Keine weiteren Angaben verfügbar'}
+                          {property.additional_info || 'Keine weiteren Angaben verfügbar'}
                         </p>
                       )}
                     </div>
@@ -944,7 +1085,57 @@ const PropertyDetail: React.FC = () => {
 
                 {/* Energy Tab */}
                 {activeTab === 'energy' && (
-                  <EnergyEfficiencyTab property={property} />
+                  <EnergyEfficiencyTab 
+                    property={property} 
+                    propertyId={property?.id}
+                    updatePropertyMutation={updateMutation}
+                    onUpdate={(data) => {
+                      // Synchronisiere alle Energieausweis-Daten mit dem Hauptformular
+                      if (data.heating_type) {
+                        setProperty(prev => prev ? { ...prev, heating_type: data.heating_type } : null);
+                        if (editingProperty) {
+                          setEditingProperty(prev => prev ? { ...prev, heating_type: data.heating_type } : null);
+                        }
+                      }
+                      if (data.energy_class) {
+                        setProperty(prev => prev ? { ...prev, energy_class: data.energy_class } : null);
+                        if (editingProperty) {
+                          setEditingProperty(prev => prev ? { ...prev, energy_class: data.energy_class } : null);
+                        }
+                      }
+                      if (data.energy_consumption) {
+                        setProperty(prev => prev ? { ...prev, energy_consumption: data.energy_consumption } : null);
+                        if (editingProperty) {
+                          setEditingProperty(prev => prev ? { ...prev, energy_consumption: data.energy_consumption } : null);
+                        }
+                      }
+                      if (data.co2_emissions) {
+                        setProperty(prev => prev ? { ...prev, co2_emissions: data.co2_emissions } : null);
+                        if (editingProperty) {
+                          setEditingProperty(prev => prev ? { ...prev, co2_emissions: data.co2_emissions } : null);
+                        }
+                      }
+                      if (data.energy_certificate_type) {
+                        setProperty(prev => prev ? { ...prev, energy_certificate_type: data.energy_certificate_type } : null);
+                        if (editingProperty) {
+                          setEditingProperty(prev => prev ? { ...prev, energy_certificate_type: data.energy_certificate_type } : null);
+                        }
+                      }
+                      if (data.energy_certificate_valid_until) {
+                        setProperty(prev => prev ? { ...prev, energy_certificate_valid_until: data.energy_certificate_valid_until } : null);
+                        if (editingProperty) {
+                          setEditingProperty(prev => prev ? { ...prev, energy_certificate_valid_until: data.energy_certificate_valid_until } : null);
+                        }
+                      }
+                      if (data.energy_certificate_issue_date) {
+                        setProperty(prev => prev ? { ...prev, energy_certificate_issue_date: data.energy_certificate_issue_date } : null);
+                        if (editingProperty) {
+                          setEditingProperty(prev => prev ? { ...prev, energy_certificate_issue_date: data.energy_certificate_issue_date } : null);
+                        }
+                      }
+                      toast.success('Energiedaten erfolgreich synchronisiert!');
+                    }}
+                  />
                 )}
 
                 {/* Location Tab */}
@@ -980,7 +1171,10 @@ const PropertyDetail: React.FC = () => {
 
                 {/* Performance Tab */}
                 {activeTab === 'performance' && (
-                  <PerformanceTab propertyId={property.id} property={property} />
+                  <PerformanceTab 
+                    propertyId={property.id} 
+                    property={property as any} 
+                  />
                 )}
               </motion.div>
             </AnimatePresence>
@@ -1107,6 +1301,16 @@ const PropertyDetail: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Portal Publishing Modal */}
+      {property && (
+        <PortalPublishingModal
+          isOpen={isPortalModalOpen}
+          onClose={() => setIsPortalModalOpen(false)}
+          propertyId={property.id}
+          propertyTitle={property.title}
+        />
+      )}
     </div>
   );
 };

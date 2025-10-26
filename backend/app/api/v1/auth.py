@@ -19,7 +19,11 @@ from app.schemas.auth import (
     MessageResponse,
     TenantUserInfo
 )
+from app.schemas.invitation import (
+    InvitationAcceptRequest, InvitationValidateRequest, InvitationValidateResponse
+)
 from app.services.auth_service import AuthService
+from app.services.invitation_service import InvitationService
 from app.core.errors import UnauthorizedError, ConflictError, NotFoundError
 from app.db.models import User, TenantUser
 from app.api.deps import require_read_scope, get_tenant_id, get_current_user, TokenData
@@ -106,8 +110,33 @@ async def register(request: RegisterRequest):
     Register a new user and create a tenant
     """
     try:
+        # Check if user already exists
+        from app.db.models import User
+        from asgiref.sync import sync_to_async
+        
+        user_exists = await sync_to_async(User.objects.filter(email=request.email).exists)()
+        if user_exists:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"User with email {request.email} already exists"
+            )
+        
+        # Check if tenant already exists
+        from app.db.models import Tenant
+        
+        existing_tenant = await sync_to_async(
+            Tenant.objects.filter(
+                name=request.tenant_name
+            ).first
+        )()
+        
+        # Note: BillingGuard check removed for new registrations
+        # as BillingAccount might not exist yet
+        
         response = await AuthService.register_user(request)
         return response
+    except HTTPException:
+        raise
     except ConflictError as e:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -274,3 +303,129 @@ async def get_colleagues(
     colleagues = await auth_service.get_colleagues(tenant_id, current_user.user_id)
     
     return colleagues
+
+
+# ============================================================================
+# INVITATION ENDPOINTS
+# ============================================================================
+
+@router.get("/validate-invitation/{token}", response_model=InvitationValidateResponse)
+async def validate_invitation(
+    token: str
+):
+    """Validate an invitation token"""
+    
+    # We need to determine tenant_id from the invitation
+    from app.db.models import UserInvitation
+    
+    try:
+        invitation = await sync_to_async(UserInvitation.objects.get)(
+            token=token,
+            status='pending'
+        )
+    except UserInvitation.DoesNotExist:
+        return InvitationValidateResponse(
+            is_valid=False,
+            error_message="Ungültiger oder abgelaufener Einladungstoken"
+        )
+    
+    invitation_service = InvitationService(str(invitation.tenant_id))
+    result = await invitation_service.validate_invitation(
+        InvitationValidateRequest(token=token)
+    )
+    
+    return result
+
+
+@router.post("/accept-invitation", response_model=UserResponse)
+async def accept_invitation(
+    accept_request: InvitationAcceptRequest
+):
+    """Accept an invitation and create user account"""
+    
+    # We need to determine tenant_id from the invitation
+    from app.db.models import UserInvitation
+    
+    try:
+        invitation = await sync_to_async(UserInvitation.objects.get)(
+            token=accept_request.token,
+            status='pending'
+        )
+    except UserInvitation.DoesNotExist:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Ungültiger oder abgelaufener Einladungstoken"
+        )
+    
+    invitation_service = InvitationService(str(invitation.tenant_id))
+    
+    try:
+        invitation_response = await invitation_service.accept_invitation(accept_request)
+        
+        # Get the created user
+        user = await sync_to_async(User.objects.get)(id=invitation_response.user_id)
+        
+        return UserResponse(
+            id=str(user.id),
+            email=user.email,
+            first_name=user.first_name,
+            last_name=user.last_name,
+            is_active=user.is_active,
+            created_at=user.created_at
+        )
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
+@router.post("/setup-password", response_model=MessageResponse)
+async def setup_password(
+    token: str,
+    password: str,
+    password_confirm: str
+):
+    """Setup password for invited user (alternative endpoint)"""
+    
+    if password != password_confirm:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Passwörter stimmen nicht überein"
+        )
+    
+    # We need to determine tenant_id from the invitation
+    from app.db.models import UserInvitation
+    
+    try:
+        invitation = await sync_to_async(UserInvitation.objects.get)(
+            token=token,
+            status='pending'
+        )
+    except UserInvitation.DoesNotExist:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Ungültiger oder abgelaufener Einladungstoken"
+        )
+    
+    invitation_service = InvitationService(str(invitation.tenant_id))
+    
+    try:
+        accept_request = InvitationAcceptRequest(
+            token=token,
+            password=password,
+            password_confirm=password_confirm
+        )
+        
+        await invitation_service.accept_invitation(accept_request)
+        
+        return MessageResponse(
+            message="Passwort erfolgreich gesetzt. Sie können sich jetzt anmelden."
+        )
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )

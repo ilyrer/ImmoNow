@@ -4,25 +4,45 @@
  * Use the new services in src/services/ instead.
  */
 
-import { API_BASE_URL } from '../../config';
+import apiClient from '../enhancedClient';
 
-// Mock calendar API for backward compatibility
+// Legacy Calendar API for backward compatibility - now uses enhanced client
 export const calendarApi = {
   getAppointments: async (params: any) => {
-    console.warn('Legacy calendar API call - please update to new services');
-    return { data: [] };
+    try {
+      const response = await apiClient.getAppointments(params);
+      return { data: response.data };
+    } catch (error) {
+      console.error('Error getting appointments:', error);
+      return { data: [] };
+    }
   },
   createAppointment: async (data: any) => {
-    console.warn('Legacy calendar API call - please update to new services');
-    return { data: null };
+    try {
+      const response = await apiClient.createAppointment(data);
+      return { data: response.data };
+    } catch (error) {
+      console.error('Error creating appointment:', error);
+      return { data: null };
+    }
   },
   updateAppointment: async (id: string, data: any) => {
-    console.warn('Legacy calendar API call - please update to new services');
-    return { data: null };
+    try {
+      const response = await apiClient.updateAppointment(id, data);
+      return { data: response.data };
+    } catch (error) {
+      console.error('Error updating appointment:', error);
+      return { data: null };
+    }
   },
   deleteAppointment: async (id: string) => {
-    console.warn('Legacy calendar API call - please update to new services');
-    return { data: null };
+    try {
+      await apiClient.deleteAppointment(id);
+      return { data: null };
+    } catch (error) {
+      console.error('Error deleting appointment:', error);
+      return { data: null };
+    }
   },
 };
 

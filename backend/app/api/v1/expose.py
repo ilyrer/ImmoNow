@@ -238,9 +238,17 @@ async def generate_expose_pdf(
     """Generate exposé PDF"""
     
     # Get exposé version
-    try:
-        version = ExposeVersion.objects.get(id=request.version_id)
-    except ExposeVersion.DoesNotExist:
+    from asgiref.sync import sync_to_async
+    
+    @sync_to_async
+    def get_expose_version():
+        try:
+            return ExposeVersion.objects.get(id=request.version_id)
+        except ExposeVersion.DoesNotExist:
+            return None
+    
+    version = await get_expose_version()
+    if not version:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Exposé version not found"
@@ -315,9 +323,17 @@ async def download_expose_pdf(
     """Download exposé PDF"""
     
     # Get exposé version
-    try:
-        version = ExposeVersion.objects.get(id=version_id)
-    except ExposeVersion.DoesNotExist:
+    from asgiref.sync import sync_to_async
+    
+    @sync_to_async
+    def get_expose_version():
+        try:
+            return ExposeVersion.objects.get(id=version_id)
+        except ExposeVersion.DoesNotExist:
+            return None
+    
+    version = await get_expose_version()
+    if not version:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Exposé version not found"

@@ -411,31 +411,31 @@ const TasksBoard = forwardRef<any>((props, ref) => {
         </div>
       </div>
 
-      <div className="p-6">
+      <div className="p-4 overflow-x-auto">
         <DragDropContext onDragEnd={handleDragEnd}>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="flex gap-4 min-w-max pb-4">
             {/* To Do Column */}
             <Droppable droppableId="backlog">
               {(provided, snapshot) => (
                 <div 
                   ref={provided.innerRef}
                   {...provided.droppableProps}
-                  className={`rounded-2xl p-4 border transition-colors duration-200 shadow-sm bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl border-white/40 dark:border-gray-700/50 ${snapshot.isDraggingOver ? 'ring-2 ring-blue-400/40' : ''}`}
+                  className={`rounded-xl p-3 border transition-colors duration-200 shadow-sm bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl border-white/40 dark:border-gray-700/50 w-[280px] flex-shrink-0 ${snapshot.isDraggingOver ? 'ring-2 ring-blue-400/40' : ''}`}
                 >
-                  <div className="flex justify-between items-center mb-4">
+                  <div className="flex justify-between items-center mb-3">
                     <div className="flex items-center gap-2">
                       <span className="w-2 h-2 rounded-full bg-blue-500" />
-                      <h3 className="font-semibold text-gray-900 dark:text-white">Backlog</h3>
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">{tasks.filter(t => t.status === 'backlog').length}</span>
+                      <h3 className="font-semibold text-sm text-gray-900 dark:text-white">Backlog</h3>
+                      <span className="text-xs px-1.5 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">{tasks.filter(t => t.status === 'backlog').length}</span>
                     </div>
                     <button
                       onClick={handleCreateTask}
-                      className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded-lg transition-colors shadow"
+                      className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded-md transition-colors shadow-sm"
                     >
-                      + Neue Aufgabe
+                      + Neu
                     </button>
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-2 max-h-[calc(100vh-280px)] overflow-y-auto pr-1">
                     {tasks.filter(task => task.status === 'backlog').map((task, index) => (
                       <Draggable key={task.id} draggableId={task.id} index={index}>
                         {(provided, snapshot) => (
@@ -443,20 +443,20 @@ const TasksBoard = forwardRef<any>((props, ref) => {
                             ref={provided.innerRef}
                             {...provided.draggableProps}
                             {...provided.dragHandleProps}
-                            className={`p-3 rounded-xl cursor-move transition-all ${snapshot.isDragging ? 'shadow-xl bg-white dark:bg-gray-700' : 'bg-white/70 dark:bg-gray-700/70'} border border-gray-200/60 dark:border-gray-700/60`}
+                            className={`p-2.5 rounded-lg cursor-move transition-all ${snapshot.isDragging ? 'shadow-xl bg-white dark:bg-gray-700' : 'bg-white/70 dark:bg-gray-700/70'} border border-gray-200/60 dark:border-gray-700/60 hover:shadow-md`}
                             onClick={() => handleTaskClick(task)}
                           >
-                            <h4 className="font-medium text-gray-900 dark:text-white truncate">{task.title}</h4>
-                            <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2">{task.description}</p>
+                            <h4 className="font-medium text-sm text-gray-900 dark:text-white truncate">{task.title}</h4>
+                            <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2 mt-1">{task.description}</p>
                           </div>
                         )}
                       </Draggable>
                     ))}
                     {provided.placeholder}
                     {tasks.filter(task => task.status === 'backlog').length === 0 && (
-                      <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                        <div className="w-10 h-10 mx-auto mb-2 rounded-full border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center">➕</div>
-                        <p className="text-sm">Keine Aufgaben – erstelle neue</p>
+                      <div className="text-center py-6 text-gray-500 dark:text-gray-400">
+                        <div className="w-8 h-8 mx-auto mb-2 rounded-full border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center text-sm">➕</div>
+                        <p className="text-xs">Keine Aufgaben</p>
                       </div>
                     )}
                   </div>
@@ -470,14 +470,14 @@ const TasksBoard = forwardRef<any>((props, ref) => {
                 <div 
                   ref={provided.innerRef}
                   {...provided.droppableProps}
-                  className={`rounded-2xl p-4 border transition-colors duration-200 shadow-sm bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl border-white/40 dark:border-gray-700/50 ${snapshot.isDraggingOver ? 'ring-2 ring-yellow-400/40' : ''}`}
+                  className={`rounded-xl p-3 border transition-colors duration-200 shadow-sm bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl border-white/40 dark:border-gray-700/50 w-[280px] flex-shrink-0 ${snapshot.isDraggingOver ? 'ring-2 ring-yellow-400/40' : ''}`}
                 >
-                  <div className="flex items-center gap-2 mb-4">
+                  <div className="flex items-center gap-2 mb-3">
                     <span className="w-2 h-2 rounded-full bg-yellow-500" />
-                    <h3 className="font-semibold text-gray-900 dark:text-white">In Arbeit</h3>
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">{tasks.filter(t => t.status === 'inProgress').length}</span>
+                    <h3 className="font-semibold text-sm text-gray-900 dark:text-white">In Arbeit</h3>
+                    <span className="text-xs px-1.5 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">{tasks.filter(t => t.status === 'inProgress').length}</span>
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-2 max-h-[calc(100vh-280px)] overflow-y-auto pr-1">
                     {tasks.filter(task => task.status === 'inProgress').map((task, index) => (
                       <Draggable key={task.id} draggableId={task.id} index={index}>
                         {(provided, snapshot) => (
@@ -485,11 +485,11 @@ const TasksBoard = forwardRef<any>((props, ref) => {
                             ref={provided.innerRef}
                             {...provided.draggableProps}
                             {...provided.dragHandleProps}
-                            className={`p-3 rounded-xl cursor-move transition-all ${snapshot.isDragging ? 'shadow-xl bg-white dark:bg-gray-700' : 'bg-white/70 dark:bg-gray-700/70'} border border-gray-200/60 dark:border-gray-700/60`}
+                            className={`p-2.5 rounded-lg cursor-move transition-all ${snapshot.isDragging ? 'shadow-xl bg-white dark:bg-gray-700' : 'bg-white/70 dark:bg-gray-700/70'} border border-gray-200/60 dark:border-gray-700/60 hover:shadow-md`}
                             onClick={() => handleTaskClick(task)}
                           >
-                            <h4 className="font-medium text-gray-900 dark:text-white truncate">{task.title}</h4>
-                            <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2">{task.description}</p>
+                            <h4 className="font-medium text-sm text-gray-900 dark:text-white truncate">{task.title}</h4>
+                            <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2 mt-1">{task.description}</p>
                           </div>
                         )}
                       </Draggable>
@@ -500,43 +500,32 @@ const TasksBoard = forwardRef<any>((props, ref) => {
               )}
             </Droppable>
 
-            {/* Diese Woche Column */}
-            <Droppable droppableId="thisWeek">
+            {/* Review Column */}
+            <Droppable droppableId="review">
               {(provided, snapshot) => (
                 <div 
                   ref={provided.innerRef}
                   {...provided.droppableProps}
-                  className={`rounded-2xl p-4 border transition-colors duration-200 shadow-sm bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl border-white/40 dark:border-gray-700/50 ${snapshot.isDraggingOver ? 'ring-2 ring-blue-400/30' : ''}`}
+                  className={`rounded-xl p-3 border transition-colors duration-200 shadow-sm bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl border-white/40 dark:border-gray-700/50 w-[280px] flex-shrink-0 ${snapshot.isDraggingOver ? 'ring-2 ring-purple-400/40' : ''}`}
                 >
-                  <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Diese Woche</h3>
-                  <div className="space-y-2">
-                    {tasks.filter(task => {
-                      const dueDate = new Date(task.dueDate);
-                      const now = new Date();
-                      const startOfWeek = new Date(now);
-                      startOfWeek.setDate(now.getDate() - now.getDay());
-                      startOfWeek.setHours(0, 0, 0, 0);
-                      
-                      const endOfWeek = new Date(startOfWeek);
-                      endOfWeek.setDate(startOfWeek.getDate() + 6);
-                      endOfWeek.setHours(23, 59, 59, 999);
-                      
-                      return dueDate >= startOfWeek && dueDate <= endOfWeek && task.status !== 'done';
-                    }).map((task, index) => (
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="w-2 h-2 rounded-full bg-purple-500" />
+                    <h3 className="font-semibold text-sm text-gray-900 dark:text-white">Überprüfung</h3>
+                    <span className="text-xs px-1.5 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">{tasks.filter(t => t.status === 'review').length}</span>
+                  </div>
+                  <div className="space-y-2 max-h-[calc(100vh-280px)] overflow-y-auto pr-1">
+                    {tasks.filter(task => task.status === 'review').map((task, index) => (
                       <Draggable key={task.id} draggableId={task.id} index={index}>
                         {(provided, snapshot) => (
                           <div
                             ref={provided.innerRef}
                             {...provided.draggableProps}
                             {...provided.dragHandleProps}
-                            className={`p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl border-l-4 border-blue-500 cursor-move ${snapshot.isDragging ? 'shadow-lg' : ''}`}
+                            className={`p-2.5 rounded-lg cursor-move transition-all ${snapshot.isDragging ? 'shadow-xl bg-white dark:bg-gray-700' : 'bg-white/70 dark:bg-gray-700/70'} border border-gray-200/60 dark:border-gray-700/60 hover:shadow-md`}
                             onClick={() => handleTaskClick(task)}
                           >
-                            <h4 className="font-medium text-gray-900 dark:text-white">{task.title}</h4>
-                            <p className="text-sm text-gray-600 dark:text-gray-400">{task.description}</p>
-                            <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                              Fällig: {new Date(task.dueDate).toLocaleDateString('de-DE')}
-                            </p>
+                            <h4 className="font-medium text-sm text-gray-900 dark:text-white truncate">{task.title}</h4>
+                            <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2 mt-1">{task.description}</p>
                           </div>
                         )}
                       </Draggable>
@@ -547,20 +536,20 @@ const TasksBoard = forwardRef<any>((props, ref) => {
               )}
             </Droppable>
 
-            {/* Erledigt Column */}
+            {/* Done Column */}
             <Droppable droppableId="done">
               {(provided, snapshot) => (
                 <div 
                   ref={provided.innerRef}
                   {...provided.droppableProps}
-                  className={`rounded-2xl p-4 border transition-colors duration-200 shadow-sm bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl border-white/40 dark:border-gray-700/50 ${snapshot.isDraggingOver ? 'ring-2 ring-green-400/40' : ''}`}
+                  className={`rounded-xl p-3 border transition-colors duration-200 shadow-sm bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl border-white/40 dark:border-gray-700/50 w-[280px] flex-shrink-0 ${snapshot.isDraggingOver ? 'ring-2 ring-green-400/40' : ''}`}
                 >
-                  <div className="flex items-center gap-2 mb-4">
+                  <div className="flex items-center gap-2 mb-3">
                     <span className="w-2 h-2 rounded-full bg-green-500" />
-                    <h3 className="font-semibold text-gray-900 dark:text-white">Erledigt</h3>
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">{tasks.filter(t => t.status === 'done').length}</span>
+                    <h3 className="font-semibold text-sm text-gray-900 dark:text-white">Erledigt</h3>
+                    <span className="text-xs px-1.5 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">{tasks.filter(t => t.status === 'done').length}</span>
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-2 max-h-[calc(100vh-280px)] overflow-y-auto pr-1">
                     {tasks.filter(task => task.status === 'done').map((task, index) => (
                       <Draggable key={task.id} draggableId={task.id} index={index}>
                         {(provided, snapshot) => (
@@ -568,17 +557,50 @@ const TasksBoard = forwardRef<any>((props, ref) => {
                             ref={provided.innerRef}
                             {...provided.draggableProps}
                             {...provided.dragHandleProps}
-                            className={`p-3 bg-green-50 dark:bg-green-900/20 rounded-xl border-l-4 border-green-500 cursor-move ${snapshot.isDragging ? 'shadow-lg' : ''}`}
+                            className={`p-2.5 bg-green-50 dark:bg-green-900/20 rounded-lg border-l-3 border-green-500 cursor-move ${snapshot.isDragging ? 'shadow-lg' : ''}`}
                           >
-                            <h4 className="font-medium text-gray-900 dark:text-white line-through opacity-75">
+                            <h4 className="font-medium text-sm text-gray-900 dark:text-white line-through opacity-75">
                               {task.title}
                             </h4>
-                            <p className="text-sm text-gray-600 dark:text-gray-400 line-through opacity-75">
+                            <p className="text-xs text-gray-600 dark:text-gray-400 line-through opacity-75 line-clamp-2 mt-1">
                               {task.description}
                             </p>
-                            <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                              Abgeschlossen: {new Date(task.updatedAt).toLocaleDateString('de-DE')}
-                            </p>
+                          </div>
+                        )}
+                      </Draggable>
+                    ))}
+                    {provided.placeholder}
+                  </div>
+                </div>
+              )}
+            </Droppable>
+
+            {/* Blocked Column */}
+            <Droppable droppableId="blocked">
+              {(provided, snapshot) => (
+                <div 
+                  ref={provided.innerRef}
+                  {...provided.droppableProps}
+                  className={`rounded-xl p-3 border transition-colors duration-200 shadow-sm bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl border-white/40 dark:border-gray-700/50 w-[280px] flex-shrink-0 ${snapshot.isDraggingOver ? 'ring-2 ring-red-400/40' : ''}`}
+                >
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="w-2 h-2 rounded-full bg-red-500" />
+                    <h3 className="font-semibold text-sm text-gray-900 dark:text-white">Blockiert</h3>
+                    <span className="text-xs px-1.5 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">{tasks.filter(t => t.status === 'blocked').length}</span>
+                  </div>
+                  <div className="space-y-2 max-h-[calc(100vh-280px)] overflow-y-auto pr-1">
+                    {tasks.filter(task => task.status === 'blocked').map((task, index) => (
+                      <Draggable key={task.id} draggableId={task.id} index={index}>
+                        {(provided, snapshot) => (
+                          <div
+                            ref={provided.innerRef}
+                            {...provided.draggableProps}
+                            {...provided.dragHandleProps}
+                            className={`p-2.5 bg-red-50 dark:bg-red-900/20 rounded-lg border-l-3 border-red-500 cursor-move ${snapshot.isDragging ? 'shadow-lg' : ''}`}
+                            onClick={() => handleTaskClick(task)}
+                          >
+                            <h4 className="font-medium text-sm text-gray-900 dark:text-white truncate">{task.title}</h4>
+                            <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2 mt-1">{task.description}</p>
                           </div>
                         )}
                       </Draggable>

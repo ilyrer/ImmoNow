@@ -6,16 +6,39 @@ export type EmployeeStatus = 'active' | 'inactive' | 'on_leave';
 
 export interface Employee {
   id: string;
-  name: string;
-  email: string;
-  roleId: string;
+  user_id: string;
+  user_first_name: string;
+  user_last_name: string;
+  user_email: string;
+  employee_number: string;
+  department: string;
+  position: string;
+  employment_type: string;
+  start_date: string;
+  end_date?: string;
+  work_email?: string;
+  work_phone?: string;
+  office_location?: string;
+  manager_id?: string;
+  manager_name?: string;
+  is_active: boolean;
+  is_on_leave: boolean;
+  leave_start?: string;
+  leave_end?: string;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+  created_by: string;
+  // Legacy fields for backward compatibility
+  name?: string;
+  email?: string;
+  roleId?: string;
   team?: string;
-  status: EmployeeStatus;
+  status?: EmployeeStatus;
   lastLogin?: string;
   phone?: string;
   avatar?: string;
   hireDate?: string;
-  department?: string;
 }
 
 export interface Role {

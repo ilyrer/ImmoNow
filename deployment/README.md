@@ -1,286 +1,237 @@
 # ImmoNow Docker Deployment
 
-Dieses Verzeichnis enthält alle Dateien, die für das Deployment der ImmoNow-Anwendung mit Docker Compose benötigt werden.
+Vollständiges Docker & Docker Compose Setup für das ImmoNow-Projekt (Backend + Frontend).
 
-## 🚀 Quick Start
+## 🚀 Schnellstart
 
 ### Voraussetzungen
-- Docker Desktop installiert
-- Docker Compose verfügbar
+- Docker Desktop oder Docker Engine
+- Docker Compose (in Docker Desktop enthalten)
 - Mindestens 4GB freier RAM
+- Ports 80, 3000, 5432, 6379, 8000, 9000, 9001 verfügbar
 
-### Starten der Entwicklungsumgebung
+### Ein-Befehl-Start
 
-**Für Windows:**
 ```bash
+# 1. In den deployment Ordner wechseln
 cd deployment
-start-dev.bat
+
+# 2. Environment konfigurieren
+cp env.example .env
+# Bearbeiten Sie .env mit Ihren Einstellungen
+
+# 3. Alles starten
+docker compose up -d --build
 ```
 
-**Für Linux/macOS:**
-```bash
-cd deployment
-chmod +x start-dev.sh
-./start-dev.sh
-```
-
-**Manuell:**
-```bash
-cd deployment
-cp .env.example .env
-docker-compose up --build
-```
+**Das war's!** 🎉
 
 ## 📋 Services
 
-### 1. PostgreSQL Database (`postgres`)
-- **Port:** 5432
-- **Database:** immonow_db
-- **User:** immonow_user
-- **Password:** immonow_password
-- **Volume:** postgres_data
+| Service | Port | Beschreibung |
+|---------|------|--------------|
+| **Frontend** | 80 | React App (über Nginx) |
+| **Backend API** | 80/api | FastAPI Backend |
+| **Django Admin** | 80/admin | Django Admin Interface |
+| **PostgreSQL** | 5432 | Datenbank |
+| **Redis** | 6379 | Cache & Sessions |
+| **MinIO** | 9000 | Object Storage |
+| **MinIO Console** | 9001 | Storage Management |
 
-### 2. Redis Cache (`redis`)
-- **Port:** 6379
-- **Volume:** redis_data
+## 🛠️ Management-Skripte
 
-### 3. FastAPI Backend (`backend`)
-- **Port:** 8000
-- **Start:** `python main.py` (FastAPI direkt)
-- **Features:**
-  - FastAPI mit automatischer API-Dokumentation
-  - Automatische Migrationen
-  - Vorkonfigurierte Benutzer
-  - CORS-Unterstützung
-  - Async/Await Support
-
-### 4. Django Admin (`django-admin`)
-- **Port:** 8001
-- **Start:** `python manage.py runserver 0.0.0.0:8001`
-- **Features:**
-  - Django Admin Interface
-  - Benutzer- und Datenverwaltung
-  - Separate Instanz für bessere Performance
-
-### 5. React Frontend (`frontend`)
-- **Port:** 3000
-- **Features:**
-  - Hot reload development
-  - Proxy zu Backend APIs
-  - Environment variables
-
-### 6. Nginx Reverse Proxy (`nginx`)
-- **Port:** 80 (HTTP), 443 (HTTPS)
-- **Features:**
-  - Load balancing
-  - Static file serving
-  - API proxy für FastAPI und Django
-  - Security headers
-
-## 👤 Vorkonfigurierte Benutzer
-
-Nach dem ersten Start sind folgende Benutzer verfügbar:
-
-### Admin User
-- **Username:** admin
-- **Password:** admin123
-- **Email:** admin@immonow.com
-- **Berechtigung:** Superuser (Django Admin Zugang)
-
-### Demo User
-- **Username:** demo
-- **Password:** demo123
-- **Email:** demo@immonow.com
-- **Berechtigung:** Normaler Benutzer
-
-## 🌐 URLs
-
-- **Frontend:** http://localhost:3000
-- **FastAPI Backend:** http://localhost:8000
-- **FastAPI Dokumentation:** http://localhost:8000/docs
-- **Django Admin:** http://localhost:8001/admin
-- **Nginx Proxy:** http://localhost
-
-## ⚙️ Backend-Architektur
-
-Das Backend läuft in zwei separaten Services:
-
-1. **FastAPI Service (Port 8000)**
-   - Startet über: `python main.py`
-   - Hauptanwendung mit FastAPI
-   - API-Dokumentation: `/docs` und `/redoc`
-
-2. **Django Admin Service (Port 8001)**  
-   - Startet über: `python manage.py runserver 0.0.0.0:8001`
-   - Nur für Django Admin Interface
-   - Zugang: `http://localhost:8001/admin`
-
-## 🛠️ Nützliche Kommandos
-
+### Starten
 ```bash
-# Alle Services starten
-docker-compose up -d
-
-# Services mit neuem Build starten
-docker-compose up --build
-
-# Logs anzeigen
-docker-compose logs -f
-
-# Logs eines spezifischen Services
-docker-compose logs -f backend
-
-# Service neustarten
-docker-compose restart backend
-
-# In Container einsteigen
-docker exec -it immonow_backend bash
-docker exec -it immonow_frontend sh
-
-# Services stoppen
-docker-compose down
-
-# Services stoppen und Volumes löschen
-docker-compose down -v
-
-# Status anzeigen
-docker-compose ps
-
-# Ressourcenverbrauch anzeigen
-docker stats
+./up.sh
 ```
+- Baut alle Images
+- Startet alle Services
+- Zeigt Status und URLs
 
-## 🗄️ Datenbank-Management
-
-### Django-Migrationen
+### Stoppen
 ```bash
-# In Backend Container
-docker exec -it immonow_backend python manage.py makemigrations
-docker exec -it immonow_backend python manage.py migrate
-
-# Neuen Superuser erstellen
-docker exec -it immonow_backend python manage.py createsuperuser
+./down.sh
 ```
+- Stoppt alle Services
+- Optionen für Volume-Cleanup
 
-### Direkte Datenbankverbindung
+### Datenbank-Migrationen
 ```bash
-# PostgreSQL CLI
-docker exec -it immonow_postgres psql -U immonow_user -d immonow_db
-
-# Datenbank-Backup
-docker exec -it immonow_postgres pg_dump -U immonow_user immonow_db > backup.sql
-
-# Datenbank wiederherstellen
-docker exec -i immonow_postgres psql -U immonow_user -d immonow_db < backup.sql
+./migrate.sh
 ```
-
-## 📁 Datei-Struktur
-
-```
-deployment/
-├── docker-compose.yml      # Hauptkonfiguration
-├── Dockerfile.backend      # Backend Docker Image
-├── Dockerfile.frontend     # Frontend Docker Image
-├── nginx.conf              # Nginx Konfiguration
-├── init.sql               # Datenbank Initialisierung
-├── .env.example           # Umgebungsvariablen Vorlage
-├── start-dev.sh           # Linux/macOS Start-Script
-├── start-dev.bat          # Windows Start-Script
-└── README.md              # Diese Datei
-```
+- Führt Django-Migrationen aus
+- Sammelt statische Dateien
 
 ## 🔧 Konfiguration
 
-### Umgebungsvariablen
-Kopieren Sie `.env.example` zu `.env` und passen Sie die Werte an:
-
+### Environment-Variablen (.env)
 ```bash
-cp .env.example .env
+# Datenbank
+POSTGRES_DB=immonow_db
+POSTGRES_USER=immonow_user
+POSTGRES_PASSWORD=your-secure-password
+
+# Backend
+SECRET_KEY=your-super-secret-key
+DEBUG=False
+
+# Frontend
+REACT_APP_API_URL=http://localhost:8000
 ```
 
-### Wichtige Einstellungen
-- `SECRET_KEY`: Django Secret Key (in Produktion ändern!)
-- `DEBUG`: Debug-Modus (in Produktion auf False setzen)
-- `POSTGRES_PASSWORD`: Datenbank-Passwort
-- `ALLOWED_HOSTS`: Erlaubte Hosts für Django
+### Wichtige URLs
+- **Frontend**: http://localhost:80
+- **API**: http://localhost:80/api/
+- **Admin**: http://localhost:80/admin/
+- **Health Check**: http://localhost:80/healthz
+- **MinIO Console**: http://localhost:9001
 
-## 🚨 Troubleshooting
+## 📊 Monitoring & Debugging
 
-### Port bereits belegt
+### Logs anzeigen
 ```bash
-# Prüfen welcher Prozess den Port verwendet
-netstat -ano | findstr :8000
-netstat -ano | findstr :3000
+# Alle Services
+docker compose logs -f
+
+# Einzelner Service
+docker compose logs -f backend
+docker compose logs -f frontend
+docker compose logs -f postgres
 ```
 
-### Container startet nicht
+### Service-Status
 ```bash
-# Container-Logs prüfen
-docker-compose logs [service_name]
-
-# Container-Status prüfen
-docker-compose ps
-
-# Neustart mit clean build
-docker-compose down
-docker system prune -f
-docker-compose up --build
+docker compose ps
 ```
 
-### Datenbank-Probleme
+### Container-Shell
 ```bash
-# Datenbank-Container neustarten
-docker-compose restart postgres
+# Backend
+docker compose exec backend bash
 
-# Datenbank-Logs prüfen
-docker-compose logs postgres
-
-# Volume zurücksetzen (ACHTUNG: Löscht alle Daten!)
-docker-compose down -v
-```
-
-### Frontend Build-Fehler
-```bash
-# Node modules neu installieren
-docker exec -it immonow_frontend npm install
-
-# Cache löschen
-docker exec -it immonow_frontend npm start
-```
-
-## 📈 Performance-Optimierung
-
-### Produktions-Setup
-1. `DEBUG=False` in der .env Datei setzen
-2. `SECRET_KEY` durch sicheren Schlüssel ersetzen
-3. `ALLOWED_HOSTS` auf produktive Domains beschränken
-4. SSL-Zertifikate für Nginx hinzufügen
-5. Datenbank-Backups einrichten
-
-### Monitoring
-```bash
-# Ressourcenverbrauch
-docker stats
-
-# Disk-Usage
-docker system df
-
-# Log-Größen prüfen
-docker-compose logs --tail=100
+# Frontend
+docker compose exec frontend sh
 ```
 
 ## 🔒 Sicherheit
 
-- Ändern Sie alle Standard-Passwörter vor dem Produktiveinsatz
-- Verwenden Sie sichere SECRET_KEYs
-- Aktivieren Sie HTTPS in der Produktion
-- Regelmäßige Updates der Docker Images
-- Implementieren Sie Backup-Strategien
+### Produktions-Deployment
+1. **Passwörter ändern**: Alle Default-Passwörter in `.env` ändern
+2. **SECRET_KEY**: Einen starken, einzigartigen Schlüssel generieren
+3. **HTTPS**: SSL-Zertifikate für Produktionsumgebung konfigurieren
+4. **Firewall**: Nur notwendige Ports freigeben
+5. **Updates**: Regelmäßig Docker Images aktualisieren
 
-## 📞 Support
+### Beispiel-Produktions-.env
+```bash
+DEBUG=False
+SECRET_KEY=your-production-secret-key-here
+POSTGRES_PASSWORD=very-secure-database-password
+MINIO_ROOT_PASSWORD=very-secure-minio-password
+ALLOWED_HOSTS=your-domain.com,www.your-domain.com
+CORS_ALLOWED_ORIGINS=https://your-domain.com
+```
+
+## 🗂️ Daten-Persistierung
+
+### Volumes
+- `postgres_data`: Datenbank-Daten
+- `redis_data`: Redis-Cache
+- `minio_data`: Object Storage
+- `backend_media`: Upload-Dateien
+- `backend_static`: Statische Dateien
+- `backend_logs`: Anwendungs-Logs
+
+### Backup
+```bash
+# Datenbank-Backup
+docker compose exec postgres pg_dump -U immonow_user immonow_db > backup.sql
+
+# Volumes-Backup
+docker run --rm -v immonow_postgres_data:/data -v $(pwd):/backup alpine tar czf /backup/postgres_backup.tar.gz -C /data .
+```
+
+## 🚨 Troubleshooting
+
+### Häufige Probleme
+
+**Port bereits belegt**
+```bash
+# Prüfen welche Ports verwendet werden
+netstat -tulpn | grep :80
+# Port in .env ändern oder anderen Service stoppen
+```
+
+**Services starten nicht**
+```bash
+# Logs prüfen
+docker compose logs
+
+# Images neu bauen
+docker compose build --no-cache
+```
+
+**Datenbank-Verbindungsfehler**
+```bash
+# PostgreSQL-Container prüfen
+docker compose logs postgres
+
+# Netzwerk-Verbindung testen
+docker compose exec backend ping postgres
+```
+
+**Frontend lädt nicht**
+```bash
+# Build-Prozess prüfen
+docker compose logs frontend
+
+# Node-Modules neu installieren
+docker compose exec frontend npm install
+```
+
+### Performance-Optimierung
+
+**RAM-Usage reduzieren**
+```bash
+# In .env
+POSTGRES_SHARED_BUFFERS=256MB
+POSTGRES_EFFECTIVE_CACHE_SIZE=1GB
+```
+
+**Build-Zeit verkürzen**
+```bash
+# Multi-stage Build für Frontend verwenden
+# Docker Layer Caching aktivieren
+```
+
+## 📚 Erweiterte Konfiguration
+
+### SSL/HTTPS Setup
+```bash
+# SSL-Zertifikate in nginx.conf konfigurieren
+# Let's Encrypt mit Certbot verwenden
+```
+
+### Load Balancing
+```bash
+# Mehrere Backend-Instanzen
+# Nginx Upstream-Konfiguration erweitern
+```
+
+### Monitoring
+```bash
+# Prometheus + Grafana hinzufügen
+# Health Checks erweitern
+```
+
+## 🤝 Support
 
 Bei Problemen:
-1. Prüfen Sie die Logs: `docker-compose logs -f`
-2. Überprüfen Sie die Service-Status: `docker-compose ps`
-3. Starten Sie die Services neu: `docker-compose restart`
-4. Bei größeren Problemen: `docker-compose down && docker-compose up --build`
+1. Logs prüfen: `docker compose logs`
+2. Service-Status: `docker compose ps`
+3. Health Check: http://localhost:80/healthz
+4. GitHub Issues erstellen
+
+---
+
+**Happy Deploying!** 🚀

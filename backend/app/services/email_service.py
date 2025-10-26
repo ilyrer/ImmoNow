@@ -582,6 +582,111 @@ class EmailService:
             return False
     
     @staticmethod
+    async def send_user_invitation(
+        user_email: str,
+        tenant_name: str,
+        inviter_name: str,
+        invitation_link: str
+    ) -> bool:
+        """
+        Send user invitation email
+        
+        Args:
+            user_email: Email of user being invited
+            tenant_name: Name of the tenant
+            inviter_name: Name of person sending invitation
+            invitation_link: Link to accept invitation
+            
+        Returns:
+            True if email sent successfully
+        """
+        try:
+            subject = f"You've been invited to join {tenant_name}"
+            
+            # Create invitation email template
+            html_content = f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8">
+                <title>Invitation to {tenant_name}</title>
+                <style>
+                    body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                    .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                    .header {{ background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; }}
+                    .button {{ background: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block; }}
+                    .footer {{ margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; font-size: 14px; color: #666; }}
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>You're invited to join {tenant_name}</h1>
+                    </div>
+                    
+                    <p>Hello!</p>
+                    
+                    <p><strong>{inviter_name}</strong> has invited you to join <strong>{tenant_name}</strong> on ImmoNow.</p>
+                    
+                    <p>ImmoNow is a comprehensive real estate management platform that will help you:</p>
+                    <ul>
+                        <li>Manage properties and listings</li>
+                        <li>Track leads and contacts</li>
+                        <li>Collaborate with your team</li>
+                        <li>Generate reports and analytics</li>
+                    </ul>
+                    
+                    <p style="text-align: center; margin: 30px 0;">
+                        <a href="{invitation_link}" class="button">Accept Invitation</a>
+                    </p>
+                    
+                    <p>If you have any questions, please contact {inviter_name} or reply to this email.</p>
+                    
+                    <div class="footer">
+                        <p>This invitation was sent by {inviter_name} from {tenant_name}.</p>
+                        <p>If you didn't expect this invitation, you can safely ignore this email.</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """
+            
+            text_content = f"""
+            You've been invited to join {tenant_name}
+            
+            {inviter_name} has invited you to join {tenant_name} on ImmoNow.
+            
+            ImmoNow is a comprehensive real estate management platform.
+            
+            Accept your invitation: {invitation_link}
+            
+            If you have any questions, please contact {inviter_name}.
+            
+            This invitation was sent by {inviter_name} from {tenant_name}.
+            If you didn't expect this invitation, you can safely ignore this email.
+            """
+            
+            # Send email using existing infrastructure
+            success = await EmailService._send_email(
+                to_email=user_email,
+                subject=subject,
+                html_content=html_content,
+                text_content=text_content,
+                category='invitation'
+            )
+            
+            if success:
+                logger.info(f"User invitation sent to {user_email} for tenant {tenant_name}")
+            else:
+                logger.error(f"Failed to send user invitation to {user_email}")
+            
+            return success
+            
+        except Exception as e:
+            logger.error(f"Error sending user invitation to {user_email}: {str(e)}")
+            return False
+
+    @staticmethod
     async def send_trial_expired_email(tenant: Tenant) -> bool:
         """Send trial expired email using new template system"""
         try:

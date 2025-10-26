@@ -1,21 +1,39 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Zap, Flame, Leaf, Calendar, TrendingDown, Award, FileText, Save, Download } from 'lucide-react';
-import { useEnergyCertificate } from '../../hooks/useEnergyCertificate';
+import toast from 'react-hot-toast';
+import { PDFService } from '../../services/pdfService';
 
 interface EnergyEfficiencyTabProps {
   property: any;
+  propertyId?: string;
+  onUpdate?: (data: { 
+    heating_type?: string; 
+    energy_class?: string;
+    energy_consumption?: number;
+    co2_emissions?: number;
+    energy_certificate_type?: string;
+    energy_certificate_valid_until?: string;
+    energy_certificate_issue_date?: string;
+  }) => void;
+  updatePropertyMutation?: any; // Property update mutation
 }
 
-const EnergyEfficiencyTab: React.FC<EnergyEfficiencyTabProps> = ({ property }) => {
-  const { 
-    energyData, 
-    isLoading, 
-    updateEnergyData, 
-    isUpdating, 
-    downloadPDF, 
-    isDownloadingPDF 
-  } = useEnergyCertificate(property.id);
+const EnergyEfficiencyTab: React.FC<EnergyEfficiencyTabProps> = ({ property, propertyId, onUpdate, updatePropertyMutation }) => {
+  // Use property data directly instead of separate energy endpoint
+  const energyData = {
+    energy_class: property?.energy_class,
+    energy_consumption: property?.energy_consumption,
+    energy_certificate_type: property?.energy_certificate_type,
+    energy_certificate_valid_until: property?.energy_certificate_valid_until,
+    energy_certificate_issue_date: property?.energy_certificate_issue_date,
+    co2_emissions: property?.co2_emissions,
+    heating_type: property?.heating_type,
+  };
+
+  const isLoading = false; // No separate loading needed
+  const isUpdating = updatePropertyMutation?.isPending || false;
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
   const [isEditing, setIsEditing] = useState(false);
   const [editingData, setEditingData] = useState({
@@ -28,41 +46,103 @@ const EnergyEfficiencyTab: React.FC<EnergyEfficiencyTabProps> = ({ property }) =
     heating_type: energyData?.heating_type || '',
   });
 
-  // Update editing data when energyData changes
+  // Update editing data when property changes
   React.useEffect(() => {
-    if (energyData) {
+    if (property) {
       setEditingData({
-        energy_class: energyData.energy_class || '',
-        energy_consumption: energyData.energy_consumption || 0,
-        energy_certificate_type: energyData.energy_certificate_type || '',
-        energy_certificate_valid_until: energyData.energy_certificate_valid_until || '',
-        energy_certificate_issue_date: energyData.energy_certificate_issue_date || '',
-        co2_emissions: energyData.co2_emissions || 0,
-        heating_type: energyData.heating_type || '',
+        energy_class: property.energy_class || '',
+        energy_consumption: property.energy_consumption || 0,
+        energy_certificate_type: property.energy_certificate_type || '',
+        energy_certificate_valid_until: property.energy_certificate_valid_until || '',
+        energy_certificate_issue_date: property.energy_certificate_issue_date || '',
+        co2_emissions: property.co2_emissions || 0,
+        heating_type: property.heating_type || '',
       });
     }
-  }, [energyData]);
+  }, [property]);
 
   const handleSave = () => {
-    updateEnergyData(editingData);
-    setIsEditing(false);
+    // Send data directly to property update endpoint instead of energy-specific endpoint
+    const dataToSend: any = {};
+    
+    // Only include fields that have values
+    if (editingData.energy_class) dataToSend.energy_class = editingData.energy_class;
+    if (editingData.energy_consumption && editingData.energy_consumption > 0) dataToSend.energy_consumption = editingData.energy_consumption;
+    if (editingData.co2_emissions && editingData.co2_emissions > 0) dataToSend.co2_emissions = editingData.co2_emissions;
+    if (editingData.energy_certificate_type) dataToSend.energy_certificate_type = editingData.energy_certificate_type;
+    if (editingData.energy_certificate_valid_until) dataToSend.energy_certificate_valid_until = editingData.energy_certificate_valid_until;
+    if (editingData.energy_certificate_issue_date) dataToSend.energy_certificate_issue_date = editingData.energy_certificate_issue_date;
+    if (editingData.heating_type) dataToSend.heating_type = editingData.heating_type;
+    
+    console.log('🔍 Sending energy data via property update:', dataToSend);
+    console.log('🔍 Property ID:', propertyId);
+    
+    // Use the property update mutation instead of energy-specific one
+    if (updatePropertyMutation && propertyId) {
+      updatePropertyMutation.mutate({ id: propertyId, payload: dataToSend }, {
+        onSuccess: () => {
+          setIsEditing(false);
+          toast.success('Energiedaten erfolgreich gespeichert!');
+          
+          // Synchronisiere mit dem Hauptformular
+          if (onUpdate) {
+            onUpdate({
+              heating_type: editingData.heating_type,
+              energy_class: editingData.energy_class,
+              energy_consumption: editingData.energy_consumption,
+              co2_emissions: editingData.co2_emissions,
+              energy_certificate_type: editingData.energy_certificate_type,
+              energy_certificate_valid_until: editingData.energy_certificate_valid_until,
+              energy_certificate_issue_date: editingData.energy_certificate_issue_date,
+            });
+          }
+        },
+        onError: (error: any) => {
+          console.error('Error updating energy data:', error);
+          console.error('Error details:', error.response?.data);
+          toast.error('Fehler beim Speichern der Energiedaten');
+        }
+      });
+    } else {
+      // Fallback: Show error if no mutation available
+      console.error('No updatePropertyMutation available');
+      toast.error('Fehler: Keine Update-Mutation verfügbar');
+    }
   };
 
   const handleCancel = () => {
     setEditingData({
-      energy_class: energyData?.energy_class || '',
-      energy_consumption: energyData?.energy_consumption || 0,
-      energy_certificate_type: energyData?.energy_certificate_type || '',
-      energy_certificate_valid_until: energyData?.energy_certificate_valid_until || '',
-      energy_certificate_issue_date: energyData?.energy_certificate_issue_date || '',
-      co2_emissions: energyData?.co2_emissions || 0,
-      heating_type: energyData?.heating_type || '',
+      energy_class: property?.energy_class || '',
+      energy_consumption: property?.energy_consumption || 0,
+      energy_certificate_type: property?.energy_certificate_type || '',
+      energy_certificate_valid_until: property?.energy_certificate_valid_until || '',
+      energy_certificate_issue_date: property?.energy_certificate_issue_date || '',
+      co2_emissions: property?.co2_emissions || 0,
+      heating_type: property?.heating_type || '',
     });
     setIsEditing(false);
   };
 
-  const handleDownloadPDF = () => {
-    downloadPDF();
+  const handleDownloadPDF = async () => {
+    try {
+      setIsGeneratingPDF(true);
+      
+      // Get logo URL from tenant or use default ImmoNow logo
+      const logoUrl = property?.tenant?.logo_url || '/logo/immonow-logo.png';
+      
+      // Generate filename
+      const filename = `energieausweis_${property?.title?.replace(/[^a-zA-Z0-9]/g, '_') || 'property'}.pdf`;
+      
+      // Generate and download PDF
+      await PDFService.generateAndDownloadEnergyCertificate(property, logoUrl, filename);
+      
+      toast.success('Energieausweis-PDF erfolgreich heruntergeladen!');
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast.error('Fehler beim Generieren des PDFs');
+    } finally {
+      setIsGeneratingPDF(false);
+    }
   };
 
   if (isLoading) {
@@ -429,11 +509,11 @@ const EnergyEfficiencyTab: React.FC<EnergyEfficiencyTabProps> = ({ property }) =
             whileHover={{ scale: 1.02, y: -2 }}
             whileTap={{ scale: 0.98 }}
             onClick={handleDownloadPDF}
-            disabled={isDownloadingPDF}
+            disabled={isGeneratingPDF}
             className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold rounded-2xl shadow-xl flex items-center justify-center gap-3 transition-all duration-300 disabled:opacity-50"
           >
             <Download className="h-5 w-5" />
-            <span>{isDownloadingPDF ? 'PDF wird generiert...' : 'Zertifikat herunterladen'}</span>
+            <span>{isGeneratingPDF ? 'PDF wird generiert...' : 'Zertifikat herunterladen'}</span>
           </motion.button>
         </motion.div>
       </div>

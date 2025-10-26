@@ -14,10 +14,28 @@ const LeadConversionWidget: React.FC = () => {
   const [monthlyTarget, setMonthlyTarget] = useState(20);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Lade Widget-Konfiguration aus localStorage
+  const loadWidgetConfig = () => {
+    try {
+      const config = localStorage.getItem('widget_config_lead_conversion');
+      if (config) {
+        const parsedConfig = JSON.parse(config);
+        if (parsedConfig.target) {
+          setMonthlyTarget(parsedConfig.target);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading widget config:', error);
+    }
+  };
+
   useEffect(() => {
     const fetchConversionData = async () => {
       try {
         setIsLoading(true);
+        
+        // Lade Konfiguration
+        loadWidgetConfig();
         
         // Fetch contacts and analytics data
         const [contactsResponse, dashboardResponse, propertiesResponse] = await Promise.all([
@@ -39,7 +57,7 @@ const LeadConversionWidget: React.FC = () => {
         const closedDeals = (propertiesResponse as any).sales_this_month || 0;
 
         const stages: ConversionStage[] = [
-          { stage: 'Leads', count: totalLeads, percentage: 100, color: 'blue' },
+          { stage: 'Leads', count: totalLeads, percentage: totalLeads > 0 ? 100 : 0, color: 'blue' },
           { stage: 'Qualifiziert', count: qualifiedLeads, percentage: totalLeads > 0 ? Math.round((qualifiedLeads / totalLeads) * 100) : 0, color: 'green' },
           { stage: 'Besichtigung', count: monthlyViewings, percentage: totalLeads > 0 ? Math.round((monthlyViewings / totalLeads) * 100) : 0, color: 'yellow' },
           { stage: 'Angebot', count: offers, percentage: totalLeads > 0 ? Math.round((offers / totalLeads) * 100) : 0, color: 'orange' },
@@ -50,12 +68,12 @@ const LeadConversionWidget: React.FC = () => {
 
         setConversionData(stages);
         setConversionRate(totalLeads > 0 ? Number(((closedDeals / totalLeads) * 100).toFixed(1)) : 0);
-        setMonthlyTarget(20);
+        // monthlyTarget wird bereits aus Config geladen
       } catch (error) {
         console.error('❌ Error fetching conversion data:', error);
         // Fallback to default data
         setConversionData([
-          { stage: 'Leads', count: 0, percentage: 100, color: 'blue' },
+          { stage: 'Leads', count: 0, percentage: 0, color: 'blue' },
           { stage: 'Qualifiziert', count: 0, percentage: 0, color: 'green' },
           { stage: 'Besichtigung', count: 0, percentage: 0, color: 'yellow' },
           { stage: 'Angebot', count: 0, percentage: 0, color: 'orange' },
@@ -72,6 +90,19 @@ const LeadConversionWidget: React.FC = () => {
     // Refresh every 5 minutes
     const interval = setInterval(fetchConversionData, 5 * 60 * 1000);
     return () => clearInterval(interval);
+  }, [monthlyTarget]); // monthlyTarget als Dependency hinzufügen
+
+  // Event Listener für localStorage Änderungen (Custom Event)
+  useEffect(() => {
+    const handleConfigChange = (e: CustomEvent) => {
+      if (e.detail?.widgetType === 'lead_conversion' && e.detail?.config?.target) {
+        setMonthlyTarget(e.detail.config.target);
+        console.log('🎯 Lead Conversion: Target updated to', e.detail.config.target);
+      }
+    };
+
+    window.addEventListener('widgetConfigChanged', handleConfigChange as EventListener);
+    return () => window.removeEventListener('widgetConfigChanged', handleConfigChange as EventListener);
   }, []);
 
   if (isLoading) {

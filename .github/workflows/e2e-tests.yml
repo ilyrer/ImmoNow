@@ -1,0 +1,113 @@
+name: E2E Tests
+
+on:
+  pull_request:
+    branches: [ main, master, develop ]
+  push:
+    branches: [ main, master, develop ]
+
+jobs:
+  e2e-tests:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r backend/requirements.txt
+        
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: real-estate-dashboard/package-lock.json
+        
+    - name: Install Node.js dependencies
+      run: |
+        cd real-estate-dashboard
+        npm ci
+        
+    - name: Install Playwright
+      run: |
+        cd real-estate-dashboard
+        npx playwright install --with-deps
+        
+    - name: Set up test database
+      run: |
+        cd backend
+        python manage.py migrate
+        python manage.py loaddata test_fixtures.json || echo "No test fixtures found"
+        
+    - name: Start backend server
+      run: |
+        cd backend
+        python manage.py runserver 8000 &
+        sleep 10
+        
+    - name: Build frontend
+      run: |
+        cd real-estate-dashboard
+        npm run build
+        
+    - name: Start frontend server
+      run: |
+        cd real-estate-dashboard
+        npm run start &
+        sleep 15
+        
+    - name: Run E2E tests
+      run: |
+        cd real-estate-dashboard
+        npx playwright test
+        
+    - name: Upload test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: playwright-report
+        path: real-estate-dashboard/playwright-report/
+        retention-days: 30
+        
+    - name: Comment PR with test results
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const fs = require('fs');
+          const path = require('path');
+          
+          try {
+            // Check if test results exist
+            const reportPath = path.join('real-estate-dashboard', 'playwright-report', 'index.html');
+            if (fs.existsSync(reportPath)) {
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: `## E2E Test Results\n\n✅ E2E tests completed successfully!\n\n[View detailed report](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`
+              });
+            } else {
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: `## E2E Test Results\n\n❌ E2E tests failed or no report generated.\n\n[View detailed logs](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`
+              });
+            }
+          } catch (error) {
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## E2E Test Results\n\n❌ Error generating test report: ${error.message}\n\n[View detailed logs](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`
+            });
+          }

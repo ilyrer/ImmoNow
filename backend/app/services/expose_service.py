@@ -38,7 +38,7 @@ class ExposeService:
         property_obj = await self._get_property(property_id)
         
         # Create prompt template
-        prompt = self._create_expose_prompt(
+        prompt = await self._create_expose_prompt(
             property_obj, audience, tone, language, length, keywords
         )
         
@@ -61,6 +61,7 @@ class ExposeService:
             # Create exposé version
             expose_version = await self._create_expose_version(
                 property_obj=property_obj,
+                title=f"Exposé für {property_obj.title}",
                 content=response.response,
                 audience=audience,
                 tone=tone,
@@ -146,7 +147,7 @@ class ExposeService:
         
         return await publish_version()
     
-    def _create_expose_prompt(
+    async def _create_expose_prompt(
         self,
         property: Property,
         audience: str,
@@ -250,12 +251,15 @@ Erstelle einen ansprechenden, professionellen Text, der potenzielle {audience_te
         return prompt
     
     async def _get_property(self, property_id: str) -> Property:
-        """Get property by ID"""
+        """Get property by ID with related objects"""
         
         @sync_to_async
         def get_property():
             try:
-                return Property.objects.get(id=property_id, tenant_id=self.tenant_id)
+                return Property.objects.select_related('address', 'features', 'contact_person').get(
+                    id=property_id, 
+                    tenant_id=self.tenant_id
+                )
             except Property.DoesNotExist:
                 raise NotFoundError("Property not found")
         
@@ -296,7 +300,7 @@ Erstelle einen ansprechenden, professionellen Text, der potenzielle {audience_te
             
             return ExposeVersion.objects.create(
                 property=property_obj,
-                title=title or f"Exposé für {property_obj.title}",
+                title=title,
                 content=content,
                 audience=audience,
                 tone=tone,

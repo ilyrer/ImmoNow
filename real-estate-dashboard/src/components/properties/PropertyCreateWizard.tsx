@@ -3,8 +3,7 @@ import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Trash2, GripVertical } from 'lucide-react';
-import { useCreateProperty } from '../../api/hooks';
-import api from '../../services/api.service';
+import apiClient from '../../api/enhancedClient';
 import { PropertyResponse } from '../../lib/api/types';
 
 type Step = 1 | 2 | 3 | 4;
@@ -37,11 +36,26 @@ const defaultState: any = {
   amenities: [],
   tags: [],
   contact_person: { first_name: '', last_name: '', email: '', phone: ''},
+  // New fields
+  internal_id: '',
+  unit_number: '',
+  project_id: '',
+  floor_number: '',
+  condition_status: '',
+  availability_date: '',
+  commission: undefined,
+  parking_type: '',
+  object_description: '',
+  location_description: '',
+  last_modernization: undefined,
+  construction_phase: '',
+  equipment_description: '',
+  additional_info: '',
 };
 
 const PropertyCreateWizard: React.FC = () => {
   const navigate = useNavigate();
-  const createMutation = useCreateProperty();
+  // Removed useCreateProperty hook - now using apiClient directly
   const [step, setStep] = useState<Step>(1);
   const [form, setForm] = useState<any>({ ...defaultState });
   const [images, setImages] = useState<File[]>([]);
@@ -58,6 +72,7 @@ const PropertyCreateWizard: React.FC = () => {
   const [showDrafts, setShowDrafts] = useState(false);
   const [isOverImg, setIsOverImg] = useState(false);
   const [isOverDoc, setIsOverDoc] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const DRAFT_KEY_SINGLE = 'property-create-draft-v1';
   const DRAFTS_KEY = 'property-create-drafts-v1';
 
@@ -67,9 +82,25 @@ const PropertyCreateWizard: React.FC = () => {
       const titleOk = typeof form.title === 'string' && form.title.trim().length >= 5;
       const addressOk = Boolean(form.address?.street && form.address?.postal_code && form.address?.city);
       const locationOk = Boolean((form.location || form.address?.city));
-      return titleOk && addressOk && locationOk;
+      const propertyTypeOk = Boolean(form.property_type);
+      const priceOk = form.price ? form.price > 0 : true; // Price is optional but if provided must be positive
+      
+      return titleOk && addressOk && locationOk && propertyTypeOk && priceOk;
     }
-    if (step === 2) return true; // optional details
+    if (step === 2) {
+      // Optional details - validate numeric fields if provided
+      const livingAreaOk = form.living_area ? form.living_area > 0 : true;
+      const totalAreaOk = form.total_area ? form.total_area > 0 : true;
+      const plotAreaOk = form.plot_area ? form.plot_area > 0 : true;
+      const roomsOk = form.rooms ? form.rooms > 0 : true;
+      const bedroomsOk = form.bedrooms ? form.bedrooms >= 0 : true;
+      const bathroomsOk = form.bathrooms ? form.bathrooms >= 0 : true;
+      const floorsOk = form.floors ? form.floors > 0 : true;
+      const yearBuiltOk = form.year_built ? form.year_built >= 1800 && form.year_built <= new Date().getFullYear() : true;
+      const commissionOk = form.commission ? form.commission >= 0 && form.commission <= 100 : true;
+      
+      return livingAreaOk && totalAreaOk && plotAreaOk && roomsOk && bedroomsOk && bathroomsOk && floorsOk && yearBuiltOk && commissionOk;
+    }
     if (step === 3) return true; // media optional
     if (step === 4) return true;
     return false;
@@ -107,7 +138,69 @@ const PropertyCreateWizard: React.FC = () => {
     setter(copy);
   };
 
-  const next = () => setStep((s) => (Math.min(4, (s + 1)) as Step));
+  const validateStep = (stepNumber: Step): boolean => {
+    const errors: Record<string, string> = {};
+    
+    if (stepNumber === 1) {
+      if (!form.title || form.title.trim().length < 5) {
+        errors.title = 'Titel muss mindestens 5 Zeichen lang sein';
+      }
+      if (!form.address?.street) {
+        errors.street = 'Straße ist erforderlich';
+      }
+      if (!form.address?.postal_code) {
+        errors.postal_code = 'Postleitzahl ist erforderlich';
+      }
+      if (!form.address?.city) {
+        errors.city = 'Stadt ist erforderlich';
+      }
+      if (!form.property_type) {
+        errors.property_type = 'Immobilientyp ist erforderlich';
+      }
+      if (form.price && form.price <= 0) {
+        errors.price = 'Preis muss größer als 0 sein';
+      }
+    }
+    
+    if (stepNumber === 2) {
+      if (form.living_area && form.living_area <= 0) {
+        errors.living_area = 'Wohnfläche muss größer als 0 sein';
+      }
+      if (form.total_area && form.total_area <= 0) {
+        errors.total_area = 'Gesamtfläche muss größer als 0 sein';
+      }
+      if (form.plot_area && form.plot_area <= 0) {
+        errors.plot_area = 'Grundstücksfläche muss größer als 0 sein';
+      }
+      if (form.rooms && form.rooms <= 0) {
+        errors.rooms = 'Anzahl Zimmer muss größer als 0 sein';
+      }
+      if (form.bedrooms && form.bedrooms < 0) {
+        errors.bedrooms = 'Anzahl Schlafzimmer darf nicht negativ sein';
+      }
+      if (form.bathrooms && form.bathrooms < 0) {
+        errors.bathrooms = 'Anzahl Bäder darf nicht negativ sein';
+      }
+      if (form.floors && form.floors <= 0) {
+        errors.floors = 'Anzahl Etagen muss größer als 0 sein';
+      }
+      if (form.year_built && (form.year_built < 1800 || form.year_built > new Date().getFullYear())) {
+        errors.year_built = `Baujahr muss zwischen 1800 und ${new Date().getFullYear()} liegen`;
+      }
+      if (form.commission && (form.commission < 0 || form.commission > 100)) {
+        errors.commission = 'Provision muss zwischen 0 und 100% liegen';
+      }
+    }
+    
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const next = () => {
+    if (validateStep(step)) {
+      setStep((s) => (Math.min(4, (s + 1)) as Step));
+    }
+  };
   const prev = () => setStep((s) => (Math.max(1, (s - 1)) as Step));
 
   const submit = async () => {
@@ -116,22 +209,38 @@ const PropertyCreateWizard: React.FC = () => {
     setImgProgress(0);
     setDocProgress(0);
     try {
-      const created = await createMutation.mutateAsync({
-        ...form,
-        location: form.location || form.address.city,
+      // Clean up the form data
+      const cleanedForm = { ...form };
+      
+      // Remove contact_person if all fields are empty
+      if (form.contact_person) {
+        const hasAnyContactData = 
+          form.contact_person.first_name?.trim() ||
+          form.contact_person.last_name?.trim() ||
+          form.contact_person.email?.trim() ||
+          form.contact_person.phone?.trim();
+        
+        if (!hasAnyContactData) {
+          delete cleanedForm.contact_person;
+        }
+      }
+      
+      const created = await apiClient.createProperty({
+        ...cleanedForm,
+        location: cleanedForm.location || cleanedForm.address.city,
       });
       
       // created ist jetzt ein PropertyResponse Objekt mit .id
-      const propId = created.id;
+      const propId = (created.data as any).id;
       toast.success('Immobilie erstellt');
       
       // Upload media if any
       if (images.length) {
-        const results = await api.uploadPropertyImages(propId, images, { onProgress: (p: number) => setImgProgress(p) });
+        const results = await apiClient.uploadPropertyImages(propId, images, { onProgress: (p: number) => setImgProgress(p) });
         toast.success(`${images.length} Bild(er) hochgeladen`);
-        if (mainImageIndex !== null && results[mainImageIndex]) {
+        if (mainImageIndex !== null && results.data[mainImageIndex]) {
           try {
-            await api.setPrimaryImage(propId, (results[mainImageIndex] as any).id);
+            await apiClient.setPrimaryImage(propId, (results.data[mainImageIndex] as any).id);
             toast.success('Hauptbild gesetzt');
           } catch (e) {
             // non-blocking
@@ -140,14 +249,36 @@ const PropertyCreateWizard: React.FC = () => {
         }
       }
       if (docs.length) {
-        await api.uploadPropertyDocuments(propId, docs, { onProgress: (p: number) => setDocProgress(p) });
+        await apiClient.uploadPropertyDocuments(propId, docs, { onProgress: (p: number) => setDocProgress(p) });
         toast.success(`${docs.length} Dokument(e) hochgeladen`);
       }
       navigate(`/properties/${propId}`);
     } catch (err: any) {
-      const msg = err?.response?.data?.detail || err?.message || 'Erstellen fehlgeschlagen.';
-      setMessages((m) => [String(msg), ...m].slice(0, 8));
-      toast.error(String(msg));
+      let msg = 'Erstellen fehlgeschlagen.';
+      
+      if (err?.response?.data?.detail) {
+        const detail = err.response.data.detail;
+        if (Array.isArray(detail)) {
+          // Pydantic validation errors
+          msg = detail.map((e: any) => {
+            const field = e.loc?.join('.') || 'unknown';
+            return `${field}: ${e.msg}`;
+          }).join(', ');
+        } else if (typeof detail === 'string') {
+          msg = detail;
+        } else if (typeof detail === 'object') {
+          // Handle single validation error object
+          const field = detail.loc?.join('.') || 'unknown';
+          msg = `${field}: ${detail.msg}`;
+        }
+      } else if (err?.message) {
+        msg = err.message;
+      }
+      
+      // Ensure msg is always a string
+      const errorMessage = typeof msg === 'string' ? msg : JSON.stringify(msg);
+      setMessages((m) => [errorMessage, ...m].slice(0, 8));
+      toast.error(errorMessage);
     } finally {
       setSubmitting(false);
     }
@@ -273,11 +404,25 @@ const PropertyCreateWizard: React.FC = () => {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium mb-2">Titel</label>
-                  <input className="w-full p-3 border rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition" value={form.title} onChange={(e)=>setForm({...form, title: e.target.value})} placeholder="z.B. Helles Einfamilienhaus" />
+                  <input 
+                    className={`w-full p-3 border rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition ${
+                      validationErrors.title ? 'border-red-500 focus:border-red-500 focus:ring-red-500/50' : ''
+                    }`} 
+                    value={form.title} 
+                    onChange={(e)=>setForm({...form, title: e.target.value})} 
+                    placeholder="z.B. Helles Einfamilienhaus" 
+                  />
+                  {validationErrors.title && (
+                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">{validationErrors.title}</p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-2">Beschreibung</label>
                   <textarea className="w-full p-3 border rounded-lg dark:bg-gray-700 min-h-[110px] focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition" value={form.description} onChange={(e)=>setForm({...form, description: e.target.value})} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Objektbeschreibung</label>
+                  <textarea className="w-full p-3 border rounded-lg dark:bg-gray-700 min-h-[80px] focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition" value={form.object_description} onChange={(e)=>setForm({...form, object_description: e.target.value})} placeholder="Detaillierte Beschreibung des Objekts..." />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -298,6 +443,26 @@ const PropertyCreateWizard: React.FC = () => {
                       <option value="verkauft">Verkauft</option>
                       <option value="zurückgezogen">Zurückgezogen</option>
                     </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Interne ID</label>
+                    <input className="w-full p-3 border rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition" value={form.internal_id} onChange={(e)=>setForm({...form, internal_id: e.target.value})} placeholder="z.B. IMMO-001" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Einheitennummer</label>
+                    <input className="w-full p-3 border rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition" value={form.unit_number} onChange={(e)=>setForm({...form, unit_number: e.target.value})} placeholder="z.B. WHG-01" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Projekt-ID</label>
+                    <input className="w-full p-3 border rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition" value={form.project_id} onChange={(e)=>setForm({...form, project_id: e.target.value})} placeholder="z.B. PROJ-2024-001" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Etage</label>
+                    <input className="w-full p-3 border rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition" value={form.floor_number} onChange={(e)=>setForm({...form, floor_number: e.target.value})} placeholder="z.B. 3. OG" />
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-4">
@@ -327,16 +492,44 @@ const PropertyCreateWizard: React.FC = () => {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium mb-2">Straße</label>
-                  <input className="w-full p-3 border rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition" value={form.address.street} onChange={(e)=>setForm({...form, address: {...form.address, street: e.target.value}})} placeholder="Musterstraße 1"/>
+                  <input 
+                    className={`w-full p-3 border rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition ${
+                      validationErrors.street ? 'border-red-500 focus:border-red-500 focus:ring-red-500/50' : ''
+                    }`} 
+                    value={form.address.street} 
+                    onChange={(e)=>setForm({...form, address: {...form.address, street: e.target.value}})} 
+                    placeholder="Musterstraße 1"
+                  />
+                  {validationErrors.street && (
+                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">{validationErrors.street}</p>
+                  )}
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-2">PLZ</label>
-                    <input className="w-full p-3 border rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition" value={form.address.postal_code} onChange={(e)=>setForm({...form, address: {...form.address, postal_code: e.target.value}})} />
+                    <input 
+                      className={`w-full p-3 border rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition ${
+                        validationErrors.postal_code ? 'border-red-500 focus:border-red-500 focus:ring-red-500/50' : ''
+                      }`} 
+                      value={form.address.postal_code} 
+                      onChange={(e)=>setForm({...form, address: {...form.address, postal_code: e.target.value}})} 
+                    />
+                    {validationErrors.postal_code && (
+                      <p className="mt-1 text-sm text-red-600 dark:text-red-400">{validationErrors.postal_code}</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-2">Ort</label>
-                    <input className="w-full p-3 border rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition" value={form.address.city} onChange={(e)=>setForm({...form, address: {...form.address, city: e.target.value}})} />
+                    <input 
+                      className={`w-full p-3 border rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition ${
+                        validationErrors.city ? 'border-red-500 focus:border-red-500 focus:ring-red-500/50' : ''
+                      }`} 
+                      value={form.address.city} 
+                      onChange={(e)=>setForm({...form, address: {...form.address, city: e.target.value}})} 
+                    />
+                    {validationErrors.city && (
+                      <p className="mt-1 text-sm text-red-600 dark:text-red-400">{validationErrors.city}</p>
+                    )}
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
@@ -401,7 +594,18 @@ const PropertyCreateWizard: React.FC = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-2">Energieklasse</label>
-                    <input className="w-full p-3 border rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition" value={form.energy_class} onChange={(e)=>setForm({...form, energy_class: e.target.value})} />
+                    <select className="w-full p-3 border rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition" value={form.energy_class} onChange={(e)=>setForm({...form, energy_class: e.target.value})}>
+                      <option value="">Bitte wählen</option>
+                      <option value="A+">A+</option>
+                      <option value="A">A</option>
+                      <option value="B">B</option>
+                      <option value="C">C</option>
+                      <option value="D">D</option>
+                      <option value="E">E</option>
+                      <option value="F">F</option>
+                      <option value="G">G</option>
+                      <option value="H">H</option>
+                    </select>
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-2">Heizung</label>
@@ -411,6 +615,68 @@ const PropertyCreateWizard: React.FC = () => {
                 <div>
                   <label className="block text-sm font-medium mb-2">Energieverbrauch (kWh/m²a)</label>
                   <input type="number" className="w-full p-3 border rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition" value={form.energy_consumption ?? ''} onChange={(e)=>setForm({...form, energy_consumption: e.target.value? Number(e.target.value): undefined})} />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Zustand</label>
+                    <select className="w-full p-3 border rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition" value={form.condition_status} onChange={(e)=>setForm({...form, condition_status: e.target.value})}>
+                      <option value="">Auswählen</option>
+                      <option value="excellent">Sehr gut</option>
+                      <option value="good">Gut</option>
+                      <option value="fair">Befriedigend</option>
+                      <option value="poor">Schlecht</option>
+                      <option value="needs_renovation">Renovierungsbedürftig</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Verfügbarkeitsdatum</label>
+                    <input type="date" className="w-full p-3 border rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition" value={form.availability_date} onChange={(e)=>setForm({...form, availability_date: e.target.value})} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Provision (%)</label>
+                    <input type="number" step="0.1" className="w-full p-3 border rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition" value={form.commission ?? ''} onChange={(e)=>setForm({...form, commission: e.target.value? Number(e.target.value): undefined})} />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Parkplatz</label>
+                    <select className="w-full p-3 border rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition" value={form.parking_type} onChange={(e)=>setForm({...form, parking_type: e.target.value})}>
+                      <option value="">Auswählen</option>
+                      <option value="garage">Garage</option>
+                      <option value="carport">Carport</option>
+                      <option value="parking_space">Stellplatz</option>
+                      <option value="street_parking">Straßenparkplatz</option>
+                      <option value="none">Kein Parkplatz</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Letzte Modernisierung</label>
+                    <input type="number" className="w-full p-3 border rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition" value={form.last_modernization ?? ''} onChange={(e)=>setForm({...form, last_modernization: e.target.value? Number(e.target.value): undefined})} />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Bauphase</label>
+                    <select className="w-full p-3 border rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition" value={form.construction_phase} onChange={(e)=>setForm({...form, construction_phase: e.target.value})}>
+                      <option value="">Auswählen</option>
+                      <option value="planning">Planung</option>
+                      <option value="construction">Bau</option>
+                      <option value="completed">Fertiggestellt</option>
+                      <option value="existing">Bestehend</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Ausstattungsbeschreibung</label>
+                  <textarea className="w-full p-3 border rounded-lg dark:bg-gray-700 min-h-[80px] focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition" value={form.equipment_description} onChange={(e)=>setForm({...form, equipment_description: e.target.value})} placeholder="Beschreibung der Ausstattung..." />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Lagebeschreibung</label>
+                  <textarea className="w-full p-3 border rounded-lg dark:bg-gray-700 min-h-[80px] focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition" value={form.location_description} onChange={(e)=>setForm({...form, location_description: e.target.value})} placeholder="Beschreibung der Lage..." />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Zusätzliche Informationen</label>
+                  <textarea className="w-full p-3 border rounded-lg dark:bg-gray-700 min-h-[80px] focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition" value={form.additional_info} onChange={(e)=>setForm({...form, additional_info: e.target.value})} placeholder="Weitere wichtige Informationen..." />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -449,7 +715,7 @@ const PropertyCreateWizard: React.FC = () => {
                 <div className="space-y-2">
                   {messages.map((m, i) => (
                     <div key={i} className="text-xs px-3 py-2 rounded bg-yellow-50 border border-yellow-200 text-yellow-800 dark:bg-yellow-900/30 dark:border-yellow-800 dark:text-yellow-200 flex justify-between items-center">
-                      <span className="truncate pr-2">{m}</span>
+                      <span className="truncate pr-2">{typeof m === 'string' ? m : JSON.stringify(m)}</span>
                       <button className="text-xs" onClick={() => setMessages((prev) => prev.filter((_, idx) => idx !== i))}>✕</button>
                     </div>
                   ))}

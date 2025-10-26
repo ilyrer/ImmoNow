@@ -174,12 +174,13 @@ class TasksService:
                 )
                 
                 # Audit log
-                AuditService.audit_action(
-                    user=user,
+                audit_service = AuditService(self.tenant_id)
+                audit_service.audit_action(
+                    user_id=str(user.id),
                     action="create",
                     resource_type="task",
                     resource_id=str(task.id),
-                    new_values={"title": task.title, "priority": task.priority}
+                    description=f"Task created: {task.title}"
                 )
                 
                 print(f"DEBUG: Task created successfully with ID: {task.id}")
@@ -210,29 +211,91 @@ class TasksService:
             
             user = User.objects.get(id=updated_by_id)
             
-            # Store old values for audit
+            # Store old values for audit and activity log
             old_values = {
                 "title": task.title,
+                "description": task.description,
                 "status": task.status,
                 "priority": task.priority,
-                "assignee_id": str(task.assignee_id)
+                "assignee_id": str(task.assignee_id) if task.assignee_id else None,
+                "due_date": task.due_date.isoformat() if task.due_date else None
             }
             
-            # Update fields
+            # Track changes for activity description
+            changes = []
+            
+            # Update fields - handle special cases
             update_data = task_data.model_dump(exclude_unset=True)
+            
+            # Check what changed
+            for field, new_value in update_data.items():
+                if field == 'label_ids' or field == 'watcher_ids':
+                    continue
+                old_value = getattr(task, field, None)
+                if old_value != new_value:
+                    if field == 'status':
+                        changes.append(f"Status changed from '{old_value}' to '{new_value}'")
+                    elif field == 'priority':
+                        changes.append(f"Priority changed from '{old_value}' to '{new_value}'")
+                    elif field == 'assignee_id':
+                        old_name = task.assignee.get_full_name() if task.assignee else "Unassigned"
+                        try:
+                            new_assignee = User.objects.get(id=new_value) if new_value else None
+                            new_name = new_assignee.get_full_name() if new_assignee else "Unassigned"
+                            changes.append(f"Assignee changed from '{old_name}' to '{new_name}'")
+                        except User.DoesNotExist:
+                            pass
+                    elif field == 'title':
+                        changes.append(f"Title changed")
+                    elif field == 'description':
+                        changes.append(f"Description updated")
+                    elif field == 'due_date':
+                        changes.append(f"Due date changed")
+            
+            # Update task fields
             for field, value in update_data.items():
-                setattr(task, field, value)
+                if field == 'label_ids':
+                    # Handle label_ids separately for many-to-many
+                    if value is not None:
+                        labels = TaskLabel.objects.filter(id__in=value, tenant=self._get_tenant())
+                        task.labels.set(labels)
+                elif field == 'watcher_ids':
+                    # Handle watchers separately
+                    if value is not None:
+                        # Clear existing watchers
+                        TaskWatcher.objects.filter(task=task).delete()
+                        # Add new watchers
+                        for user_id in value:
+                            try:
+                                watcher_user = User.objects.get(id=user_id)
+                                TaskWatcher.objects.create(task=task, user=watcher_user)
+                            except User.DoesNotExist:
+                                pass
+                else:
+                    setattr(task, field, value)
             
             task.save()
             
-            # Audit log
-            AuditService.audit_action(
-                user=user,
+            # Create detailed audit log with changes
+            audit_service = AuditService(self.tenant_id)
+            description = " • ".join(changes) if changes else f"Task updated: {task.title}"
+            
+            # Store new values
+            new_values = {
+                "title": task.title,
+                "description": task.description,
+                "status": task.status,
+                "priority": task.priority,
+                "assignee_id": str(task.assignee_id) if task.assignee_id else None,
+                "due_date": task.due_date.isoformat() if task.due_date else None
+            }
+            
+            audit_service.audit_action(
+                user_id=str(user.id),
                 action="update",
                 resource_type="task",
                 resource_id=task_id,
-                old_values=old_values,
-                new_values=update_data
+                description=description
             )
             
             return task
@@ -272,13 +335,13 @@ class TasksService:
             task.save()
             
             # Audit log
-            AuditService.audit_action(
-                user=user,
+            audit_service = AuditService(self.tenant_id)
+            audit_service.audit_action(
+                user_id=str(user.id),
                 action="move",
                 resource_type="task",
                 resource_id=task_id,
-                old_values=old_values,
-                new_values={"status": task.status}
+                description=f"Task moved to {task.status}"
             )
             
             return task
@@ -301,12 +364,13 @@ class TasksService:
             user = User.objects.get(id=deleted_by_id)
             
             # Audit log
-            AuditService.audit_action(
-                user=user,
+            audit_service = AuditService(self.tenant_id)
+            audit_service.audit_action(
+                user_id=str(user.id),
                 action="delete",
                 resource_type="task",
                 resource_id=task_id,
-                old_values={"title": task.title, "status": task.status}
+                description=f"Task deleted: {task.title}"
             )
             
             task.delete()
@@ -503,12 +567,13 @@ class TasksService:
             )
             
             # Audit log
-            AuditService.audit_action(
-                user=user,
+            audit_service = AuditService(self.tenant_id)
+            audit_service.audit_action(
+                user_id=str(user.id),
                 action="comment_added",
                 resource_type="task",
                 resource_id=task_id,
-                new_values={"comment_id": str(comment.id), "text": comment_data.text}
+                description=f"Comment added to task"
             )
             
             return comment
@@ -679,13 +744,13 @@ class TasksService:
                     task.save()
                     
                     # Audit log
-                    AuditService.audit_action(
-                        user=user,
+                    audit_service = AuditService(self.tenant_id)
+                    audit_service.audit_action(
+                        user_id=str(user.id),
                         action="bulk_update",
                         resource_type="task",
                         resource_id=task_id,
-                        old_values=old_values,
-                        new_values=bulk_data.updates
+                        description=f"Task bulk updated"
                     )
                     
                     updated_tasks.append(task)
@@ -710,12 +775,13 @@ class TasksService:
                     task = Task.objects.get(id=task_id, tenant=self._get_tenant())
                     
                     # Audit log
-                    AuditService.audit_action(
-                        user=user,
+                    audit_service = AuditService(self.tenant_id)
+                    audit_service.audit_action(
+                        user_id=str(user.id),
                         action="bulk_delete",
                         resource_type="task",
                         resource_id=task_id,
-                        old_values={"title": task.title, "status": task.status}
+                        description=f"Task bulk deleted: {task.title}"
                     )
                     
                     task.delete()
@@ -752,13 +818,13 @@ class TasksService:
                     task.save()
                     
                     # Audit log
-                    AuditService.audit_action(
-                        user=user,
+                    audit_service = AuditService(self.tenant_id)
+                    audit_service.audit_action(
+                        user_id=str(user.id),
                         action="bulk_move",
                         resource_type="task",
                         resource_id=task_id,
-                        old_values=old_values,
-                        new_values={"status": bulk_move_data.new_status}
+                        description=f"Task moved to {bulk_move_data.new_status}"
                     )
                     
                     moved_tasks.append(task)

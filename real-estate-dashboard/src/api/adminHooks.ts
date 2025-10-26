@@ -5,6 +5,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../api/config';
 
+
 // Types
 export interface AdminUser {
   id: string;
@@ -12,10 +13,14 @@ export interface AdminUser {
   first_name: string;
   last_name: string;
   is_active: boolean;
+  status: 'active' | 'inactive' | 'invited' | 'pending';
   roles: AdminRole[];
   tenant_name: string;
   last_login?: string;
   created_at: string;
+  employee_number?: string;
+  department?: string;
+  position?: string;
 }
 
 export interface AdminRole {
@@ -71,66 +76,330 @@ export interface AdminSystemStats {
   recent_activity: AdminAuditLog[];
 }
 
-export interface AdminTenant {
+export interface TenantSettings {
   id: string;
   name: string;
   domain: string;
-  is_active: boolean;
-  user_count: number;
+  logo_url?: string;
+  primary_color?: string;
+  secondary_color?: string;
+  timezone: string;
+  date_format: string;
+  currency: string;
+  language: string;
   created_at: string;
+  updated_at: string;
+}
+
+export interface DocumentTemplate {
+  id: string;
+  name: string;
+  description?: string;
+  template_content: string;
+  document_type: string;
+  is_active: boolean;
+  created_at: string;
+  created_by: string;
+  updated_at: string;
+}
+
+export interface CreateDocumentTemplateRequest {
+  name: string;
+  description?: string;
+  template_content: string;
+  document_type: string;
+}
+
+export interface UpdateDocumentTemplateRequest {
+  name?: string;
+  description?: string;
+  template_content?: string;
+  document_type?: string;
+  is_active?: boolean;
+}
+
+export interface AuditLogListResponse {
+  items: AdminAuditLog[];
+  total: number;
+  page: number;
+  size: number;
+  pages: number;
+}
+
+// User Management Types
+export interface InviteUserRequest {
+  email: string;
+  first_name: string;
+  last_name: string;
+  role: string;
+  department?: string;
+  position?: string;
+  message?: string;
+  permissions?: Record<string, any>;
+}
+
+export interface InviteUserResponse {
+  invitation_id: string;
+  email: string;
+  token: string;
+  expires_at: string;
+  invitation_url: string;
+  message: string;
+}
+
+export interface BulkUserActionRequest {
+  user_ids: string[];
+  action: 'activate' | 'deactivate' | 'delete' | 'resend_invitation';
+  reason?: string;
+}
+
+export interface BulkUserActionResponse {
+  successful: string[];
+  failed: Array<{ user_id: string; error: string }>;
+  total_processed: number;
+  total_failed: number;
+}
+
+export interface UserActivationRequest {
+  user_id: string;
+  is_active: boolean;
+  reason?: string;
+}
+
+export interface UserDeletionRequest {
+  user_id: string;
+  reason?: string;
+  anonymize_data?: boolean;
+}
+
+export interface ResendInvitationRequest {
+  user_id: string;
+  message?: string;
+}
+
+export interface UserListResponse {
+  users: AdminUser[];
+  total: number;
+  page: number;
+  size: number;
+  pages: number;
+}
+
+export interface UserStats {
+  total_users: number;
+  active_users: number;
+  inactive_users: number;
+  invited_users: number;
+  users_by_role: Record<string, number>;
+  users_by_department: Record<string, number>;
+  recent_registrations: number;
+  users_without_login: number;
+}
+
+// Employee Types
+export interface Employee {
+  id: string;
+  user_id: string;
+  user_first_name: string;
+  user_last_name: string;
+  user_email: string;
+  employee_number: string;
+  department: string;
+  position: string;
+  employment_type: string;
+  start_date: string;
+  end_date?: string;
+  work_email?: string;
+  work_phone?: string;
+  office_location?: string;
+  manager_id?: string;
+  manager_name?: string;
+  is_active: boolean;
+  is_on_leave: boolean;
+  leave_start?: string;
+  leave_end?: string;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+  created_by: string;
+}
+
+export interface EmployeeCreate {
+  user_id: string;
+  employee_number: string;
+  department: string;
+  position: string;
+  employment_type: string;
+  start_date: string;
+  end_date?: string;
+  work_email?: string;
+  work_phone?: string;
+  office_location?: string;
+  manager_id?: string;
+  is_active: boolean;
+  is_on_leave: boolean;
+  leave_start?: string;
+  leave_end?: string;
+  notes?: string;
+}
+
+export interface EmployeeUpdate {
+  employee_number?: string;
+  department?: string;
+  position?: string;
+  employment_type?: string;
+  start_date?: string;
+  end_date?: string;
+  work_email?: string;
+  work_phone?: string;
+  office_location?: string;
+  manager_id?: string;
+  is_active?: boolean;
+  is_on_leave?: boolean;
+  leave_start?: string;
+  leave_end?: string;
+  notes?: string;
+}
+
+export interface EmployeeListResponse {
+  employees: Employee[];
+  total: number;
+  page: number;
+  size: number;
+  pages: number;
+}
+
+export interface EmployeeStats {
+  total_employees: number;
+  active_employees: number;
+  employees_on_leave: number;
+  employees_by_department: Record<string, number>;
+  employees_by_position: Record<string, number>;
+  employees_by_employment_type: Record<string, number>;
+  average_salary?: number;
+  total_monthly_payroll?: number;
 }
 
 // Payroll Types
 export interface PayrollRun {
   id: string;
   period: string;
-  status: 'draft' | 'approved' | 'paid';
+  period_start: string;
+  period_end: string;
+  status: 'draft' | 'approved' | 'paid' | 'cancelled';
   total_gross: number;
   total_net: number;
+  total_taxes: number;
+  total_social_security: number;
   employee_count: number;
   created_at: string;
   approved_at?: string;
   paid_at?: string;
   created_by: string;
+  approved_by?: string;
+  notes?: string;
 }
 
-export interface EmployeeCompensation {
-  employee_id: string;
-  employee_name: string;
-  base_salary: number;
-  commission_percent: number;
-  bonuses: number;
-  gross_amount: number;
-  net_amount: number;
-  currency: string;
+export interface PayrollRunCreate {
+  period: string;
+  period_start: string;
+  period_end: string;
+  notes?: string;
 }
 
-export interface PayrollDetail {
-  payroll_run: PayrollRun;
-  employees: EmployeeCompensation[];
+export interface PayrollRunUpdate {
+  period_start?: string;
+  period_end?: string;
+  notes?: string;
+}
+
+export interface PayrollListResponse {
+  payroll_runs: PayrollRun[];
+  total: number;
+  page: number;
+  size: number;
+  pages: number;
+}
+
+export interface PayrollStats {
+  total_runs: number;
+  draft_runs: number;
+  approved_runs: number;
+  paid_runs: number;
+  total_gross_amount: number;
+  total_net_amount: number;
+  total_taxes: number;
+  total_social_security: number;
+  average_gross_per_employee?: number;
+  average_net_per_employee?: number;
+  monthly_trend: Array<{
+    month: string;
+    runs: number;
+    total_gross: number;
+    total_net: number;
+  }>;
 }
 
 // Document Types
-export interface EmployeeDocument {
-  id: string;
-  employee_id?: string;
-  employee_name?: string;
-  type: 'contract' | 'nda' | 'certificate' | 'id_document' | 'other';
-  title: string;
-  file_name: string;
-  version: string;
-  valid_until?: string;
-  sign_status: 'pending' | 'signed' | 'expired' | 'rejected';
-  uploaded_at: string;
-  uploaded_by: string;
-  file_size?: number;
-  mime_type?: string;
-}
-
 export interface DocumentType {
   id: string;
   name: string;
-  description: string;
+  description?: string;
+  requires_signature: boolean;
+  requires_expiry_date: boolean;
+  default_validity_days?: number;
+  allowed_extensions: string[];
+  max_file_size_mb: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  created_by: string;
+}
+
+export interface EmployeeDocument {
+  id: string;
+  employee_id: string;
+  employee_name: string;
+  document_type_id: string;
+  document_type_name: string;
+  title: string;
+  description?: string;
+  version: string;
+  file_name: string;
+  file_path: string;
+  file_size: number;
+  mime_type: string;
+  valid_from: string;
+  valid_until?: string;
+  sign_status: 'pending' | 'signed' | 'expired' | 'rejected' | 'cancelled';
+  signed_at?: string;
+  signed_by?: string;
+  signature_notes?: string;
+  is_active: boolean;
+  is_confidential: boolean;
+  uploaded_at: string;
+  updated_at: string;
+  uploaded_by: string;
+}
+
+export interface DocumentListResponse {
+  documents: EmployeeDocument[];
+  total: number;
+  page: number;
+  size: number;
+  pages: number;
+}
+
+export interface DocumentStats {
+  total_documents: number;
+  pending_signatures: number;
+  signed_documents: number;
+  expired_documents: number;
+  documents_by_type: Record<string, number>;
+  documents_by_status: Record<string, number>;
+  total_file_size_mb: number;
+  average_file_size_mb: number;
+  documents_expiring_soon: number;
 }
 
 // Request Types
@@ -168,160 +437,733 @@ export interface UpdateFeatureFlagRequest {
 const adminApi = {
   // Permissions
   getPermissions: async (): Promise<AdminPermission[]> => {
-    const response = await apiClient.get('/admin/permissions');
+    const response = await apiClient.get('/api/v1/admin/permissions');
     return response.data;
   },
 
   // Roles
   getRoles: async (): Promise<AdminRole[]> => {
-    const response = await apiClient.get('/admin/roles');
+    const response = await apiClient.get('/api/v1/admin/roles');
     return response.data;
   },
 
   createRole: async (data: CreateRoleRequest): Promise<AdminRole> => {
-    const response = await apiClient.post('/admin/roles', data);
+    const response = await apiClient.post('/api/v1/admin/roles', data);
     return response.data;
   },
 
   updateRole: async (roleId: number, data: UpdateRoleRequest): Promise<AdminRole> => {
-    const response = await apiClient.put(`/admin/roles/${roleId}`, data);
+    const response = await apiClient.put(`/api/v1/admin/roles/${roleId}`, data);
     return response.data;
   },
 
   deleteRole: async (roleId: number): Promise<void> => {
-    await apiClient.delete(`/admin/roles/${roleId}`);
+    await apiClient.delete(`/api/v1/admin/roles/${roleId}`);
   },
 
-  // Users
-  getUsers: async (): Promise<AdminUser[]> => {
-    const response = await apiClient.get('/admin/users');
+  // User Management
+  inviteUser: async (data: InviteUserRequest): Promise<InviteUserResponse> => {
+    const response = await apiClient.post('/api/v1/admin/users/invite', data);
+    return response.data;
+  },
+
+  activateUser: async (userId: string, data: UserActivationRequest): Promise<void> => {
+    await apiClient.post(`/api/v1/admin/users/${userId}/activate`, data);
+  },
+
+  deactivateUser: async (userId: string, data: UserActivationRequest): Promise<void> => {
+    await apiClient.post(`/api/v1/admin/users/${userId}/deactivate`, data);
+  },
+
+  deleteUser: async (userId: string, data: UserDeletionRequest): Promise<void> => {
+    await apiClient.delete(`/api/v1/admin/users/${userId}`, { data });
+  },
+
+  bulkUserAction: async (data: BulkUserActionRequest): Promise<BulkUserActionResponse> => {
+    const response = await apiClient.post('/api/v1/admin/users/bulk-action', data);
+    return response.data;
+  },
+
+  resendInvitation: async (userId: string, data: ResendInvitationRequest): Promise<void> => {
+    await apiClient.post(`/api/v1/admin/users/${userId}/resend-invitation`, data);
+  },
+
+  getUsers: async (params: {
+    page?: number;
+    size?: number;
+    search?: string;
+    is_active?: boolean;
+    role?: string;
+  } = {}): Promise<UserListResponse> => {
+    const response = await apiClient.get('/api/v1/admin/users', { params });
+    return response.data;
+  },
+
+  getUserStats: async (): Promise<UserStats> => {
+    const response = await apiClient.get('/api/v1/admin/users/stats');
     return response.data;
   },
 
   updateUserRoles: async (userId: string, data: AssignRoleRequest): Promise<AdminUser> => {
-    const response = await apiClient.put(`/admin/users/${userId}/roles`, data);
+    const response = await apiClient.put(`/api/v1/admin/users/${userId}/roles`, data);
     return response.data;
   },
 
-  // Feature Flags
-  getFeatureFlags: async (): Promise<AdminFeatureFlag[]> => {
-    const response = await apiClient.get('/admin/feature-flags');
-    return response.data;
-  },
-
-  createFeatureFlag: async (data: CreateFeatureFlagRequest): Promise<AdminFeatureFlag> => {
-    const response = await apiClient.post('/admin/feature-flags', data);
-    return response.data;
-  },
-
-  updateFeatureFlag: async (flagId: number, data: UpdateFeatureFlagRequest): Promise<AdminFeatureFlag> => {
-    const response = await apiClient.put(`/admin/feature-flags/${flagId}`, data);
-    return response.data;
-  },
-
-  // Audit Logs
-  getAuditLogs: async (params?: {
+  // Employee Management
+  getEmployees: async (params: {
     page?: number;
     size?: number;
-    resource_type?: string;
-    user_id?: string;
-  }): Promise<{ items: AdminAuditLog[]; total: number; page: number; size: number; pages: number }> => {
-    const response = await apiClient.get('/admin/audit-logs', { params });
+    search?: string;
+    department?: string;
+    position?: string;
+    is_active?: boolean;
+  } = {}): Promise<EmployeeListResponse> => {
+    const response = await apiClient.get('/api/v1/admin/employees', { params });
     return response.data;
   },
 
-  // System Stats
-  getSystemStats: async (): Promise<AdminSystemStats> => {
-    const response = await apiClient.get('/admin/stats');
+  getEmployee: async (id: string): Promise<Employee> => {
+    const response = await apiClient.get(`/api/v1/admin/employees/${id}`);
     return response.data;
   },
 
-  // Tenants
-  getTenants: async (): Promise<AdminTenant[]> => {
-    const response = await apiClient.get('/admin/tenants');
+  createEmployee: async (data: EmployeeCreate): Promise<Employee> => {
+    const response = await apiClient.post('/api/v1/admin/employees', data);
     return response.data;
   },
 
-  // Payroll
-  getPayrollRuns: async (): Promise<PayrollRun[]> => {
-    const response = await apiClient.get('/payroll/runs');
+  updateEmployee: async (id: string, data: EmployeeUpdate): Promise<Employee> => {
+    const response = await apiClient.put(`/api/v1/admin/employees/${id}`, data);
     return response.data;
   },
 
-  getPayrollDetail: async (runId: string): Promise<PayrollDetail> => {
-    const response = await apiClient.get(`/payroll/runs/${runId}`);
+  deleteEmployee: async (id: string): Promise<void> => {
+    await apiClient.delete(`/api/v1/admin/employees/${id}`);
+  },
+
+  getEmployeeStats: async (): Promise<EmployeeStats> => {
+    const response = await apiClient.get('/api/v1/admin/employees/stats');
     return response.data;
   },
 
-  approvePayrollRun: async (runId: string): Promise<PayrollRun> => {
-    const response = await apiClient.post(`/payroll/runs/${runId}/approve`);
+  // Payroll Management
+  getPayrollRuns: async (params: {
+    page?: number;
+    size?: number;
+    status?: string;
+    period?: string;
+  } = {}): Promise<PayrollListResponse> => {
+    const response = await apiClient.get('/api/v1/admin/runs', { params });
     return response.data;
   },
 
-  markPayrollPaid: async (runId: string): Promise<PayrollRun> => {
-    const response = await apiClient.post(`/payroll/runs/${runId}/mark-paid`);
+  getPayrollRun: async (id: string): Promise<PayrollRun> => {
+    const response = await apiClient.get(`/api/v1/admin/runs/${id}`);
     return response.data;
   },
 
-  createPayrollRun: async (period: string): Promise<PayrollRun> => {
-    const response = await apiClient.post('/payroll/runs', { period });
+  createPayrollRun: async (data: PayrollRunCreate): Promise<PayrollRun> => {
+    const response = await apiClient.post('/api/v1/admin/runs', data);
     return response.data;
   },
 
-  // Documents
-  getEmployeeDocuments: async (params?: {
+  updatePayrollRun: async (id: string, data: PayrollRunUpdate): Promise<PayrollRun> => {
+    const response = await apiClient.put(`/api/v1/admin/runs/${id}`, data);
+    return response.data;
+  },
+
+  approvePayrollRun: async (id: string): Promise<void> => {
+    await apiClient.post(`/api/v1/admin/runs/${id}/approve`);
+  },
+
+  markPayrollRunPaid: async (id: string): Promise<void> => {
+    await apiClient.post(`/api/v1/admin/runs/${id}/mark-paid`);
+  },
+
+  deletePayrollRun: async (id: string): Promise<void> => {
+    await apiClient.delete(`/api/v1/admin/runs/${id}`);
+  },
+
+  getPayrollStats: async (): Promise<PayrollStats> => {
+    const response = await apiClient.get('/api/v1/admin/runs/stats');
+    return response.data;
+  },
+
+  // Document Management
+  getDocumentTypes: async (): Promise<DocumentType[]> => {
+    const response = await apiClient.get('/api/v1/admin/document-types');
+    return response.data;
+  },
+
+  getEmployeeDocuments: async (params: {
+    page?: number;
+    size?: number;
     employee_id?: string;
-    document_type?: string;
+    document_type_id?: string;
     sign_status?: string;
-  }): Promise<EmployeeDocument[]> => {
-    const response = await apiClient.get('/admin/employee-documents', { params });
+  } = {}): Promise<DocumentListResponse> => {
+    const response = await apiClient.get('/api/v1/admin/employee-documents', { params });
     return response.data;
   },
 
-  getEmployeeDocument: async (documentId: string): Promise<EmployeeDocument> => {
-    const response = await apiClient.get(`/admin/employee-documents/${documentId}`);
+  getEmployeeDocument: async (id: string): Promise<EmployeeDocument> => {
+    const response = await apiClient.get(`/api/v1/admin/employee-documents/${id}`);
     return response.data;
   },
 
-  uploadEmployeeDocument: async (file: File, data: {
-    employee_id?: string;
-    document_type: string;
-    title: string;
-    valid_until?: string;
-  }): Promise<EmployeeDocument> => {
-    const formData = new FormData();
-    formData.append('file', file);
-    if (data.employee_id) {
-      formData.append('employee_id', data.employee_id);
-    }
-    formData.append('document_type', data.document_type);
-    formData.append('title', data.title);
-    if (data.valid_until) {
-      formData.append('valid_until', data.valid_until);
-    }
-
-    const response = await apiClient.post('/admin/employee-documents/upload', formData, {
+  uploadEmployeeDocument: async (data: FormData): Promise<EmployeeDocument> => {
+    const response = await apiClient.post('/api/v1/admin/employee-documents/upload', data, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
     return response.data;
   },
 
-  signDocument: async (documentId: string): Promise<EmployeeDocument> => {
-    const response = await apiClient.put(`/admin/employee-documents/${documentId}/sign`);
+  updateEmployeeDocument: async (id: string, data: Partial<EmployeeDocument>): Promise<EmployeeDocument> => {
+    const response = await apiClient.put(`/api/v1/admin/employee-documents/${id}`, data);
     return response.data;
   },
 
-  deleteEmployeeDocument: async (documentId: string): Promise<void> => {
-    await apiClient.delete(`/admin/employee-documents/${documentId}`);
+  deleteEmployeeDocument: async (id: string): Promise<void> => {
+    await apiClient.delete(`/api/v1/admin/employee-documents/${id}`);
   },
 
-  getDocumentTypes: async (): Promise<DocumentType[]> => {
-    const response = await apiClient.get('/admin/document-types');
+  downloadEmployeeDocument: async (id: string): Promise<Blob> => {
+    const response = await apiClient.get(`/api/v1/admin/employee-documents/${id}/download`, {
+      responseType: 'blob'
+    });
+    return response.data;
+  },
+
+  signEmployeeDocument: async (id: string, signatureData: any): Promise<void> => {
+    await apiClient.put(`/api/v1/admin/employee-documents/${id}/sign`, signatureData);
+  },
+
+  getDocumentStats: async (): Promise<DocumentStats> => {
+    const response = await apiClient.get('/api/v1/admin/employee-documents/stats');
+    return response.data;
+  },
+
+  // System Stats
+  getSystemStats: async (): Promise<AdminSystemStats> => {
+    const response = await apiClient.get('/api/v1/admin/stats');
+    return response.data;
+  },
+
+  // Audit Logs
+  getAuditLogs: async (params: {
+    page?: number;
+    size?: number;
+    user_id?: string;
+    action?: string;
+    resource_type?: string;
+    start_date?: string;
+    end_date?: string;
+  } = {}): Promise<AuditLogListResponse> => {
+    const response = await apiClient.get('/api/v1/admin/audit-logs', { params });
+    return response.data;
+  },
+
+  // Tenant Settings
+  getTenantSettings: async (): Promise<TenantSettings> => {
+    const response = await apiClient.get('/api/v1/tenant/settings');
+    return response.data;
+  },
+
+  updateTenantSettings: async (data: Partial<TenantSettings>): Promise<TenantSettings> => {
+    const response = await apiClient.put('/api/v1/tenant/settings', data);
+    return response.data;
+  },
+
+  // Document Templates
+  getDocumentTemplates: async (): Promise<DocumentTemplate[]> => {
+    const response = await apiClient.get('/api/v1/admin/document-templates');
+    return response.data;
+  },
+
+  createDocumentTemplate: async (data: CreateDocumentTemplateRequest): Promise<DocumentTemplate> => {
+    const response = await apiClient.post('/api/v1/admin/document-templates', data);
+    return response.data;
+  },
+
+  updateDocumentTemplate: async (id: string, data: UpdateDocumentTemplateRequest): Promise<DocumentTemplate> => {
+    const response = await apiClient.put(`/api/v1/admin/document-templates/${id}`, data);
+    return response.data;
+  },
+
+  deleteDocumentTemplate: async (id: string): Promise<void> => {
+    await apiClient.delete(`/api/v1/admin/document-templates/${id}`);
+  },
+
+  // Feature Flags
+  getFeatureFlags: async (): Promise<AdminFeatureFlag[]> => {
+    const response = await apiClient.get('/api/v1/admin/feature-flags');
+    return response.data;
+  },
+
+  createFeatureFlag: async (data: CreateFeatureFlagRequest): Promise<AdminFeatureFlag> => {
+    const response = await apiClient.post('/api/v1/admin/feature-flags', data);
+    return response.data;
+  },
+
+  updateFeatureFlag: async (flagId: number, data: UpdateFeatureFlagRequest): Promise<AdminFeatureFlag> => {
+    const response = await apiClient.put(`/api/v1/admin/feature-flags/${flagId}`, data);
+    return response.data;
+  },
+
+  // Tenants
+  getTenants: async (): Promise<any[]> => {
+    const response = await apiClient.get('/api/v1/admin/tenants');
     return response.data;
   },
 };
 
 // React Query Hooks
+
+// User Management Hooks
+export const useInviteUser = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: adminApi.inviteUser,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'userStats'] });
+    },
+  });
+};
+
+export const useActivateUser = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ userId, data }: { userId: string; data: UserActivationRequest }) =>
+      adminApi.activateUser(userId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'userStats'] });
+    },
+  });
+};
+
+export const useDeactivateUser = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ userId, data }: { userId: string; data: UserActivationRequest }) =>
+      adminApi.deactivateUser(userId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'userStats'] });
+    },
+  });
+};
+
+export const useDeleteUser = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ userId, data }: { userId: string; data: UserDeletionRequest }) =>
+      adminApi.deleteUser(userId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'userStats'] });
+    },
+  });
+};
+
+export const useBulkUserAction = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: adminApi.bulkUserAction,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'userStats'] });
+    },
+  });
+};
+
+export const useResendInvitation = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ userId, data }: { userId: string; data: ResendInvitationRequest }) =>
+      adminApi.resendInvitation(userId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+    },
+  });
+};
+
+export const useUsers = (params: {
+  page?: number;
+  size?: number;
+  search?: string;
+  is_active?: boolean;
+  role?: string;
+} = {}) => {
+  return useQuery({
+    queryKey: ['admin', 'users', params],
+    queryFn: () => adminApi.getUsers(params),
+    staleTime: 30 * 1000, // 30 seconds
+  });
+};
+
+export const useUserStats = () => {
+  return useQuery({
+    queryKey: ['admin', 'userStats'],
+    queryFn: adminApi.getUserStats,
+    staleTime: 60 * 1000, // 1 minute
+  });
+};
+
+// Employee Management Hooks
+export const useEmployees = (params: {
+  page?: number;
+  size?: number;
+  search?: string;
+  department?: string;
+  position?: string;
+  is_active?: boolean;
+} = {}) => {
+  return useQuery({
+    queryKey: ['admin', 'employees', params],
+    queryFn: () => adminApi.getEmployees(params),
+    staleTime: 30 * 1000, // 30 seconds
+  });
+};
+
+export const useEmployee = (id: string) => {
+  return useQuery({
+    queryKey: ['admin', 'employees', id],
+    queryFn: () => adminApi.getEmployee(id),
+    enabled: !!id,
+    staleTime: 30 * 1000, // 30 seconds
+  });
+};
+
+export const useCreateEmployee = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: adminApi.createEmployee,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'employees'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'employeeStats'] });
+    },
+  });
+};
+
+export const useUpdateEmployee = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: EmployeeUpdate }) =>
+      adminApi.updateEmployee(id, data),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'employees'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'employees', id] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'employeeStats'] });
+    },
+  });
+};
+
+export const useDeleteEmployee = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: adminApi.deleteEmployee,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'employees'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'employeeStats'] });
+    },
+  });
+};
+
+export const useEmployeeStats = () => {
+  return useQuery({
+    queryKey: ['admin', 'employeeStats'],
+    queryFn: adminApi.getEmployeeStats,
+    staleTime: 60 * 1000, // 1 minute
+  });
+};
+
+// Payroll Management Hooks
+export const usePayrollRuns = (params: {
+  page?: number;
+  size?: number;
+  status?: string;
+  period?: string;
+} = {}) => {
+  return useQuery({
+    queryKey: ['admin', 'payroll', params],
+    queryFn: () => adminApi.getPayrollRuns(params),
+    staleTime: 30 * 1000, // 30 seconds
+  });
+};
+
+export const usePayrollRun = (id: string) => {
+  return useQuery({
+    queryKey: ['admin', 'payroll', id],
+    queryFn: () => adminApi.getPayrollRun(id),
+    enabled: !!id,
+    staleTime: 30 * 1000, // 30 seconds
+  });
+};
+
+export const useCreatePayrollRun = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: adminApi.createPayrollRun,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'payroll'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'payrollStats'] });
+    },
+  });
+};
+
+export const useUpdatePayrollRun = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: PayrollRunUpdate }) =>
+      adminApi.updatePayrollRun(id, data),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'payroll'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'payroll', id] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'payrollStats'] });
+    },
+  });
+};
+
+export const useApprovePayrollRun = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: adminApi.approvePayrollRun,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'payroll'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'payrollStats'] });
+    },
+  });
+};
+
+export const useMarkPayrollRunPaid = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: adminApi.markPayrollRunPaid,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'payroll'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'payrollStats'] });
+    },
+  });
+};
+
+export const useDeletePayrollRun = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: adminApi.deletePayrollRun,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'payroll'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'payrollStats'] });
+    },
+  });
+};
+
+export const usePayrollStats = () => {
+  return useQuery({
+    queryKey: ['admin', 'payrollStats'],
+    queryFn: adminApi.getPayrollStats,
+    staleTime: 60 * 1000, // 1 minute
+  });
+};
+
+// Document Management Hooks
+export const useDocumentTypes = () => {
+  return useQuery({
+    queryKey: ['admin', 'documentTypes'],
+    queryFn: adminApi.getDocumentTypes,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+};
+
+export const useEmployeeDocuments = (params: {
+  page?: number;
+  size?: number;
+  employee_id?: string;
+  document_type_id?: string;
+  sign_status?: string;
+} = {}) => {
+  return useQuery({
+    queryKey: ['admin', 'employeeDocuments', params],
+    queryFn: () => adminApi.getEmployeeDocuments(params),
+    staleTime: 30 * 1000, // 30 seconds
+  });
+};
+
+export const useEmployeeDocument = (id: string) => {
+  return useQuery({
+    queryKey: ['admin', 'employeeDocuments', id],
+    queryFn: () => adminApi.getEmployeeDocument(id),
+    enabled: !!id,
+    staleTime: 30 * 1000, // 30 seconds
+  });
+};
+
+export const useUploadEmployeeDocument = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: adminApi.uploadEmployeeDocument,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'employeeDocuments'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'documentStats'] });
+    },
+  });
+};
+
+export const useUpdateEmployeeDocument = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<EmployeeDocument> }) =>
+      adminApi.updateEmployeeDocument(id, data),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'employeeDocuments'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'employeeDocuments', id] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'documentStats'] });
+    },
+  });
+};
+
+export const useDeleteEmployeeDocument = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: adminApi.deleteEmployeeDocument,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'employeeDocuments'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'documentStats'] });
+    },
+  });
+};
+
+export const useSignEmployeeDocument = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ id, signatureData }: { id: string; signatureData: any }) =>
+      adminApi.signEmployeeDocument(id, signatureData),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'employeeDocuments'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'employeeDocuments', id] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'documentStats'] });
+    },
+  });
+};
+
+export const useDocumentStats = () => {
+  return useQuery({
+    queryKey: ['admin', 'documentStats'],
+    queryFn: adminApi.getDocumentStats,
+    staleTime: 60 * 1000, // 1 minute
+  });
+};
+
+// System Stats Hook
+export const useSystemStats = () => {
+  return useQuery({
+    queryKey: ['admin', 'systemStats'],
+    queryFn: adminApi.getSystemStats,
+    staleTime: 30 * 1000, // 30 seconds
+  });
+};
+
+// Audit Logs Hook
+export const useAuditLogs = (params: {
+  page?: number;
+  size?: number;
+  user_id?: string;
+  action?: string;
+  resource_type?: string;
+  start_date?: string;
+  end_date?: string;
+} = {}) => {
+  return useQuery({
+    queryKey: ['admin', 'auditLogs', params],
+    queryFn: () => adminApi.getAuditLogs(params),
+    staleTime: 30 * 1000, // 30 seconds
+  });
+};
+
+// Tenant Settings Hooks
+export const useTenantSettings = () => {
+  return useQuery({
+    queryKey: ['admin', 'tenantSettings'],
+    queryFn: adminApi.getTenantSettings,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+};
+
+export const useUpdateTenantSettings = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: adminApi.updateTenantSettings,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'tenantSettings'] });
+    },
+  });
+};
+
+// Document Templates Hooks
+export const useDocumentTemplates = () => {
+  return useQuery({
+    queryKey: ['admin', 'documentTemplates'],
+    queryFn: adminApi.getDocumentTemplates,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+};
+
+export const useCreateDocumentTemplate = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: adminApi.createDocumentTemplate,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'documentTemplates'] });
+    },
+  });
+};
+
+export const useUpdateDocumentTemplate = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateDocumentTemplateRequest }) =>
+      adminApi.updateDocumentTemplate(id, data),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'documentTemplates'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'documentTemplates', id] });
+    },
+  });
+};
+
+export const useDeleteDocumentTemplate = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: adminApi.deleteDocumentTemplate,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'documentTemplates'] });
+    },
+  });
+};
+
+// Legacy Hooks (for backward compatibility)
 export const useAdminPermissions = () => {
   return useQuery({
     queryKey: ['admin', 'permissions'],
@@ -375,7 +1217,7 @@ export const useDeleteRole = () => {
 export const useAdminUsers = () => {
   return useQuery({
     queryKey: ['admin', 'users'],
-    queryFn: adminApi.getUsers,
+    queryFn: () => adminApi.getUsers(),
     staleTime: 2 * 60 * 1000, // 2 minutes
   });
 };
@@ -453,122 +1295,9 @@ export const useAdminTenants = () => {
   });
 };
 
-// Payroll Hooks
-export const usePayrollRuns = () => {
-  return useQuery({
-    queryKey: ['admin', 'payroll-runs'],
-    queryFn: adminApi.getPayrollRuns,
-    staleTime: 2 * 60 * 1000, // 2 minutes
-  });
-};
+// Alias für useRoles (verwendet useAdminRoles)
+export const useRoles = useAdminRoles;
 
-export const usePayrollDetail = (runId: string) => {
-  return useQuery({
-    queryKey: ['admin', 'payroll-detail', runId],
-    queryFn: () => adminApi.getPayrollDetail(runId),
-    staleTime: 1 * 60 * 1000, // 1 minute
-    enabled: !!runId,
-  });
-};
-
-export const useApprovePayrollRun = () => {
-  const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: adminApi.approvePayrollRun,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'payroll-runs'] });
-    },
-  });
-};
-
-export const useMarkPayrollPaid = () => {
-  const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: adminApi.markPayrollPaid,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'payroll-runs'] });
-    },
-  });
-};
-
-export const useCreatePayrollRun = () => {
-  const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: adminApi.createPayrollRun,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'payroll-runs'] });
-    },
-  });
-};
-
-// Document Hooks
-export const useEmployeeDocuments = (params?: {
-  employee_id?: string;
-  document_type?: string;
-  sign_status?: string;
-}) => {
-  return useQuery({
-    queryKey: ['admin', 'employee-documents', params],
-    queryFn: () => adminApi.getEmployeeDocuments(params),
-    staleTime: 2 * 60 * 1000, // 2 minutes
-  });
-};
-
-export const useEmployeeDocument = (documentId: string) => {
-  return useQuery({
-    queryKey: ['admin', 'employee-document', documentId],
-    queryFn: () => adminApi.getEmployeeDocument(documentId),
-    staleTime: 1 * 60 * 1000, // 1 minute
-    enabled: !!documentId,
-  });
-};
-
-export const useUploadEmployeeDocument = () => {
-  const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: ({ file, data }: { file: File; data: {
-      employee_id?: string;
-      document_type: string;
-      title: string;
-      valid_until?: string;
-    } }) => adminApi.uploadEmployeeDocument(file, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'employee-documents'] });
-    },
-  });
-};
-
-export const useSignDocument = () => {
-  const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: adminApi.signDocument,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'employee-documents'] });
-    },
-  });
-};
-
-export const useDeleteEmployeeDocument = () => {
-  const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: adminApi.deleteEmployeeDocument,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'employee-documents'] });
-    },
-  });
-};
-
-export const useDocumentTypes = () => {
-  return useQuery({
-    queryKey: ['admin', 'document-types'],
-    queryFn: adminApi.getDocumentTypes,
-    staleTime: 10 * 60 * 1000, // 10 minutes
-  });
-};
+// Export adminApi für direkten Zugriff
+export { adminApi };
  

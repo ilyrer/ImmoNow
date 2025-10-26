@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Mail, Lock, Eye, EyeOff, User, Building2, Phone, CheckCircle2, XCircle } from 'lucide-react';
+import apiClient from '../../api/enhancedClient';
 
 interface RegisterData {
   email: string;
@@ -93,13 +94,19 @@ const RegisterForm: React.FC<RegisterFormProps> = ({
     setIsLoading(true);
     try {
       const { confirmPassword, ...registerData } = formData;
+      const response = await apiClient.register({
+        ...registerData,
+        plan: 'free',
+        billing_cycle: 'monthly'
+      });
+      // Registrierung erfolgreich - onRegister wird vom Parent aufgerufen
       await onRegister({
         ...registerData,
         plan: 'free',
         billing_cycle: 'monthly'
       });
     } catch (err: any) {
-      setError(err.message || 'Registrierung fehlgeschlagen');
+      setError(typeof err.message === 'string' ? err.message : 'Registrierung fehlgeschlagen');
     } finally {
       setIsLoading(false);
     }
@@ -402,7 +409,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({
                 animate={{ opacity: 1, y: 0 }}
                 className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-red-600 dark:text-red-400 text-sm"
               >
-                {error}
+                {typeof error === 'string' ? error : JSON.stringify(error)}
               </motion.div>
             )}
 

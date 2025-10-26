@@ -191,7 +191,7 @@ async def get_billing_info(
         usage = {
             'users': users_count,
             'properties': properties_count,
-            'storage_mb': 0,  # TODO: Implementieren
+            'storage_mb': properties_count * 10,  # Vereinfachte Berechnung: Properties * 10MB
         }
         
         return {
@@ -329,72 +329,102 @@ async def create_checkout_session(
 # PLAN INFO ENDPOINTS
 # ============================================================================
 
-@router.get("/me")
-async def get_billing_info(
+@router.get("/usage/summary")
+async def get_usage_summary(
     tenant_id: str = Depends(get_tenant_id_from_token),
     current_user: User = Depends(get_current_user)
 ):
     """
-    Aktuelle Billing-Informationen für den Tenant
+    Usage-Summary für Dashboard-Widgets und Banner
     
     Returns:
-        Dict mit Plan-Info, Status, Limits und Usage
+        Dict mit aktueller Nutzung und Limits
     """
     try:
+        # Hole BillingAccount
         billing = await sync_to_async(BillingAccount.objects.get)(
             tenant_id=tenant_id
         )
         
-        # Hole aktuelle Limits
-        limits = PLAN_LIMITS.get(billing.plan_key, PLAN_LIMITS['free'])
+        # Hole Limits für aktuellen Plan
+        limits = PLAN_LIMITS[billing.plan_key]
         
-        # Berechne aktuelle Usage (vereinfacht)
-        from app.db.models import UserProfile, Property
+        # Hole aktuelle Usage aus TenantUsage
+        from app.db.models import TenantUsage
         
-        current_users = await sync_to_async(UserProfile.objects.filter(
-            tenant_id=tenant_id,
-            is_active=True
-        ).count)()
+        try:
+            tenant_usage = await sync_to_async(TenantUsage.objects.get)(
+                tenant_id=tenant_id
+            )
+            users_count = tenant_usage.active_users_count
+            storage_bytes = tenant_usage.storage_bytes_used
+            properties_count = tenant_usage.properties_count
+        except TenantUsage.DoesNotExist:
+            # Fallback: berechne direkt
+            from app.db.models import UserProfile, Property
+            users_count = await sync_to_async(UserProfile.objects.filter(
+                tenant_id=tenant_id, 
+                is_active=True
+            ).count)()
+            
+            properties_count = await sync_to_async(Property.objects.filter(
+                tenant_id=tenant_id
+            ).count)()
+            
+            # Storage direkt von S3/MinIO berechnen
+            from app.services.storage_service import storage_service
+            storage_bytes = storage_service.get_tenant_storage_size(tenant_id)
         
-        current_properties = await sync_to_async(Property.objects.filter(
-            tenant_id=tenant_id
-        ).count)()
-        
-        # Storage-Berechnung (vereinfacht)
-        current_storage_mb = 0  # TODO: Implementiere echte Storage-Berechnung
+        # Konvertiere Storage zu GB
+        storage_gb = storage_bytes / (1024 ** 3)
         
         return {
-            "plan_key": billing.plan_key,
-            "status": billing.status,
-            "limits": limits,
-            "usage": {
-                "users": current_users,
-                "properties": current_properties,
-                "storage_mb": current_storage_mb
+            "users": {
+                "current": users_count,
+                "limit": limits['users'],
+                "percentage": (users_count / limits['users'] * 100) if limits['users'] > 0 else 0
             },
-            "current_period_end": billing.current_period_end.isoformat() if billing.current_period_end else None,
-            "cancel_at_period_end": billing.cancel_at_period_end,
-            "trial_end": billing.trial_end.isoformat() if billing.trial_end else None,
-            "trial_days": billing.trial_days
+            "storage": {
+                "current_gb": round(storage_gb, 2),
+                "limit_gb": limits['storage_gb'],
+                "percentage": (storage_gb / limits['storage_gb'] * 100) if limits['storage_gb'] > 0 else 0
+            },
+            "properties": {
+                "current": properties_count,
+                "limit": limits['properties'],
+                "percentage": (properties_count / limits['properties'] * 100) if limits['properties'] > 0 else 0
+            },
+            "plan_key": billing.plan_key,
+            "last_updated": timezone.now()
         }
         
     except BillingAccount.DoesNotExist:
         # Fallback für Tenants ohne BillingAccount
         limits = PLAN_LIMITS['free']
         return {
-            "plan_key": "free",
-            "status": "active",
-            "limits": limits,
-            "usage": {
-                "users": 0,
-                "properties": 0,
-                "storage_mb": 0
+            "users": {
+                "current": 0,
+                "limit": limits['users'],
+                "percentage": 0
             },
-            "current_period_end": None,
-            "cancel_at_period_end": False,
-            "trial_end": None,
-            "trial_days": 14
+            "storage": {
+                "current_gb": 0,
+                "limit_gb": limits['storage_gb'],
+                "percentage": 0
+            },
+            "properties": {
+                "current": 0,
+                "limit": limits['properties'],
+                "percentage": 0
+            },
+            "plan_key": "free",
+            "last_updated": timezone.now()
         }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get usage summary: {str(e)}"
+        )
 
 
 @router.get("/trial-status")

@@ -18,6 +18,18 @@ from .communications import (
     MessageAttachment, TypingIndicator, UserPresence, MessageMention, MessageReaction
 )
 
+# Import admin models
+from .employee import Employee, EmployeeCompensation
+from .payroll import PayrollRun, PayrollEntry
+from .employee_document import DocumentType, EmployeeDocument, DocumentTemplate
+from .invitation import UserInvitation, InvitationLog
+
+# Import HR models
+from .hr import (
+    LeaveRequest, Attendance, Overtime, Expense, HRDocument,
+    LeaveType, LeaveStatus, ExpenseCategory, ExpenseStatus, DocumentType as HRDocumentType
+)
+
 # Export all models
 __all__ = [
     'Tenant',
@@ -50,10 +62,14 @@ __all__ = [
     'ContactPerson',
     'PropertyFeatures',
     'PropertyImage',
+    'PropertyContact',
     'PropertyDocument',
     'ExposeVersion',
     'PublishJob',
     'IntegrationSettings',
+    'TenantUsage',
+    'PropertyViewEvent',
+    'PropertyInquiryEvent',
     'Contact',
     'Appointment',
     'Attendee',
@@ -73,6 +89,27 @@ __all__ = [
     'UserPresence',
     'MessageMention',
     'MessageReaction',
+    # Admin models
+    'Employee',
+    'EmployeeCompensation',
+    'PayrollRun',
+    'PayrollEntry',
+    'DocumentType',
+    'EmployeeDocument',
+    'DocumentTemplate',
+    'UserInvitation',
+    'InvitationLog',
+    # HR models
+    'LeaveRequest',
+    'Attendance',
+    'Overtime',
+    'Expense',
+    'HRDocument',
+    'LeaveType',
+    'LeaveStatus',
+    'ExpenseCategory',
+    'ExpenseStatus',
+    'HRDocumentType',
 ]
 
 
@@ -245,6 +282,7 @@ class SocialAccount(models.Model):
         ('linkedin', 'LinkedIn'),
         ('twitter', 'Twitter'),
         ('instagram', 'Instagram'),
+        ('tiktok', 'TikTok'),
     ]
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -663,7 +701,23 @@ class Property(models.Model):
     
     # Building info
     year_built = models.IntegerField(blank=True, null=True)
-    energy_class = models.CharField(max_length=10, blank=True, null=True)
+    energy_class = models.CharField(
+        max_length=10, 
+        blank=True, 
+        null=True,
+        choices=[
+            ('A+', 'A+'),
+            ('A', 'A'),
+            ('B', 'B'),
+            ('C', 'C'),
+            ('D', 'D'),
+            ('E', 'E'),
+            ('F', 'F'),
+            ('G', 'G'),
+            ('H', 'H'),
+        ],
+        help_text="Energieeffizienzklasse"
+    )
     energy_consumption = models.IntegerField(blank=True, null=True, help_text="kWh/m²a")
     heating_type = models.CharField(max_length=100, blank=True, null=True)
     
@@ -684,6 +738,37 @@ class Property(models.Model):
     amenities = models.JSONField(default=list, blank=True, help_text="Liste von Ausstattungsmerkmalen")
     tags = models.JSONField(default=list, blank=True, help_text="Tags für Kategorisierung")
     
+    # Equipment and additional information
+    equipment_description = models.TextField(blank=True, null=True, help_text="Detaillierte Ausstattungsbeschreibung")
+    additional_info = models.TextField(blank=True, null=True, help_text="Sonstige Angaben und Informationen")
+    
+    # PropStack-style additional fields
+    internal_id = models.CharField(max_length=50, blank=True, null=True, help_text="Auftragnummer - eindeutige interne Referenznummer")
+    unit_number = models.CharField(max_length=50, blank=True, null=True, help_text="Einheitennummer")
+    project_id = models.CharField(max_length=100, blank=True, null=True, help_text="Projekt-ID oder Projektname")
+    floor_number = models.CharField(max_length=20, blank=True, null=True, help_text="Etage (z.B. EG, 1.OG, 2.OG, DG)")
+    condition_status = models.CharField(max_length=50, blank=True, null=True, choices=[
+        ('neuwertig', 'Neuwertig'),
+        ('saniert', 'Saniert'),
+        ('renovierungsbedürftig', 'Renovierungsbedürftig'),
+        ('modernisiert', 'Modernisiert'),
+        ('altbau', 'Altbau'),
+        ('unsaniert', 'Unsaniert'),
+    ], help_text="Zustand der Immobilie")
+    availability_date = models.DateField(blank=True, null=True, help_text="Verfügbar ab")
+    commission = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True, help_text="Provision in %")
+    parking_type = models.CharField(max_length=50, blank=True, null=True, choices=[
+        ('garage', 'Garage'),
+        ('carport', 'Carport'),
+        ('tiefgarage', 'Tiefgarage'),
+        ('außenstellplatz', 'Außenstellplatz'),
+        ('keine', 'Keine'),
+    ], help_text="Art der Stellplätze")
+    object_description = models.TextField(blank=True, null=True, help_text="Objektbeschreibung (zusätzlich zu description)")
+    location_description = models.TextField(blank=True, null=True, help_text="Lagebeschreibung")
+    last_modernization = models.IntegerField(blank=True, null=True, help_text="Jahr der letzten Modernisierung")
+    construction_phase = models.CharField(max_length=50, blank=True, null=True, help_text="Baujahr-Text (z.B. 'ca. 1990', 'Neubau')")
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     created_by = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -695,10 +780,190 @@ class Property(models.Model):
             models.Index(fields=['tenant', 'property_type']),
             models.Index(fields=['tenant', 'price']),
             models.Index(fields=['tenant', 'created_at']),
+            models.Index(fields=['tenant', 'internal_id']),
+            models.Index(fields=['internal_id']),
         ]
     
     def __str__(self):
         return self.title
+
+
+class PropertyContact(models.Model):
+    """Junction table for Property-Contact relationships"""
+    ROLE_CHOICES = [
+        ('owner', 'Eigentümer'),
+        ('agent', 'Makler'),
+        ('manager', 'Verwalter'),
+        ('tenant', 'Mieter'),
+        ('buyer', 'Käufer'),
+        ('interested', 'Interessent'),
+        ('contact_person', 'Ansprechpartner'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    property = models.ForeignKey(Property, on_delete=models.CASCADE, related_name='property_contacts')
+    contact = models.ForeignKey('Contact', on_delete=models.CASCADE, related_name='property_contacts')
+    role = models.CharField(max_length=50, choices=ROLE_CHOICES, help_text="Rolle des Kontakts")
+    is_primary = models.BooleanField(default=False, help_text="Hauptkontakt für diese Rolle")
+    notes = models.TextField(blank=True, null=True, help_text="Notizen zur Verknüpfung")
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    
+    class Meta:
+        db_table = 'property_contacts'
+        indexes = [
+            models.Index(fields=['property', 'role']),
+            models.Index(fields=['contact', 'role']),
+            models.Index(fields=['property', 'is_primary']),
+        ]
+        unique_together = ['property', 'contact', 'role']
+    
+    def __str__(self):
+        return f"{self.property.title} - {self.contact.name} ({self.get_role_display()})"
+
+
+class PortalConnection(models.Model):
+    """OAuth-Verbindungen zu Immobilienportalen"""
+    PORTAL_CHOICES = [
+        ('immoscout24', 'Immoscout24'),
+        ('immowelt', 'Immowelt'),
+        ('kleinanzeigen', 'eBay Kleinanzeigen'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='portal_connections')
+    portal = models.CharField(max_length=50, choices=PORTAL_CHOICES, help_text="Portal-Name")
+    
+    # OAuth-Daten
+    access_token = models.TextField(help_text="OAuth Access Token")
+    refresh_token = models.TextField(blank=True, null=True, help_text="OAuth Refresh Token")
+    token_expires_at = models.DateTimeField(help_text="Token-Ablaufzeit")
+    scope = models.TextField(help_text="OAuth Scopes (kommagetrennt)")
+    
+    # Portal-spezifische Daten
+    portal_user_id = models.CharField(max_length=100, help_text="Benutzer-ID im Portal")
+    portal_username = models.CharField(max_length=200, blank=True, null=True, help_text="Benutzername im Portal")
+    portal_email = models.EmailField(blank=True, null=True, help_text="E-Mail im Portal")
+    
+    # Status
+    is_active = models.BooleanField(default=True, help_text="Verbindung ist aktiv")
+    last_sync_at = models.DateTimeField(blank=True, null=True, help_text="Letzte Synchronisation")
+    last_error = models.TextField(blank=True, null=True, help_text="Letzter Fehler")
+    
+    # Metadaten
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    
+    class Meta:
+        db_table = 'portal_connections'
+        unique_together = ['tenant', 'portal']
+        indexes = [
+            models.Index(fields=['tenant', 'portal']),
+            models.Index(fields=['portal', 'is_active']),
+        ]
+    
+    def __str__(self):
+        return f"{self.get_portal_display()} - {self.tenant.name}"
+    
+    def is_token_expired(self):
+        """Prüft ob der Token abgelaufen ist"""
+        return timezone.now() >= self.token_expires_at
+    
+    def needs_refresh(self):
+        """Prüft ob der Token bald abläuft (5 Minuten vorher)"""
+        return timezone.now() >= self.token_expires_at - timedelta(minutes=5)
+
+
+class PortalPublishJob(models.Model):
+    """Veröffentlichungs-Jobs für Portale"""
+    STATUS_CHOICES = [
+        ('pending', 'Ausstehend'),
+        ('publishing', 'Wird veröffentlicht'),
+        ('published', 'Veröffentlicht'),
+        ('failed', 'Fehlgeschlagen'),
+        ('paused', 'Pausiert'),
+        ('unpublished', 'Zurückgezogen'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    property = models.ForeignKey(Property, on_delete=models.CASCADE, related_name='portal_jobs')
+    portal_connection = models.ForeignKey(PortalConnection, on_delete=models.CASCADE, related_name='publish_jobs')
+    
+    # Portal-spezifische IDs
+    portal_property_id = models.CharField(max_length=100, blank=True, null=True, help_text="Property-ID im Portal")
+    portal_url = models.URLField(blank=True, null=True, help_text="URL der Veröffentlichung")
+    
+    # Status und Metadaten
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    error_message = models.TextField(blank=True, null=True, help_text="Fehlermeldung")
+    retry_count = models.IntegerField(default=0, help_text="Anzahl Wiederholungsversuche")
+    
+    # Portal-spezifische Daten
+    portal_data = models.JSONField(default=dict, help_text="Portal-spezifische Daten")
+    sync_data = models.JSONField(default=dict, help_text="Synchronisierte Daten")
+    
+    # Metadaten
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    published_at = models.DateTimeField(blank=True, null=True, help_text="Veröffentlichungszeit")
+    last_sync_at = models.DateTimeField(blank=True, null=True, help_text="Letzte Synchronisation")
+    
+    class Meta:
+        db_table = 'portal_publish_jobs'
+        unique_together = ['property', 'portal_connection']
+        indexes = [
+            models.Index(fields=['property', 'status']),
+            models.Index(fields=['portal_connection', 'status']),
+            models.Index(fields=['status', 'created_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.property.title} - {self.portal_connection.get_portal_display()} ({self.get_status_display()})"
+
+
+class PortalSyncLog(models.Model):
+    """Log für Portal-Synchronisationen"""
+    LOG_LEVEL_CHOICES = [
+        ('info', 'Info'),
+        ('warning', 'Warnung'),
+        ('error', 'Fehler'),
+        ('success', 'Erfolg'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    portal_connection = models.ForeignKey(PortalConnection, on_delete=models.CASCADE, related_name='sync_logs')
+    property = models.ForeignKey(Property, on_delete=models.CASCADE, related_name='sync_logs', blank=True, null=True)
+    
+    level = models.CharField(max_length=20, choices=LOG_LEVEL_CHOICES)
+    message = models.TextField(help_text="Log-Nachricht")
+    details = models.JSONField(default=dict, help_text="Zusätzliche Details")
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'portal_sync_logs'
+        indexes = [
+            models.Index(fields=['portal_connection', 'created_at']),
+            models.Index(fields=['property', 'created_at']),
+            models.Index(fields=['level', 'created_at']),
+        ]
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.get_level_display()} - {self.message[:50]}"
+
+
+# Add to __all__ export
+__all__ = [
+    'User', 'Tenant', 'TenantUser', 'AuditLog', 'NotificationPreference', 'Notification',
+    'Contact', 'ContactPerson', 'Property', 'Address', 'PropertyFeatures', 'PropertyImage', 
+    'PropertyDocument', 'PropertyContact', 'PortalConnection', 'PortalPublishJob', 'PortalSyncLog',
+    'Task', 'Project', 'Sprint', 'Label', 'Attachment', 'Comment', 'Subtask',
+    'InvestorProperty', 'InvestorReport', 'MarketplacePackage', 'CostRecord', 'PackageReservation',
+    'PerformanceSnapshot', 'UsageTracking', 'Employee', 'AnnualLeave', 'Expense', 'ExpenseCategory',
+    'TikTokAccount', 'TikTokVideo', 'TikTokAnalytics', 'HRDocument', 'Payroll', 'TimeTracking',
+]
 
 
 # Investor Models
@@ -1032,7 +1297,23 @@ class PropertyFeatures(models.Model):
     bedrooms = models.IntegerField(blank=True, null=True)
     bathrooms = models.IntegerField(blank=True, null=True)
     year_built = models.IntegerField(blank=True, null=True)
-    energy_class = models.CharField(max_length=10, blank=True, null=True)
+    energy_class = models.CharField(
+        max_length=10, 
+        blank=True, 
+        null=True,
+        choices=[
+            ('A+', 'A+'),
+            ('A', 'A'),
+            ('B', 'B'),
+            ('C', 'C'),
+            ('D', 'D'),
+            ('E', 'E'),
+            ('F', 'F'),
+            ('G', 'G'),
+            ('H', 'H'),
+        ],
+        help_text="Energieeffizienzklasse"
+    )
     heating_type = models.CharField(max_length=100, blank=True, null=True)
     parking_spaces = models.IntegerField(blank=True, null=True)
     balcony = models.BooleanField(default=False)
@@ -1050,7 +1331,7 @@ class PropertyImage(models.Model):
     """Property image model"""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     property = models.ForeignKey(Property, on_delete=models.CASCADE, related_name='images')
-    file = models.FileField(upload_to='properties/images/%Y/%m/', blank=True, null=True)
+    file = models.FileField(upload_to='tenants/{tenant_id}/properties/{property_id}/images/', blank=True, null=True)
     url = models.URLField(blank=True, null=True)
     thumbnail_url = models.URLField(blank=True, null=True)
     alt_text = models.CharField(max_length=255, blank=True, null=True)
@@ -1393,3 +1674,106 @@ class IntegrationSettings(models.Model):
     
     def __str__(self):
         return f"Integration Settings for {self.tenant.name}"
+
+
+# Usage Tracking Models
+class TenantUsage(models.Model):
+    """Tenant usage tracking for billing limits enforcement"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.OneToOneField(Tenant, on_delete=models.CASCADE, related_name='usage')
+    active_users_count = models.IntegerField(default=0, help_text="Number of active users")
+    storage_bytes_used = models.BigIntegerField(default=0, help_text="Storage used in bytes")
+    properties_count = models.IntegerField(default=0, help_text="Number of properties")
+    documents_count = models.IntegerField(default=0, help_text="Number of documents")
+    last_reconciled_at = models.DateTimeField(blank=True, null=True, help_text="Last storage reconciliation")
+    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'tenant_usage'
+        indexes = [
+            models.Index(fields=['tenant', 'updated_at']),
+        ]
+    
+    def __str__(self):
+        return f"Usage for {self.tenant.name}"
+    
+    @property
+    def storage_gb_used(self):
+        """Convert bytes to GB"""
+        return self.storage_bytes_used / (1024 ** 3)
+    
+    @property
+    def storage_mb_used(self):
+        """Convert bytes to MB"""
+        return self.storage_bytes_used / (1024 ** 2)
+
+
+class PropertyViewEvent(models.Model):
+    """Property view tracking for analytics"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='property_view_events')
+    property = models.ForeignKey(Property, on_delete=models.CASCADE, related_name='view_events')
+    viewer_fingerprint = models.CharField(max_length=64, null=True, blank=True, help_text="Anonymous viewer identifier")
+    viewer_ip = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True, null=True)
+    referrer = models.URLField(blank=True, null=True)
+    source = models.CharField(max_length=50, default='web', choices=[
+        ('web', 'Web'),
+        ('mobile', 'Mobile'),
+        ('api', 'API'),
+        ('email', 'Email'),
+        ('social', 'Social Media'),
+    ])
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'property_view_events'
+        indexes = [
+            models.Index(fields=['tenant', 'property', 'created_at']),
+            models.Index(fields=['tenant', 'created_at']),
+            models.Index(fields=['property', 'created_at']),
+        ]
+    
+    def __str__(self):
+        return f"View of {self.property.title} at {self.created_at}"
+
+
+class PropertyInquiryEvent(models.Model):
+    """Property inquiry tracking for analytics"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='property_inquiry_events')
+    property = models.ForeignKey(Property, on_delete=models.CASCADE, related_name='inquiry_events')
+    contact = models.ForeignKey(Contact, on_delete=models.CASCADE, related_name='property_inquiries', null=True, blank=True)
+    contact_name = models.CharField(max_length=255, blank=True, null=True)
+    contact_email = models.EmailField(blank=True, null=True)
+    contact_phone = models.CharField(max_length=50, blank=True, null=True)
+    source = models.CharField(max_length=50, default='web', choices=[
+        ('web', 'Web'),
+        ('mobile', 'Mobile'),
+        ('email', 'Email'),
+        ('phone', 'Phone'),
+        ('social', 'Social Media'),
+        ('portal', 'Portal'),
+    ])
+    inquiry_type = models.CharField(max_length=50, default='general', choices=[
+        ('general', 'General Inquiry'),
+        ('viewing', 'Viewing Request'),
+        ('price', 'Price Inquiry'),
+        ('financing', 'Financing Question'),
+        ('other', 'Other'),
+    ])
+    message = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'property_inquiry_events'
+        indexes = [
+            models.Index(fields=['tenant', 'property', 'created_at']),
+            models.Index(fields=['tenant', 'created_at']),
+            models.Index(fields=['property', 'created_at']),
+            models.Index(fields=['contact', 'created_at']),
+        ]
+    
+    def __str__(self):
+        return f"Inquiry for {self.property.title} from {self.contact_name or self.contact_email}"

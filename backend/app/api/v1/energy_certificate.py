@@ -133,15 +133,20 @@ async def generate_energy_certificate_pdf(
         property_data=property_data,
         energy_data=energy_data,
         company_data=company_data,
-        logo_path=None,  # TODO: Get logo from tenant settings
+        logo_path=tenant.logo_url if hasattr(tenant, 'logo_url') and tenant.logo_url else None,
         language=pdf_request.language
     )
     
-    # Save PDF to media directory (placeholder - should use proper file storage)
-    filename = f"energy_certificate_{property_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
-    pdf_url = f"/media/energy_certificates/{filename}"
+    # Speichere PDF im lokalen Media-Verzeichnis (vereinfacht)
+    import os
+    media_dir = "media/energy_certificates"
+    os.makedirs(media_dir, exist_ok=True)
     
-    # TODO: Save PDF to actual file storage (S3, local filesystem, etc.)
+    file_path = os.path.join(media_dir, filename)
+    with open(file_path, 'wb') as f:
+        f.write(pdf_bytes)
+    
+    pdf_url = f"/media/energy_certificates/{filename}"
     
     return EnergyCertificatePDFResponse(
         pdf_url=pdf_url,

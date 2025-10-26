@@ -53,10 +53,24 @@ def require_employee_role(current_user: TokenData = Depends(get_current_user)) -
     return current_user
 
 
-def require_admin_role(current_user: TokenData = Depends(get_current_user)) -> TokenData:
-    """Require admin role"""
-    if current_user.role != "admin":
-        raise ForbiddenError("Insufficient permissions. Required role: admin")
+def require_employee_access(current_user: TokenData = Depends(get_current_user)) -> TokenData:
+    """Require employee access (employee, manager, or admin)"""
+    if current_user.role not in ["employee", "manager", "admin"]:
+        raise ForbiddenError("Insufficient permissions. Required role: employee, manager, or admin")
+    return current_user
+
+
+def require_manager_access(current_user: TokenData = Depends(get_current_user)) -> TokenData:
+    """Require manager or admin access"""
+    if current_user.role not in ["manager", "admin"]:
+        raise ForbiddenError("Insufficient permissions. Required role: manager or admin")
+    return current_user
+
+
+def require_hr_access(current_user: TokenData = Depends(get_current_user)) -> TokenData:
+    """Require HR access (employee, manager, admin, or owner)"""
+    if current_user.role not in ["employee", "manager", "admin", "owner"]:
+        raise ForbiddenError("Insufficient permissions. Required role: employee, manager, admin, or owner")
     return current_user
 
 

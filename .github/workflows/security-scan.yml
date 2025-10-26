@@ -1,0 +1,87 @@
+name: Security Scan
+
+on:
+  pull_request:
+    branches: [ main, master, develop ]
+  push:
+    branches: [ main, master, develop ]
+  schedule:
+    - cron: '0 2 * * 1'  # Weekly on Monday at 2 AM
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Full history for secret scanning
+        
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r backend/requirements.txt
+        pip install pip-audit
+        
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: real-estate-dashboard/package-lock.json
+        
+    - name: Install Node.js dependencies
+      run: |
+        cd real-estate-dashboard
+        npm ci
+        
+    - name: Install Trufflehog
+      run: |
+        wget https://github.com/trufflesecurity/trufflehog/releases/latest/download/trufflehog_3.63.1_linux_amd64.tar.gz
+        tar -xzf trufflehog_3.63.1_linux_amd64.tar.gz
+        sudo mv trufflehog /usr/local/bin/
+        
+    - name: Install Gitleaks
+      run: |
+        wget https://github.com/gitleaks/gitleaks/releases/latest/download/gitleaks_8.18.0_linux_x64.tar.gz
+        tar -xzf gitleaks_8.18.0_linux_x64.tar.gz
+        sudo mv gitleaks /usr/local/bin/
+        
+    - name: Run Security Scan
+      run: |
+        python scripts/ci/security_scan.py --exit-on-critical
+        
+    - name: Upload SBOM
+      uses: actions/upload-artifact@v3
+      with:
+        name: sbom
+        path: sbom.json
+        
+    - name: Comment PR with results
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const { execSync } = require('child_process');
+          try {
+            const output = execSync('python scripts/ci/security_scan.py', { encoding: 'utf8' });
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## Security Scan Results\n\n\`\`\`\n${output}\n\`\`\``
+            });
+          } catch (error) {
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## Security Scan Failed\n\n🚨 Critical security issues found:\n\n\`\`\`\n${error.stdout}\n\`\`\``
+            });
+          }

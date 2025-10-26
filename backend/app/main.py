@@ -13,6 +13,16 @@ from typing import Union, List, Dict, Any
 import json
 from dotenv import load_dotenv
 
+# Import structured logging
+from app.middleware.structured_logging import (
+    StructuredLoggingMiddleware,
+    setup_structured_logging,
+    log_audit_event,
+    log_business_event,
+    log_performance_metric,
+    log_error
+)
+
 # Load environment variables
 # Try .env first, then env.local as fallback
 load_dotenv(".env")  # Load .env if it exists
@@ -176,6 +186,12 @@ def create_app() -> FastAPI:
         ],
     )
 
+    # Setup structured logging
+    setup_structured_logging()
+    
+    # Structured Logging Middleware (must be first)
+    app.add_middleware(StructuredLoggingMiddleware)
+    
     # CORS Middleware
     app.add_middleware(
         CORSMiddleware,

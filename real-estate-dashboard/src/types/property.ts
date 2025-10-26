@@ -3,10 +3,10 @@
  * Keine Mockdaten, keine überflüssigen Felder
  */
 
-import { PropertyResponse, Address, ContactPerson, PropertyFeatures, PropertyImage } from '../lib/api/types';
+import { PropertyResponse, Address, ContactPerson, PropertyFeatures, PropertyImage, PropertyContact, PropertyContactCreate } from '../lib/api/types';
 
 // Re-export Backend Types
-export type { PropertyResponse, Address, ContactPerson, PropertyFeatures, PropertyImage };
+export type { PropertyResponse, Address, ContactPerson, PropertyFeatures, PropertyImage, PropertyContact, PropertyContactCreate };
 
 // Property Status Enum
 export enum PropertyStatus {
@@ -26,6 +26,36 @@ export enum PropertyType {
   OFFICE = 'office',
   RETAIL = 'retail',
   INDUSTRIAL = 'industrial',
+}
+
+// Condition Status Enum
+export enum ConditionStatus {
+  NEUWERTIG = 'neuwertig',
+  SANIERT = 'saniert',
+  RENOVIERUNGSBEDUERFTIG = 'renovierungsbedürftig',
+  MODERNISIERT = 'modernisiert',
+  ALTBAU = 'altbau',
+  UNSANIERT = 'unsaniert',
+}
+
+// Parking Type Enum
+export enum ParkingType {
+  GARAGE = 'garage',
+  CARPORT = 'carport',
+  TIEFGARAGE = 'tiefgarage',
+  AUSSENSTELLPLATZ = 'außenstellplatz',
+  KEINE = 'keine',
+}
+
+// Contact Role Enum
+export enum ContactRole {
+  OWNER = 'owner',
+  AGENT = 'agent',
+  MANAGER = 'manager',
+  TENANT = 'tenant',
+  BUYER = 'buyer',
+  INTERESTED = 'interested',
+  CONTACT_PERSON = 'contact_person',
 }
 
 // UI-only fields (nicht vom Backend)
@@ -216,6 +246,61 @@ export const getPropertyTypeLabel = (type: PropertyType | string): string => {
     industrial: 'Industrie',
   };
   return labels[type] || type;
+};
+
+export const getConditionStatusLabel = (status: ConditionStatus | string): string => {
+  const labels: Record<string, string> = {
+    neuwertig: 'Neuwertig',
+    saniert: 'Saniert',
+    renovierungsbedürftig: 'Renovierungsbedürftig',
+    modernisiert: 'Modernisiert',
+    altbau: 'Altbau',
+    unsaniert: 'Unsaniert',
+  };
+  return labels[status] || status;
+};
+
+export const getParkingTypeLabel = (type: ParkingType | string): string => {
+  const labels: Record<string, string> = {
+    garage: 'Garage',
+    carport: 'Carport',
+    tiefgarage: 'Tiefgarage',
+    außenstellplatz: 'Außenstellplatz',
+    keine: 'Keine',
+  };
+  return labels[type] || type;
+};
+
+export const getContactRoleLabel = (role: ContactRole | string): string => {
+  const labels: Record<string, string> = {
+    owner: 'Eigentümer',
+    agent: 'Makler',
+    manager: 'Verwalter',
+    tenant: 'Mieter',
+    buyer: 'Käufer',
+    interested: 'Interessent',
+    contact_person: 'Ansprechpartner',
+  };
+  return labels[role] || role;
+};
+
+export const formatCommission = (commission?: number): string => {
+  if (!commission) return '—';
+  return `${commission}%`;
+};
+
+export const formatFloorNumber = (floor?: string): string => {
+  if (!floor) return '—';
+  return floor;
+};
+
+export const formatAvailabilityDate = (date?: string): string => {
+  if (!date) return 'Sofort verfügbar';
+  try {
+    return new Date(date).toLocaleDateString('de-DE');
+  } catch {
+    return date;
+  }
 };
 
 export const getPropertyStatusColor = (status: PropertyStatus | string): string => {

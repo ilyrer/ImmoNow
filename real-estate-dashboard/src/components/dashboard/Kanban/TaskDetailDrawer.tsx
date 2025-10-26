@@ -198,6 +198,55 @@ export const TaskDetailDrawer: React.FC<TaskDetailDrawerProps> = ({
     }
   };
 
+  const handleFileUpload = async (file: File) => {
+    if (!editedTask) return;
+
+    try {
+      // Upload file to server
+      const uploadResponse = await tasksService.uploadAttachment(editedTask.id, {
+        name: file.name,
+        file_url: URL.createObjectURL(file), // In production: actual uploaded URL from server
+        file_size: file.size,
+        mime_type: file.type
+      });
+
+      // Convert TaskAttachment to TaskDocument format
+      const newAttachment: TaskDocument = {
+        id: (uploadResponse as any).id || String(Date.now()),
+        name: file.name,
+        type: file.type,
+        url: (uploadResponse as any).file_url || URL.createObjectURL(file),
+        size: file.size,
+        uploadedBy: { id: 'current-user', name: 'You', avatar: '', role: '' },
+        uploadedAt: new Date().toISOString()
+      };
+
+      setEditedTask(prev => prev ? { 
+        ...prev, 
+        attachments: [...prev.attachments, newAttachment] 
+      } : prev);
+    } catch (error) {
+      console.error('File upload failed:', error);
+      throw error;
+    }
+  };
+
+  const handleDeleteAttachment = async (attachmentId: string) => {
+    if (!editedTask) return;
+
+    try {
+      await tasksService.deleteAttachment(attachmentId);
+      
+      setEditedTask(prev => prev ? { 
+        ...prev, 
+        attachments: prev.attachments.filter(a => a.id !== attachmentId) 
+      } : prev);
+    } catch (error) {
+      console.error('Delete attachment failed:', error);
+      throw error;
+    }
+  };
+
   const addReaction = (commentId: string, emoji: string) => {
     if (editedTask) {
       setEditedTask({
@@ -442,7 +491,12 @@ export const TaskDetailDrawer: React.FC<TaskDetailDrawerProps> = ({
                 )}
                 
                 {activeTab === 'documents' && (
-                  <DocumentsTab attachments={task.attachments} />
+                  <DocumentsTab 
+                    attachments={task.attachments} 
+                    taskId={task.id}
+                    onUpload={handleFileUpload}
+                    onDelete={handleDeleteAttachment}
+                  />
                 )}
               </AnimatePresence>
             </div>
@@ -1151,58 +1205,123 @@ const ActivityTab: React.FC<{ activityLog: ActivityLogEntry[] }> = ({ activityLo
 );
 
 // Documents Tab
-const DocumentsTab: React.FC<{ attachments: TaskDocument[] }> = ({ attachments }) => (
-  <motion.div
-    initial={{ opacity: 0, x: 20 }}
-    animate={{ opacity: 1, x: 0 }}
-    exit={{ opacity: 0, x: -20 }}
-    className="space-y-4"
-  >
-    {attachments.length === 0 ? (
-      <div className="text-center py-16 text-gray-500 dark:text-gray-400">
-        <p className="text-6xl mb-4 opacity-30">⎆</p>
-        <p className="text-lg font-medium">Keine Dokumente</p>
+const DocumentsTab: React.FC<{ 
+  attachments: TaskDocument[]; 
+  taskId: string;
+  onUpload: (file: File) => Promise<void>;
+  onDelete: (attachmentId: string) => Promise<void>;
+}> = ({ attachments, taskId, onUpload, onDelete }) => {
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setUploading(true);
+      await onUpload(file);
+    } catch (error) {
+      console.error('Upload failed:', error);
+      alert('Fehler beim Hochladen der Datei');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -20 }}
+      className="space-y-4"
+    >
+      {/* Upload Button */}
+      <div className="flex justify-between items-center mb-4">
+        <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+          Anhänge ({attachments.length})
+        </h4>
+        <input
+          ref={fileInputRef}
+          type="file"
+          onChange={handleFileSelect}
+          className="hidden"
+          disabled={uploading}
+        />
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
-          className="mt-6 px-6 py-3 bg-blue-500/80 hover:bg-blue-600/80 text-white 
-            rounded-xl font-semibold text-sm transition-all shadow-glass-lg"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading}
+          className="px-4 py-2 bg-blue-500/80 hover:bg-blue-600/80 text-white 
+            rounded-xl font-semibold text-sm transition-all shadow-glass-md
+            disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
         >
-          ↑ Dokument hochladen
+          {uploading ? '↻ Lädt...' : '↑ Hochladen'}
         </motion.button>
       </div>
-    ) : (
-      <div className="grid grid-cols-2 gap-4">
-        {attachments.map((attachment) => (
-          <motion.div
-            key={attachment.id}
-            whileHover={{ scale: 1.02 }}
-            className="p-4 bg-white/40 dark:bg-white/10 rounded-xl border 
-              border-white/20 dark:border-white/10 hover:bg-white/60 
-              dark:hover:bg-white/15 transition-all cursor-pointer"
-          >
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center 
-                justify-center text-2xl">
-                📄
+
+      {attachments.length === 0 ? (
+        <div className="text-center py-16 text-gray-500 dark:text-gray-400">
+          <p className="text-6xl mb-4 opacity-30">⎆</p>
+          <p className="text-lg font-medium">Keine Dokumente</p>
+          <p className="text-sm mt-2">Klicken Sie auf "Hochladen", um Dateien hinzuzufügen</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {attachments.map((attachment) => (
+            <motion.div
+              key={attachment.id}
+              whileHover={{ scale: 1.02 }}
+              className="p-4 bg-white/40 dark:bg-white/10 rounded-xl border 
+                border-white/20 dark:border-white/10 hover:bg-white/60 
+                dark:hover:bg-white/15 transition-all group"
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center 
+                  justify-center text-2xl">
+                  📄
+                </div>
+                <div className="flex-1 overflow-hidden">
+                  <p className="font-semibold text-gray-900 dark:text-white truncate">
+                    {attachment.name}
+                  </p>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                    {(attachment.size / 1024).toFixed(1)} KB
+                  </p>
+                </div>
+                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <a
+                    href={attachment.url}
+                    download
+                    className="p-2 bg-blue-500/20 hover:bg-blue-500/30 rounded-lg transition-colors"
+                    title="Herunterladen"
+                  >
+                    ↓
+                  </a>
+                  <button
+                    onClick={() => {
+                      if (window.confirm('Anhang wirklich löschen?')) {
+                        onDelete(attachment.id);
+                      }
+                    }}
+                    className="p-2 bg-red-500/20 hover:bg-red-500/30 rounded-lg transition-colors"
+                    title="Löschen"
+                  >
+                    ✕
+                  </button>
+                </div>
               </div>
-              <div className="flex-1 overflow-hidden">
-                <p className="font-semibold text-gray-900 dark:text-white truncate">
-                  {attachment.name}
-                </p>
-                <p className="text-xs text-gray-600 dark:text-gray-400">
-                  {(attachment.size / 1024).toFixed(1)} KB
-                </p>
-              </div>
-            </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              Hochgeladen von {attachment.uploadedBy.name}
-            </p>
-          </motion.div>
-        ))}
-      </div>
-    )}
-  </motion.div>
-);
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                {attachment.uploadedBy?.name || 'Unbekannt'}
+              </p>
+            </motion.div>
+          ))}
+        </div>
+      )}
+    </motion.div>
+  );
+};
 
 export default TaskDetailDrawer;

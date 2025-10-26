@@ -1,0 +1,773 @@
+{
+  "summary": {
+    "total_tests": 95,
+    "successful_tests": 22,
+    "failed_tests": 73,
+    "success_rate": 23.157894736842106,
+    "timestamp": "2025-10-22T18:24:39.636713"
+  },
+  "results": [
+    {
+      "method": "GET",
+      "endpoint": "/auth/me",
+      "status": 200,
+      "success": true,
+      "error": null,
+      "timestamp": "2025-10-22T18:21:22.468309"
+    },
+    {
+      "method": "POST",
+      "endpoint": "/auth/refresh",
+      "status": 401,
+      "success": false,
+      "error": "{\"detail\":\"Invalid token format\"}",
+      "timestamp": "2025-10-22T18:21:27.747298"
+    },
+    {
+      "method": "GET",
+      "endpoint": "/users",
+      "status": 500,
+      "success": false,
+      "error": "{\"detail\":\"Failed to get users: You must set the config attribute `from_attributes=True` to use from_orm\"}",
+      "timestamp": "2025-10-22T18:21:29.805515"
+    },
+    {
+      "method": "POST",
+      "endpoint": "/users",
+      "status": 405,
+      "success": false,
+      "error": "{\"detail\":\"Method Not Allowed\"}",
+      "timestamp": "2025-10-22T18:21:31.854782"
+    },
+    {
+      "method": "GET",
+      "endpoint": "/users/5071863c-b351-4591-adf7-4fb3e2f9aad2",
+      "status": 405,
+      "success": false,
+      "error": "{\"detail\":\"Method Not Allowed\"}",
+      "timestamp": "2025-10-22T18:21:33.928463"
+    },
+    {
+      "method": "PUT",
+      "endpoint": "/users/5071863c-b351-4591-adf7-4fb3e2f9aad2",
+      "status": 405,
+      "success": false,
+      "error": "{\"detail\":\"Method Not Allowed\"}",
+      "timestamp": "2025-10-22T18:21:36.003770"
+    },
+    {
+      "method": "DELETE",
+      "endpoint": "/users/5071863c-b351-4591-adf7-4fb3e2f9aad2",
+      "status": 404,
+      "success": false,
+      "error": "{\"detail\":\"User 5071863c-b351-4591-adf7-4fb3e2f9aad2 not found in tenant\"}",
+      "timestamp": "2025-10-22T18:21:38.070760"
+    },
+    {
+      "method": "GET",
+      "endpoint": "/profile",
+      "status": 404,
+      "success": false,
+      "error": "{\"detail\":\"Not Found\"}",
+      "timestamp": "2025-10-22T18:21:40.143706"
+    },
+    {
+      "method": "PUT",
+      "endpoint": "/profile",
+      "status": 404,
+      "success": false,
+      "error": "{\"detail\":\"Not Found\"}",
+      "timestamp": "2025-10-22T18:21:42.190933"
+    },
+    {
+      "method": "GET",
+      "endpoint": "/admin/permissions",
+      "status": 200,
+      "success": true,
+      "error": null,
+      "timestamp": "2025-10-22T18:21:44.274790"
+    },
+    {
+      "method": "GET",
+      "endpoint": "/admin/roles",
+      "status": 200,
+      "success": true,
+      "error": null,
+      "timestamp": "2025-10-22T18:21:46.318863"
+    },
+    {
+      "method": "GET",
+      "endpoint": "/admin/users",
+      "status": 200,
+      "success": true,
+      "error": null,
+      "timestamp": "2025-10-22T18:21:48.366252"
+    },
+    {
+      "method": "GET",
+      "endpoint": "/admin/stats",
+      "status": 500,
+      "success": false,
+      "error": "{\"detail\":\"Internal server error\",\"code\":\"internal_error\",\"timestamp\":\"2025-10-22T16:21:50.482956\"}",
+      "timestamp": "2025-10-22T18:21:50.483806"
+    },
+    {
+      "method": "GET",
+      "endpoint": "/admin/employees",
+      "status": 500,
+      "success": false,
+      "error": "{\"detail\":\"Internal server error\",\"code\":\"internal_error\",\"timestamp\":\"2025-10-22T16:21:52.581947\"}",
+      "timestamp": "2025-10-22T18:21:52.582666"
+    },
+    {
+      "method": "GET",
+      "endpoint": "/admin/employees/stats",
+      "status": 500,
+      "success": false,
+      "error": "{\"detail\":\"Internal server error\",\"code\":\"internal_error\",\"timestamp\":\"2025-10-22T16:21:54.735919\"}",
+      "timestamp": "2025-10-22T18:21:54.736726"
+    },
+    {
+      "method": "POST",
+      "endpoint": "/admin/employees",
+      "status": 422,
+      "success": false,
+      "error": "{\"detail\":[{\"type\":\"missing\",\"loc\":[\"body\",\"employee_number\"],\"msg\":\"Field required\",\"input\":{},\"url\":\"https://errors.pydantic.dev/2.11/v/missing\"},{\"type\":\"missing\",\"loc\":[\"body\",\"start_date\"],\"msg\":",
+      "timestamp": "2025-10-22T18:21:56.772342"
+    },
+    {
+      "method": "GET",
+      "endpoint": "/admin/employees/5071863c-b351-4591-adf7-4fb3e2f9aad2",
+      "status": 404,
+      "success": false,
+      "error": "{\"detail\":\"Mitarbeiter mit ID 5071863c-b351-4591-adf7-4fb3e2f9aad2 nicht gefunden\",\"code\":\"not_found\",\"timestamp\":\"2025-10-22T16:21:58.809391\"}",
+      "timestamp": "2025-10-22T18:21:58.812074"
+    },
+    {
+      "method": "GET",
+      "endpoint": "/admin/employees/5071863c-b351-4591-adf7-4fb3e2f9aad2/detail",
+      "status": 404,
+      "success": false,
+      "error": "{\"detail\":\"Employee not found\"}",
+      "timestamp": "2025-10-22T18:22:00.866899"
+    },
+    {
+      "method": "PUT",
+      "endpoint": "/admin/employees/5071863c-b351-4591-adf7-4fb3e2f9aad2/detail",
+      "status": 404,
+      "success": false,
+      "error": "{\"detail\":\"Employee not found\"}",
+      "timestamp": "2025-10-22T18:22:02.939936"
+    },
+    {
+      "method": "GET",
+      "endpoint": "/admin/employees/5071863c-b351-4591-adf7-4fb3e2f9aad2/payslips",
+      "status": 200,
+      "success": true,
+      "error": null,
+      "timestamp": "2025-10-22T18:22:05.000889"
+    },
+    {
+      "method": "GET",
+      "endpoint": "/admin/payroll/runs",
+      "status": 404,
+      "success": false,
+      "error": "{\"detail\":\"Not Found\"}",
+      "timestamp": "2025-10-22T18:22:07.060485"
+    },
+    {
+      "method": "POST",
+      "endpoint": "/admin/payroll/runs",
+      "status": 404,
+      "success": false,
+      "error": "{\"detail\":\"Not Found\"}",
+      "timestamp": "2025-10-22T18:22:09.115376"
+    },
+    {
+      "method": "GET",
+      "endpoint": "/hr/leave-requests",
+      "status": 200,
+      "success": true,
+      "error": null,
+      "timestamp": "2025-10-22T18:22:11.203004"
+    },
+    {
+      "method": "POST",
+      "endpoint": "/hr/leave-requests",
+      "status": 400,
+      "success": false,
+      "error": "{\"detail\":\"Overlapping leave request already exists\"}",
+      "timestamp": "2025-10-22T18:22:13.261468"
+    },
+    {
+      "method": "GET",
+      "endpoint": "/hr/attendance",
+      "status": 200,
+      "success": true,
+      "error": null,
+      "timestamp": "2025-10-22T18:22:15.328240"
+    },
+    {
+      "method": "POST",
+      "endpoint": "/hr/attendance",
+      "status": 200,
+      "success": true,
+      "error": null,
+      "timestamp": "2025-10-22T18:22:17.379324"
+    },
+    {
+      "method": "GET",
+      "endpoint": "/hr/overtime",
+      "status": 200,
+      "success": true,
+      "error": null,
+      "timestamp": "2025-10-22T18:22:19.455159"
+    },
+    {
+      "method": "POST",
+      "endpoint": "/hr/overtime",
+      "status": 200,
+      "success": true,
+      "error": null,
+      "timestamp": "2025-10-22T18:22:21.518348"
+    },
+    {
+      "method": "GET",
+      "endpoint": "/hr/expenses",
+      "status": 200,
+      "success": true,
+      "error": null,
+      "timestamp": "2025-10-22T18:22:23.578311"
+    },
+    {
+      "method": "POST",
+      "endpoint": "/hr/expenses",
+      "status": 200,
+      "success": true,
+      "error": null,
+      "timestamp": "2025-10-22T18:22:25.680831"
+    },
+    {
+      "method": "GET",
+      "endpoint": "/hr/documents",
+      "status": 200,
+      "success": true,
+      "error": null,
+      "timestamp": "2025-10-22T18:22:27.740449"
+    },
+    {
+      "method": "GET",
+      "endpoint": "/properties",
+      "status": 200,
+      "success": true,
+      "error": null,
+      "timestamp": "2025-10-22T18:22:29.814377"
+    },
+    {
+      "method": "POST",
+      "endpoint": "/properties",
+      "status": 422,
+      "success": false,
+      "error": "{\"detail\":[{\"type\":\"missing\",\"loc\":[\"body\",\"location\"],\"msg\":\"Field required\",\"input\":{\"title\":\"Test Property\",\"address\":\"Test Address 123\",\"city\":\"Test City\",\"property_type\":\"apartment\",\"rooms\":3,\"ar",
+      "timestamp": "2025-10-22T18:22:31.863967"
+    },
+    {
+      "method": "GET",
+      "endpoint": "/properties/5071863c-b351-4591-adf7-4fb3e2f9aad2",
+      "status": 404,
+      "success": false,
+      "error": "{\"detail\":\"Property not found\",\"code\":\"not_found\",\"timestamp\":\"2025-10-22T16:22:33.923094\"}",
+      "timestamp": "2025-10-22T18:22:33.926845"
+    },
+    {
+      "method": "PUT",
+      "endpoint": "/properties/5071863c-b351-4591-adf7-4fb3e2f9aad2",
+      "status": 422,
+      "success": false,
+      "error": "{\"detail\":[{\"type\":\"model_attributes_type\",\"loc\":[\"body\",\"address\"],\"msg\":\"Input should be a valid dictionary or object to extract fields from\",\"input\":\"Test Address 123\",\"url\":\"https://errors.pydanti",
+      "timestamp": "2025-10-22T18:22:35.989373"
+    },
+    {
+      "method": "DELETE",
+      "endpoint": "/properties/5071863c-b351-4591-adf7-4fb3e2f9aad2",
+      "status": 404,
+      "success": false,
+      "error": "{\"detail\":\"Property not found\",\"code\":\"not_found\",\"timestamp\":\"2025-10-22T16:22:38.043722\"}",
+      "timestamp": "2025-10-22T18:22:38.045814"
+    },
+    {
+      "method": "POST",
+      "endpoint": "/properties/5071863c-b351-4591-adf7-4fb3e2f9aad2/energy-certificate",
+      "status": 404,
+      "success": false,
+      "error": "{\"detail\":\"Not Found\"}",
+      "timestamp": "2025-10-22T18:22:40.091121"
+    },
+    {
+      "method": "POST",
+      "endpoint": "/properties/5071863c-b351-4591-adf7-4fb3e2f9aad2/expose",
+      "status": 404,
+      "success": false,
+      "error": "{\"detail\":\"Not Found\"}",
+      "timestamp": "2025-10-22T18:22:42.160276"
+    },
+    {
+      "method": "GET",
+      "endpoint": "/documents",
+      "status": 200,
+      "success": true,
+      "error": null,
+      "timestamp": "2025-10-22T18:22:44.214843"
+    },
+    {
+      "method": "POST",
+      "endpoint": "/documents",
+      "status": 405,
+      "success": false,
+      "error": "{\"detail\":\"Method Not Allowed\"}",
+      "timestamp": "2025-10-22T18:22:46.281891"
+    },
+    {
+      "method": "GET",
+      "endpoint": "/documents/5071863c-b351-4591-adf7-4fb3e2f9aad2",
+      "status": 405,
+      "success": false,
+      "error": "{\"detail\":\"Method Not Allowed\"}",
+      "timestamp": "2025-10-22T18:22:48.327814"
+    },
+    {
+      "method": "PUT",
+      "endpoint": "/documents/5071863c-b351-4591-adf7-4fb3e2f9aad2",
+      "status": 405,
+      "success": false,
+      "error": "{\"detail\":\"Method Not Allowed\"}",
+      "timestamp": "2025-10-22T18:22:50.391279"
+    },
+    {
+      "method": "DELETE",
+      "endpoint": "/documents/5071863c-b351-4591-adf7-4fb3e2f9aad2",
+      "status": 404,
+      "success": false,
+      "error": "{\"detail\":\"Document not found\",\"code\":\"not_found\",\"timestamp\":\"2025-10-22T16:22:52.464380\"}",
+      "timestamp": "2025-10-22T18:22:52.466443"
+    },
+    {
+      "method": "GET",
+      "endpoint": "/contacts",
+      "status": 200,
+      "success": true,
+      "error": null,
+      "timestamp": "2025-10-22T18:22:54.539331"
+    },
+    {
+      "method": "POST",
+      "endpoint": "/contacts",
+      "status": 422,
+      "success": false,
+      "error": "{\"detail\":[{\"type\":\"missing\",\"loc\":[\"body\",\"name\"],\"msg\":\"Field required\",\"input\":{\"first_name\":\"Test\",\"last_name\":\"Contact\",\"email\":\"test@example.com\",\"phone\":\"+49123456789\"},\"url\":\"https://errors.py",
+      "timestamp": "2025-10-22T18:22:56.574712"
+    },
+    {
+      "method": "GET",
+      "endpoint": "/contacts/5071863c-b351-4591-adf7-4fb3e2f9aad2",
+      "status": 404,
+      "success": false,
+      "error": "{\"detail\":\"Contact not found\",\"code\":\"not_found\",\"timestamp\":\"2025-10-22T16:22:58.630840\"}",
+      "timestamp": "2025-10-22T18:22:58.632933"
+    },
+    {
+      "method": "PUT",
+      "endpoint": "/contacts/5071863c-b351-4591-adf7-4fb3e2f9aad2",
+      "status": 404,
+      "success": false,
+      "error": "{\"detail\":\"Contact not found\",\"code\":\"not_found\",\"timestamp\":\"2025-10-22T16:23:00.699378\"}",
+      "timestamp": "2025-10-22T18:23:00.703379"
+    },
+    {
+      "method": "DELETE",
+      "endpoint": "/contacts/5071863c-b351-4591-adf7-4fb3e2f9aad2",
+      "status": 404,
+      "success": false,
+      "error": "{\"detail\":\"Contact not found\",\"code\":\"not_found\",\"timestamp\":\"2025-10-22T16:23:02.754141\"}",
+      "timestamp": "2025-10-22T18:23:02.755570"
+    },
+    {
+      "method": "GET",
+      "endpoint": "/tasks",
+      "status": 200,
+      "success": true,
+      "error": null,
+      "timestamp": "2025-10-22T18:23:04.845893"
+    },
+    {
+      "method": "POST",
+      "endpoint": "/tasks",
+      "status": 422,
+      "success": false,
+      "error": "{\"detail\":[{\"type\":\"missing\",\"loc\":[\"body\",\"status\"],\"msg\":\"Field required\",\"input\":{\"title\":\"Test Task\",\"description\":\"Test task description\",\"priority\":\"medium\",\"due_date\":\"2025-11-21\"},\"url\":\"https",
+      "timestamp": "2025-10-22T18:23:06.915792"
+    },
+    {
+      "method": "GET",
+      "endpoint": "/tasks/5071863c-b351-4591-adf7-4fb3e2f9aad2",
+      "status": 404,
+      "success": false,
+      "error": "{\"detail\":\"Task not found\",\"code\":\"not_found\",\"timestamp\":\"2025-10-22T16:23:08.997076\"}",
+      "timestamp": "2025-10-22T18:23:08.999934"
+    },
+    {
+      "method": "PUT",
+      "endpoint": "/tasks/5071863c-b351-4591-adf7-4fb3e2f9aad2",
+      "status": 404,
+      "success": false,
+      "error": "{\"detail\":\"Task not found\",\"code\":\"not_found\",\"timestamp\":\"2025-10-22T16:23:11.046734\"}",
+      "timestamp": "2025-10-22T18:23:11.047990"
+    },
+    {
+      "method": "DELETE",
+      "endpoint": "/tasks/5071863c-b351-4591-adf7-4fb3e2f9aad2",
+      "status": 404,
+      "success": false,
+      "error": "{\"detail\":\"Task not found\",\"code\":\"not_found\",\"timestamp\":\"2025-10-22T16:23:13.120337\"}",
+      "timestamp": "2025-10-22T18:23:13.122228"
+    },
+    {
+      "method": "GET",
+      "endpoint": "/appointments",
+      "status": 200,
+      "success": true,
+      "error": null,
+      "timestamp": "2025-10-22T18:23:15.180141"
+    },
+    {
+      "method": "POST",
+      "endpoint": "/appointments",
+      "status": 422,
+      "success": false,
+      "error": "{\"detail\":[{\"type\":\"missing\",\"loc\":[\"body\",\"type\"],\"msg\":\"Field required\",\"input\":{\"title\":\"Test Appointment\",\"start_time\":\"2025-11-21T10:00:00\",\"end_time\":\"2025-11-21T11:00:00\",\"description\":\"Test ap",
+      "timestamp": "2025-10-22T18:23:17.269487"
+    },
+    {
+      "method": "GET",
+      "endpoint": "/appointments/5071863c-b351-4591-adf7-4fb3e2f9aad2",
+      "status": 404,
+      "success": false,
+      "error": "{\"detail\":\"Appointment not found\",\"code\":\"not_found\",\"timestamp\":\"2025-10-22T16:23:19.317344\"}",
+      "timestamp": "2025-10-22T18:23:19.318855"
+    },
+    {
+      "method": "PUT",
+      "endpoint": "/appointments/5071863c-b351-4591-adf7-4fb3e2f9aad2",
+      "status": 404,
+      "success": false,
+      "error": "{\"detail\":\"Appointment not found\",\"code\":\"not_found\",\"timestamp\":\"2025-10-22T16:23:21.368491\"}",
+      "timestamp": "2025-10-22T18:23:21.371532"
+    },
+    {
+      "method": "DELETE",
+      "endpoint": "/appointments/5071863c-b351-4591-adf7-4fb3e2f9aad2",
+      "status": 404,
+      "success": false,
+      "error": "{\"detail\":\"Appointment not found\",\"code\":\"not_found\",\"timestamp\":\"2025-10-22T16:23:23.419217\"}",
+      "timestamp": "2025-10-22T18:23:23.421658"
+    },
+    {
+      "method": "GET",
+      "endpoint": "/communications",
+      "status": 404,
+      "success": false,
+      "error": "{\"detail\":\"Not Found\"}",
+      "timestamp": "2025-10-22T18:23:25.466133"
+    },
+    {
+      "method": "POST",
+      "endpoint": "/communications",
+      "status": 404,
+      "success": false,
+      "error": "{\"detail\":\"Not Found\"}",
+      "timestamp": "2025-10-22T18:23:27.542309"
+    },
+    {
+      "method": "GET",
+      "endpoint": "/communications/5071863c-b351-4591-adf7-4fb3e2f9aad2",
+      "status": 404,
+      "success": false,
+      "error": "{\"detail\":\"Not Found\"}",
+      "timestamp": "2025-10-22T18:23:29.593511"
+    },
+    {
+      "method": "GET",
+      "endpoint": "/finance",
+      "status": 404,
+      "success": false,
+      "error": "{\"detail\":\"Not Found\"}",
+      "timestamp": "2025-10-22T18:23:31.666261"
+    },
+    {
+      "method": "POST",
+      "endpoint": "/finance",
+      "status": 404,
+      "success": false,
+      "error": "{\"detail\":\"Not Found\"}",
+      "timestamp": "2025-10-22T18:23:33.738237"
+    },
+    {
+      "method": "GET",
+      "endpoint": "/finance/5071863c-b351-4591-adf7-4fb3e2f9aad2",
+      "status": 404,
+      "success": false,
+      "error": "{\"detail\":\"Not Found\"}",
+      "timestamp": "2025-10-22T18:23:35.807707"
+    },
+    {
+      "method": "GET",
+      "endpoint": "/analytics",
+      "status": 404,
+      "success": false,
+      "error": "{\"detail\":\"Not Found\"}",
+      "timestamp": "2025-10-22T18:23:37.880177"
+    },
+    {
+      "method": "GET",
+      "endpoint": "/analytics/property-metrics",
+      "status": 404,
+      "success": false,
+      "error": "{\"detail\":\"Not Found\"}",
+      "timestamp": "2025-10-22T18:23:39.955129"
+    },
+    {
+      "method": "GET",
+      "endpoint": "/team/performance",
+      "status": 200,
+      "success": true,
+      "error": null,
+      "timestamp": "2025-10-22T18:23:42.032862"
+    },
+    {
+      "method": "GET",
+      "endpoint": "/team/stats",
+      "status": 404,
+      "success": false,
+      "error": "{\"detail\":\"Not Found\"}",
+      "timestamp": "2025-10-22T18:23:44.079901"
+    },
+    {
+      "method": "GET",
+      "endpoint": "/investor",
+      "status": 404,
+      "success": false,
+      "error": "{\"detail\":\"Not Found\"}",
+      "timestamp": "2025-10-22T18:23:46.125579"
+    },
+    {
+      "method": "POST",
+      "endpoint": "/investor",
+      "status": 404,
+      "success": false,
+      "error": "{\"detail\":\"Not Found\"}",
+      "timestamp": "2025-10-22T18:23:48.197582"
+    },
+    {
+      "method": "POST",
+      "endpoint": "/cim/generate",
+      "status": 404,
+      "success": false,
+      "error": "{\"detail\":\"Not Found\"}",
+      "timestamp": "2025-10-22T18:23:50.244287"
+    },
+    {
+      "method": "POST",
+      "endpoint": "/avm/valuate",
+      "status": 422,
+      "success": false,
+      "error": "{\"detail\":[{\"type\":\"missing\",\"loc\":[\"body\",\"address\"],\"msg\":\"Field required\",\"input\":{\"property_id\":\"5071863c-b351-4591-adf7-4fb3e2f9aad2\",\"method\":\"comparable\"},\"url\":\"https://errors.pydantic.dev/2.1",
+      "timestamp": "2025-10-22T18:23:52.297091"
+    },
+    {
+      "method": "POST",
+      "endpoint": "/llm/analyze",
+      "status": 404,
+      "success": false,
+      "error": "{\"detail\":\"Not Found\"}",
+      "timestamp": "2025-10-22T18:23:54.364009"
+    },
+    {
+      "method": "GET",
+      "endpoint": "/social/accounts",
+      "status": 200,
+      "success": true,
+      "error": null,
+      "timestamp": "2025-10-22T18:23:56.419448"
+    },
+    {
+      "method": "POST",
+      "endpoint": "/social/accounts",
+      "status": 422,
+      "success": false,
+      "error": "{\"detail\":[{\"type\":\"missing\",\"loc\":[\"query\",\"platform\"],\"msg\":\"Field required\",\"input\":null,\"url\":\"https://errors.pydantic.dev/2.11/v/missing\"},{\"type\":\"missing\",\"loc\":[\"query\",\"access_token\"],\"msg\":\"",
+      "timestamp": "2025-10-22T18:23:58.477413"
+    },
+    {
+      "method": "GET",
+      "endpoint": "/market/data",
+      "status": 404,
+      "success": false,
+      "error": "{\"detail\":\"Not Found\"}",
+      "timestamp": "2025-10-22T18:24:00.530515"
+    },
+    {
+      "method": "GET",
+      "endpoint": "/market/trends",
+      "status": 422,
+      "success": false,
+      "error": "{\"detail\":[{\"type\":\"missing\",\"loc\":[\"query\",\"city\"],\"msg\":\"Field required\",\"input\":null,\"url\":\"https://errors.pydantic.dev/2.11/v/missing\"},{\"type\":\"missing\",\"loc\":[\"query\",\"postal_code\"],\"msg\":\"Field",
+      "timestamp": "2025-10-22T18:24:02.571439"
+    },
+    {
+      "method": "GET",
+      "endpoint": "/storage/files",
+      "status": 404,
+      "success": false,
+      "error": "{\"detail\":\"Not Found\"}",
+      "timestamp": "2025-10-22T18:24:04.626521"
+    },
+    {
+      "method": "POST",
+      "endpoint": "/storage/upload",
+      "status": 404,
+      "success": false,
+      "error": "{\"detail\":\"Not Found\"}",
+      "timestamp": "2025-10-22T18:24:06.682801"
+    },
+    {
+      "method": "GET",
+      "endpoint": "/dsgvo/data-requests",
+      "status": 404,
+      "success": false,
+      "error": "{\"detail\":\"Not Found\"}",
+      "timestamp": "2025-10-22T18:24:08.733165"
+    },
+    {
+      "method": "POST",
+      "endpoint": "/dsgvo/data-export",
+      "status": 404,
+      "success": false,
+      "error": "{\"detail\":\"Not Found\"}",
+      "timestamp": "2025-10-22T18:24:10.783564"
+    },
+    {
+      "method": "GET",
+      "endpoint": "/notifications",
+      "status": 200,
+      "success": true,
+      "error": null,
+      "timestamp": "2025-10-22T18:24:12.842046"
+    },
+    {
+      "method": "POST",
+      "endpoint": "/notifications",
+      "status": 405,
+      "success": false,
+      "error": "{\"detail\":\"Method Not Allowed\"}",
+      "timestamp": "2025-10-22T18:24:14.925489"
+    },
+    {
+      "method": "GET",
+      "endpoint": "/api/v1/publishing/platforms",
+      "status": 404,
+      "success": false,
+      "error": "{\"detail\":\"Not Found\"}",
+      "timestamp": "2025-10-22T18:24:16.980549"
+    },
+    {
+      "method": "POST",
+      "endpoint": "/api/v1/publishing/publish",
+      "status": 500,
+      "success": false,
+      "error": "{\"detail\":\"Internal server error\",\"code\":\"internal_error\",\"timestamp\":\"2025-10-22T16:24:19.102329\"}",
+      "timestamp": "2025-10-22T18:24:19.103257"
+    },
+    {
+      "method": "GET",
+      "endpoint": "/billing/subscription",
+      "status": 404,
+      "success": false,
+      "error": "{\"detail\":\"Not Found\"}",
+      "timestamp": "2025-10-22T18:24:21.152996"
+    },
+    {
+      "method": "GET",
+      "endpoint": "/billing/invoices",
+      "status": 404,
+      "success": false,
+      "error": "{\"detail\":\"Not Found\"}",
+      "timestamp": "2025-10-22T18:24:23.219917"
+    },
+    {
+      "method": "GET",
+      "endpoint": "/tenant/settings",
+      "status": 404,
+      "success": false,
+      "error": "{\"detail\":\"Not Found\"}",
+      "timestamp": "2025-10-22T18:24:25.246507"
+    },
+    {
+      "method": "PUT",
+      "endpoint": "/tenant/settings",
+      "status": 404,
+      "success": false,
+      "error": "{\"detail\":\"Not Found\"}",
+      "timestamp": "2025-10-22T18:24:27.313556"
+    },
+    {
+      "method": "GET",
+      "endpoint": "/plans",
+      "status": 200,
+      "success": true,
+      "error": null,
+      "timestamp": "2025-10-22T18:24:29.377994"
+    },
+    {
+      "method": "GET",
+      "endpoint": "/plans/current",
+      "status": 404,
+      "success": false,
+      "error": "{\"detail\":\"Not Found\"}",
+      "timestamp": "2025-10-22T18:24:31.425762"
+    },
+    {
+      "method": "GET",
+      "endpoint": "/test/email",
+      "status": 404,
+      "success": false,
+      "error": "{\"detail\":\"Not Found\"}",
+      "timestamp": "2025-10-22T18:24:33.491897"
+    },
+    {
+      "method": "POST",
+      "endpoint": "/test/email",
+      "status": 404,
+      "success": false,
+      "error": "{\"detail\":\"Not Found\"}",
+      "timestamp": "2025-10-22T18:24:35.539602"
+    },
+    {
+      "method": "GET",
+      "endpoint": "/hooks",
+      "status": 404,
+      "success": false,
+      "error": "{\"detail\":\"Not Found\"}",
+      "timestamp": "2025-10-22T18:24:37.599083"
+    },
+    {
+      "method": "POST",
+      "endpoint": "/hooks",
+      "status": 404,
+      "success": false,
+      "error": "{\"detail\":\"Not Found\"}",
+      "timestamp": "2025-10-22T18:24:39.635744"
+    }
+  ],
+  "errors": [],
+  "fixes_applied": []
+}

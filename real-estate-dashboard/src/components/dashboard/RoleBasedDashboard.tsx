@@ -19,7 +19,13 @@ import {
   Home,
   Eye,
   Plus,
-  RotateCcw
+  RotateCcw,
+  HardDrive,
+  CreditCard,
+  Bell,
+  Share2,
+  MessageSquare,
+  X
 } from 'lucide-react';
 
 // Lazy-loaded widgets (must be declared after all import statements per eslint import/first)
@@ -34,6 +40,16 @@ const PropertyPerformanceWidget = React.lazy(() => import('../CIM/widgets/analyt
 const RevenueChartWidget = React.lazy(() => import('../CIM/widgets/analytics/RevenueChartWidget'));
 const TaskProgressWidget = React.lazy(() => import('../CIM/widgets/tasks/TaskProgressWidget'));
 const WeatherMarketWidget = React.lazy(() => import('../CIM/widgets/external/WeatherMarketWidget'));
+const StorageUsageWidget = React.lazy(() => import('../CIM/widgets/system/StorageUsageWidget'));
+const SubscriptionLimitsWidget = React.lazy(() => import('../CIM/widgets/billing/SubscriptionLimitsWidget'));
+const DocumentAnalyticsWidget = React.lazy(() => import('../CIM/widgets/documents/DocumentAnalyticsWidget'));
+const HROverviewWidget = React.lazy(() => import('../CIM/widgets/hr/HROverviewWidget'));
+const PayrollSummaryWidget = React.lazy(() => import('../CIM/widgets/finance/PayrollSummaryWidget'));
+const AppointmentCalendarWidget = React.lazy(() => import('../CIM/widgets/calendar/AppointmentCalendarWidget'));
+const NotificationsCenterWidget = React.lazy(() => import('../CIM/widgets/notifications/NotificationsCenterWidget'));
+const SocialPerformanceWidget = React.lazy(() => import('../CIM/widgets/social/SocialPerformanceWidget'));
+const PropertyInquiryWidget = React.lazy(() => import('../CIM/widgets/properties/PropertyInquiryWidget'));
+const TeamCommunicationWidget = React.lazy(() => import('../CIM/widgets/communication/TeamCommunicationWidget'));
 
 interface DashboardWidget {
   id: string;
@@ -47,7 +63,7 @@ interface DashboardWidget {
     h: number;
   };
   visible: boolean;
-  category: 'analytics' | 'sales' | 'properties' | 'team' | 'activities' | 'finance';
+  category: 'analytics' | 'sales' | 'properties' | 'team' | 'activities' | 'finance' | 'system' | 'billing' | 'documents' | 'hr' | 'calendar' | 'notifications' | 'social' | 'communication';
   icon: React.ElementType;
 
   color: string;
@@ -146,6 +162,68 @@ const WidgetComponent: React.FC<WidgetComponentProps> = ({ widget, onRemove, onE
             <WeatherMarketWidget />
           </Suspense>
         );
+      case 'storage_usage':
+        return (
+          <Suspense fallback={<div className="p-6 flex items-center justify-center h-full"><div className="animate-pulse text-gray-400">Laden…</div></div>}>
+            <StorageUsageWidget />
+          </Suspense>
+        );
+      case 'subscription_limits':
+        return (
+          <Suspense fallback={<div className="p-6 flex items-center justify-center h-full"><div className="animate-pulse text-gray-400">Laden…</div></div>}>
+            <SubscriptionLimitsWidget />
+          </Suspense>
+        );
+      case 'document_analytics':
+        return (
+          <Suspense fallback={<div className="p-6 flex items-center justify-center h-full"><div className="animate-pulse text-gray-400">Laden…</div></div>}>
+            <DocumentAnalyticsWidget />
+          </Suspense>
+        );
+      case 'hr_overview':
+        return (
+          <Suspense fallback={<div className="p-6 flex items-center justify-center h-full"><div className="animate-pulse text-gray-400">Laden…</div></div>}>
+            <HROverviewWidget />
+          </Suspense>
+        );
+      case 'payroll_summary':
+        return (
+          <Suspense fallback={<div className="p-6 flex items-center justify-center h-full"><div className="animate-pulse text-gray-400">Laden…</div></div>}>
+            <PayrollSummaryWidget />
+          </Suspense>
+        );
+      case 'appointment_calendar':
+        return (
+          <Suspense fallback={<div className="p-6 flex items-center justify-center h-full"><div className="animate-pulse text-gray-400">Laden…</div></div>}>
+            <AppointmentCalendarWidget />
+          </Suspense>
+        );
+      case 'notifications_center':
+        return (
+          <Suspense fallback={<div className="p-6 flex items-center justify-center h-full"><div className="animate-pulse text-gray-400">Laden…</div></div>}>
+            <NotificationsCenterWidget />
+          </Suspense>
+        );
+      case 'social_performance':
+        return (
+          <Suspense fallback={<div className="p-6 flex items-center justify-center h-full"><div className="animate-pulse text-gray-400">Laden…</div></div>}>
+            <SocialPerformanceWidget />
+          </Suspense>
+        );
+      case 'property_inquiry':
+        return (
+          <Suspense fallback={<div className="p-6 flex items-center justify-center h-full"><div className="animate-pulse text-gray-400">Laden…</div></div>}>
+            <PropertyInquiryWidget />
+          </Suspense>
+        );
+      case 'team_communication':
+        return (
+          <Suspense fallback={<div className="p-6 flex items-center justify-center h-full"><div className="animate-pulse text-gray-400">Laden…</div></div>}>
+            <TeamCommunicationWidget />
+          </Suspense>
+        );
+      case 'test_widget':
+        return <TestWidget />;
       default:
         console.error('❌ Unknown widget type:', widget.type);
         return <div className="p-6 flex items-center justify-center h-full text-gray-400">Widget nicht gefunden: {widget.type}</div>;
@@ -156,13 +234,66 @@ const WidgetComponent: React.FC<WidgetComponentProps> = ({ widget, onRemove, onE
   console.log('✅ Widget content rendered:', !!widgetContent);
 
   return (
-    <>
-      {widgetContent}
-    </>
+    <div className="widget-container h-full flex flex-col">
+      {/* Widget Header */}
+      <div className="flex items-center justify-between p-4 border-b border-white/10">
+        <div className="flex items-center space-x-3">
+          <div className={`p-2 rounded-lg ${widget.color}`}>
+            {widget.icon && <widget.icon className="w-5 h-5 text-white" />}
+          </div>
+          <div>
+            <h3 className="font-semibold text-white text-sm">{widget.title}</h3>
+            <p className="text-xs text-white/70">{widget.description}</p>
+          </div>
+        </div>
+        
+        {/* Widget Controls */}
+        {(onRemove || onEdit) && (
+          <div className="flex items-center space-x-2">
+            {onEdit && (
+              <button
+                onClick={() => onEdit(widget.id)}
+                className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
+                title="Widget bearbeiten"
+              >
+                <Settings className="w-4 h-4 text-white/70" />
+              </button>
+            )}
+            {onRemove && (
+              <button
+                onClick={() => onRemove(widget.id)}
+                className="p-1.5 rounded-lg hover:bg-red-500/20 transition-colors"
+                title="Widget entfernen"
+              >
+                <X className="w-4 h-4 text-red-400" />
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+      
+      {/* Widget Content */}
+      <div className="flex-1 overflow-hidden">
+        {widgetContent}
+      </div>
+    </div>
   );
 };
 
-// Team Performance Widget
+// Test Widget für Drag & Drop
+const TestWidget: React.FC = () => {
+  return (
+    <div className="p-6 h-full flex flex-col items-center justify-center">
+      <div className="text-center">
+        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center mx-auto mb-4">
+          <BarChart3 className="w-8 h-8 text-white" />
+        </div>
+        <h3 className="text-lg font-semibold text-white mb-2">Test Widget</h3>
+        <p className="text-sm text-white/70">Dieses Widget wurde erfolgreich hinzugefügt!</p>
+      </div>
+    </div>
+  );
+};
 const TeamPerformanceWidget: React.FC = () => {
   const teamData = [
     { name: 'Serhat W.', sales: 8, target: 10, revenue: 2400000, avatar: 'SW' },
@@ -968,7 +1099,12 @@ const iconMap = {
   Eye,
   Home,
   PieChartIcon,
-  FileText
+  FileText,
+  HardDrive,
+  CreditCard,
+  Bell,
+  Share2,
+  MessageSquare
 };
 
 const getIconByName = (iconName: string) => {
@@ -1181,6 +1317,127 @@ const RoleBasedDashboard: React.FC = () => {
       category: 'analytics',
       icon: MapPin,
       color: 'bg-gradient-to-br from-cyan-500 to-blue-600'
+    },
+    {
+      id: 'storage_usage',
+      type: 'storage_usage',
+      title: 'Speicherplatz',
+      description: 'Speicherplatz-Auslastung mit Breakdown und Limits',
+      position: { x: 0, y: 0, w: 4, h: 4 },
+      visible: false,
+      category: 'system',
+      icon: HardDrive,
+      color: 'bg-gradient-to-br from-blue-500 to-indigo-600'
+    },
+    {
+      id: 'subscription_limits',
+      type: 'subscription_limits',
+      title: 'Abo-Limits',
+      description: 'Abo-Limits für Users/Properties/Storage mit Progress Bars',
+      position: { x: 0, y: 0, w: 4, h: 4 },
+      visible: false,
+      category: 'billing',
+      icon: CreditCard,
+      color: 'bg-gradient-to-br from-green-500 to-emerald-600'
+    },
+    {
+      id: 'document_analytics',
+      type: 'document_analytics',
+      title: 'Dokumente',
+      description: 'Dokument-Statistiken und neueste Uploads',
+      position: { x: 0, y: 0, w: 4, h: 4 },
+      visible: false,
+      category: 'documents',
+      icon: FileText,
+      color: 'bg-gradient-to-br from-purple-500 to-violet-600'
+    },
+    {
+      id: 'hr_overview',
+      type: 'hr_overview',
+      title: 'HR Übersicht',
+      description: 'Mitarbeiter-Übersicht, Urlaubs-Anfragen, Überstunden und Spesen',
+      position: { x: 0, y: 0, w: 4, h: 4 },
+      visible: false,
+      category: 'hr',
+      icon: Users,
+      color: 'bg-gradient-to-br from-orange-500 to-red-600'
+    },
+    {
+      id: 'payroll_summary',
+      type: 'payroll_summary',
+      title: 'Gehaltsabrechnung',
+      description: 'Letzte Gehaltsabrechnung und Status',
+      position: { x: 0, y: 0, w: 4, h: 4 },
+      visible: false,
+      category: 'finance',
+      icon: DollarSign,
+      color: 'bg-gradient-to-br from-teal-500 to-cyan-600'
+    },
+    {
+      id: 'appointment_calendar',
+      type: 'appointment_calendar',
+      title: 'Termine',
+      description: 'Heutige/kommende Termine',
+      position: { x: 0, y: 0, w: 4, h: 4 },
+      visible: false,
+      category: 'calendar',
+      icon: Calendar,
+      color: 'bg-gradient-to-br from-pink-500 to-rose-600'
+    },
+    {
+      id: 'notifications_center',
+      type: 'notifications_center',
+      title: 'Benachrichtigungen',
+      description: 'Ungelesene Benachrichtigungen',
+      position: { x: 0, y: 0, w: 4, h: 4 },
+      visible: false,
+      category: 'notifications',
+      icon: Bell,
+      color: 'bg-gradient-to-br from-yellow-500 to-amber-600'
+    },
+    {
+      id: 'social_performance',
+      type: 'social_performance',
+      title: 'Social Media',
+      description: 'Social Media Performance und verbundene Accounts',
+      position: { x: 0, y: 0, w: 4, h: 4 },
+      visible: false,
+      category: 'social',
+      icon: Share2,
+      color: 'bg-gradient-to-br from-indigo-500 to-purple-600'
+    },
+    {
+      id: 'property_inquiry',
+      type: 'property_inquiry',
+      title: 'Immobilien-Anfragen',
+      description: 'Neue Anfragen und Top-Properties',
+      position: { x: 0, y: 0, w: 4, h: 4 },
+      visible: false,
+      category: 'properties',
+      icon: MessageSquare,
+      color: 'bg-gradient-to-br from-emerald-500 to-teal-600'
+    },
+    {
+      id: 'team_communication',
+      type: 'team_communication',
+      title: 'Team Chat',
+      description: 'Team-Chat Übersicht',
+      position: { x: 0, y: 0, w: 4, h: 4 },
+      visible: false,
+      category: 'communication',
+      icon: MessageSquare,
+      color: 'bg-gradient-to-br from-slate-500 to-gray-600'
+    },
+    {
+      id: 'test_widget',
+      type: 'test_widget',
+      title: 'Test Widget',
+      description: 'Ein Test-Widget zum Testen der Drag & Drop Funktionalität',
+      position: { x: 0, y: 0, w: 4, h: 3 },
+      visible: false,
+      category: 'analytics',
+      icon: BarChart3,
+      color: 'bg-gradient-to-br from-green-500 to-green-600'
     }
   ];
 
@@ -1223,89 +1480,75 @@ const RoleBasedDashboard: React.FC = () => {
   }, [widgets]);
 
   const setDefaultWidgets = () => {
-    console.log('🚀 setDefaultWidgets called');
+    console.log('🚀 setDefaultWidgets called - Standard Layout');
     const defaultWidgets = [];
     
-    // Versuche die 5 besten Widgets zu laden, fallback zu verfügbaren
-    const preferredWidgets = [
-      'overview_stats',
-      'revenue_chart', 
-      'property_performance',
-      'lead_conversion',
-      'task_progress'
-    ];
-    
-    const fallbackWidgets = [
-      'kpi_cards',
-      'traffic_revenue',
-      'conversion_funnel', 
-      'performance',
-      'recent_activities'
+    // Standard Layout Widgets in der gewünschten Reihenfolge
+    const standardLayoutWidgets = [
+      'overview_stats',      // Live Overview (links oben)
+      'revenue_chart',       // Revenue Chart (rechts oben)
+      'lead_conversion',     // Lead Conversion (links mitte)
+      'property_performance', // Property Performance (rechts mitte)
+      'task_progress'        // Task Progress (unten, volle Breite)
     ];
 
     console.log('📋 Available widgets:', availableWidgets.map(w => w.type));
-    console.log('🎯 Preferred widgets:', preferredWidgets);
+    console.log('🎯 Standard layout widgets:', standardLayoutWidgets);
     
-    // Reihe 1: Vergrößerte und breitere Übersicht Widgets
-    const widget1 = availableWidgets.find(w => w.type === preferredWidgets[0]) || 
-                   availableWidgets.find(w => w.type === fallbackWidgets[0]);
-    if (widget1) {
+    // Reihe 1: Live Overview (links) und Revenue Chart (rechts)
+    const liveOverviewWidget = availableWidgets.find(w => w.type === 'overview_stats');
+    if (liveOverviewWidget) {
       defaultWidgets.push({
-        ...widget1,
+        ...liveOverviewWidget,
         id: generateId(),
-        visible: true,  // ✅ Widget sichtbar machen!
-        position: { x: 0, y: 0, w: 8, h: 7 } // Höher: 5 → 7
+        visible: true,
+        position: { x: 0, y: 0, w: 6, h: 6 } // Links, halbe Breite
       });
     }
     
-    const widget2 = availableWidgets.find(w => w.type === preferredWidgets[1]) || 
-                   availableWidgets.find(w => w.type === fallbackWidgets[1]);
-    if (widget2) {
+    const revenueChartWidget = availableWidgets.find(w => w.type === 'revenue_chart');
+    if (revenueChartWidget) {
       defaultWidgets.push({
-        ...widget2,
+        ...revenueChartWidget,
         id: generateId(),
-        visible: true,  // ✅ Widget sichtbar machen!
-        position: { x: 8, y: 0, w: 4, h: 7 } // Höher: 5 → 7 für bessere Box-Anzeige
+        visible: true,
+        position: { x: 6, y: 0, w: 6, h: 6 } // Rechts, halbe Breite
       });
     }
     
-    // Reihe 2: Angepasstes Layout (Y-Position wegen höherer Widgets)
-    const widget3 = availableWidgets.find(w => w.type === preferredWidgets[2]) || 
-                   availableWidgets.find(w => w.type === fallbackWidgets[2]);
-    if (widget3) {
+    // Reihe 2: Lead Conversion (links) und Property Performance (rechts)
+    const leadConversionWidget = availableWidgets.find(w => w.type === 'lead_conversion');
+    if (leadConversionWidget) {
       defaultWidgets.push({
-        ...widget3,
+        ...leadConversionWidget,
         id: generateId(),
-        visible: true,  // ✅ Widget sichtbar machen!
-        position: { x: 0, y: 7, w: 6, h: 4 } // Y-Position: 5 → 7 wegen höherem Widget 1
+        visible: true,
+        position: { x: 0, y: 6, w: 6, h: 5 } // Links, halbe Breite
       });
     }
     
-    const widget4 = availableWidgets.find(w => w.type === preferredWidgets[3]) || 
-                   availableWidgets.find(w => w.type === fallbackWidgets[3]);
-    if (widget4) {
+    const propertyPerformanceWidget = availableWidgets.find(w => w.type === 'property_performance');
+    if (propertyPerformanceWidget) {
       defaultWidgets.push({
-        ...widget4,
+        ...propertyPerformanceWidget,
         id: generateId(),
-        visible: true,  // ✅ Widget sichtbar machen!
-        position: { x: 6, y: 7, w: 2, h: 4 } // Y-Position: 5 → 7
+        visible: true,
+        position: { x: 6, y: 6, w: 6, h: 5 } // Rechts, halbe Breite
       });
     }
     
-    // Widget 5 (Task Progress) unter alle anderen
-    const widget5 = availableWidgets.find(w => w.type === preferredWidgets[4]) || 
-                   availableWidgets.find(w => w.type === fallbackWidgets[4]);
-    if (widget5) {
+    // Reihe 3: Task Progress (volle Breite unten)
+    const taskProgressWidget = availableWidgets.find(w => w.type === 'task_progress');
+    if (taskProgressWidget) {
       defaultWidgets.push({
-        ...widget5,
+        ...taskProgressWidget,
         id: generateId(),
-        visible: true,  // ✅ Widget sichtbar machen!
-        position: { x: 0, y: 11, w: 12, h: 3 } // Y-Position: 9 → 11
+        visible: true,
+        position: { x: 0, y: 11, w: 12, h: 4 } // Volle Breite unten
       });
     }
     
-    console.log('✅ Default widgets loaded:', defaultWidgets.map(w => w.type));
-    console.log('📊 Total widgets created:', defaultWidgets.length);
+    console.log('🎯 Created standard layout widgets:', defaultWidgets.length);
     setWidgets(defaultWidgets);
   };
 
@@ -1412,54 +1655,10 @@ const RoleBasedDashboard: React.FC = () => {
     // TODO: Implement widget editing
   };
 
-  // Intelligentes Auto-Layout mit Kollisionserkennung
+  // Auto Layout Button - lädt das Standard-Layout
   const handleAutoLayout = () => {
-    const visibleWidgets = widgets.filter(w => w.visible);
-    if (visibleWidgets.length <= 1) return;
-
-    // Sortiere Widgets nach Größe (große zuerst)
-    const sortedWidgets = [...visibleWidgets].sort((a, b) => {
-      const aSize = a.position.w * a.position.h;
-      const bSize = b.position.w * b.position.h;
-      return bSize - aSize;
-    });
-
-    let currentY = 0;
-    let currentX = 0;
-    let maxHeightInRow = 0;
-    
-    const updatedWidgets = widgets.map(widget => {
-      if (!widget.visible) return widget;
-      
-      const sortedWidget = sortedWidgets.find(sw => sw.id === widget.id);
-      if (!sortedWidget) return widget;
-      
-      const { w, h } = sortedWidget.position;
-      
-      // Prüfe ob das Widget in die aktuelle Reihe passt
-      if (currentX + w > 12) {
-        // Neue Reihe beginnen
-        currentY += maxHeightInRow;
-        currentX = 0;
-        maxHeightInRow = 0;
-      }
-      
-      const newPosition = {
-        ...widget.position,
-        x: currentX,
-        y: currentY
-      };
-      
-      currentX += w;
-      maxHeightInRow = Math.max(maxHeightInRow, h);
-      
-      return {
-        ...widget,
-        position: newPosition
-      };
-    });
-    
-    setWidgets(updatedWidgets);
+    console.log('🔄 Auto Layout Button clicked - loading standard layout');
+    setDefaultWidgets();
   };
 
   if (isLoading) {
@@ -1544,10 +1743,10 @@ const RoleBasedDashboard: React.FC = () => {
                 className="flex items-center space-x-2 px-4 py-2.5 bg-green-500/10 backdrop-blur-sm 
                   text-green-600 dark:text-green-400 rounded-xl border border-green-500/30 
                   hover:bg-green-500/20 transition-all shadow-glass-sm hover:shadow-glass-md"
-                title="Widgets automatisch anordnen"
+                title="Standard-Layout laden"
               >
                 <RotateCcw className="w-4 h-4" />
-                <span className="font-semibold">Auto Layout</span>
+                <span className="font-semibold">Standard Layout</span>
               </button>
             )}
             

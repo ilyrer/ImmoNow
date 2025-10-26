@@ -225,6 +225,7 @@ class UpdateTaskRequest(BaseModel):
     """Update task request model"""
     title: Optional[str] = Field(None, min_length=1, max_length=200)
     description: Optional[str] = Field(None, max_length=2000)
+    status: Optional[TaskStatus] = None
     priority: Optional[TaskPriority] = None
     assignee_id: Optional[str] = None
     due_date: Optional[datetime] = None

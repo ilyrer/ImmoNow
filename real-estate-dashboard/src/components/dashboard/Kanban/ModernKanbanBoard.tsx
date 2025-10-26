@@ -337,10 +337,10 @@ const ModernKanbanBoard: React.FC<ModernKanbanBoardProps> = ({
         </div>
       </div>
 
-      {/* Kanban Board (fixed layout, no horizontal scroll) */}
-      <div className="flex-1 p-6">
+      {/* Kanban Board (horizontal scroll with flex layout) */}
+      <div className="flex-1 p-4">
         <DragDropContext onDragEnd={onDragEnd}>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6 gap-6 h-full">
+          <div className="flex gap-4 h-full">
             {statusColumns.map((column) => {
               const columnTasks = getFilteredTasks(tasks[column.id] || []);
               const isOverLimit = wipViolations[column.id];
@@ -351,7 +351,7 @@ const ModernKanbanBoard: React.FC<ModernKanbanBoardProps> = ({
                 <motion.div
                   key={column.id}
                   layout
-                  className={`flex flex-col w-80 ${
+                  className={`flex flex-col flex-1 min-w-0 ${
                     isDarkMode ? 'bg-gray-800/30' : 'bg-white/30'
                   } backdrop-blur-sm rounded-2xl border ${
                     isOverLimit ? 'border-red-500/30' : isDarkMode ? 'border-gray-700/50' : 'border-gray-200/50'

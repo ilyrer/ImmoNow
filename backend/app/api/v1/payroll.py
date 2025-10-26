@@ -3,217 +3,155 @@ Payroll API Endpoints
 Lohnabrechnung und Gehaltsverwaltung
 """
 from typing import Optional, List
-from datetime import datetime
 from fastapi import APIRouter, Depends, Query, HTTPException, status
-from pydantic import BaseModel, Field
 
-from app.api.deps import require_admin_scope, get_tenant_id
+from app.api.deps import require_read_scope, require_write_scope, require_admin_scope, get_tenant_id
 from app.core.security import TokenData
+from app.schemas.payroll import (
+    PayrollRunCreate, PayrollRunUpdate, PayrollRunResponse, PayrollListResponse,
+    PayrollDetailResponse, PayrollStats, PayrollCalculationRequest,
+    PayrollApprovalRequest, PayrollPaymentRequest
+)
+from app.services.payroll_service import PayrollService
 
 router = APIRouter()
 
 
-class PayrollRunResponse(BaseModel):
-    """Payroll run response model"""
-    id: str
-    period: str  # YYYY-MM
-    status: str  # draft, approved, paid
-    total_gross: float
-    total_net: float
-    employee_count: int
-    created_at: datetime
-    approved_at: Optional[datetime] = None
-    paid_at: Optional[datetime] = None
-    created_by: str
-    
-    class Config:
-        from_attributes = True
-
-
-class EmployeeCompensationResponse(BaseModel):
-    """Employee compensation response model"""
-    employee_id: str
-    employee_name: str
-    base_salary: float
-    commission_percent: float
-    bonuses: float = 0.0
-    gross_amount: float
-    net_amount: float
-    currency: str = "EUR"
-    
-    class Config:
-        from_attributes = True
-
-
-class PayrollDetailResponse(BaseModel):
-    """Payroll detail response model"""
-    payroll_run: PayrollRunResponse
-    employees: List[EmployeeCompensationResponse]
-
-
-@router.get("/runs", response_model=List[PayrollRunResponse])
+@router.get("/runs", response_model=PayrollListResponse)
 async def get_payroll_runs(
-    current_user: TokenData = Depends(require_admin_scope),
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
+    status: Optional[str] = Query(None),
+    period: Optional[str] = Query(None),
+    current_user: TokenData = Depends(require_read_scope),
     tenant_id: str = Depends(get_tenant_id)
 ):
-    """Get all payroll runs for tenant"""
+    """Get payroll runs with filtering and pagination"""
     
-    # Mock data for now - replace with real database queries
-    mock_runs = [
-        PayrollRunResponse(
-            id="1",
-            period="2024-01",
-            status="paid",
-            total_gross=50000.0,
-            total_net=40000.0,
-            employee_count=10,
-            created_at=datetime.now(),
-            approved_at=datetime.now(),
-            paid_at=datetime.now(),
-            created_by=current_user.user_id
-        ),
-        PayrollRunResponse(
-            id="2",
-            period="2024-02",
-            status="approved",
-            total_gross=52000.0,
-            total_net=41600.0,
-            employee_count=11,
-            created_at=datetime.now(),
-            approved_at=datetime.now(),
-            created_by=current_user.user_id
-        ),
-        PayrollRunResponse(
-            id="3",
-            period="2024-03",
-            status="draft",
-            total_gross=53000.0,
-            total_net=42400.0,
-            employee_count=12,
-            created_at=datetime.now(),
-            created_by=current_user.user_id
-        )
-    ]
+    payroll_service = PayrollService(tenant_id)
+    result = await payroll_service.get_payroll_runs(
+        page=page,
+        size=size,
+        status=status,
+        period=period
+    )
     
-    return mock_runs
+    return result
 
 
-@router.get("/runs/{run_id}", response_model=PayrollDetailResponse)
+@router.get("/runs/{run_id}", response_model=PayrollRunResponse)
+async def get_payroll_run(
+    run_id: str,
+    current_user: TokenData = Depends(require_read_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Get a specific payroll run"""
+    
+    payroll_service = PayrollService(tenant_id)
+    payroll_run = await payroll_service.get_payroll_run(run_id)
+    
+    return payroll_run
+
+
+@router.get("/runs/{run_id}/detail", response_model=PayrollDetailResponse)
 async def get_payroll_detail(
     run_id: str,
-    current_user: TokenData = Depends(require_admin_scope),
+    current_user: TokenData = Depends(require_read_scope),
     tenant_id: str = Depends(get_tenant_id)
 ):
     """Get detailed payroll run information"""
     
-    # Mock data for now
-    mock_run = PayrollRunResponse(
-        id=run_id,
-        period="2024-01",
-        status="paid",
-        total_gross=50000.0,
-        total_net=40000.0,
-        employee_count=10,
-        created_at=datetime.now(),
-        approved_at=datetime.now(),
-        paid_at=datetime.now(),
-        created_by=current_user.user_id
-    )
+    payroll_service = PayrollService(tenant_id)
+    detail = await payroll_service.get_payroll_detail(run_id)
     
-    mock_employees = [
-        EmployeeCompensationResponse(
-            employee_id="1",
-            employee_name="Max Mustermann",
-            base_salary=5000.0,
-            commission_percent=5.0,
-            bonuses=500.0,
-            gross_amount=5500.0,
-            net_amount=4400.0
-        ),
-        EmployeeCompensationResponse(
-            employee_id="2",
-            employee_name="Anna Schmidt",
-            base_salary=4500.0,
-            commission_percent=3.0,
-            bonuses=300.0,
-            gross_amount=4800.0,
-            net_amount=3840.0
-        )
-    ]
-    
-    return PayrollDetailResponse(
-        payroll_run=mock_run,
-        employees=mock_employees
-    )
-
-
-@router.post("/runs/{run_id}/approve", response_model=PayrollRunResponse)
-async def approve_payroll_run(
-    run_id: str,
-    current_user: TokenData = Depends(require_admin_scope),
-    tenant_id: str = Depends(get_tenant_id)
-):
-    """Approve a payroll run"""
-    
-    # Mock approval - replace with real database update
-    mock_run = PayrollRunResponse(
-        id=run_id,
-        period="2024-01",
-        status="approved",
-        total_gross=50000.0,
-        total_net=40000.0,
-        employee_count=10,
-        created_at=datetime.now(),
-        approved_at=datetime.now(),
-        created_by=current_user.user_id
-    )
-    
-    return mock_run
-
-
-@router.post("/runs/{run_id}/mark-paid", response_model=PayrollRunResponse)
-async def mark_payroll_paid(
-    run_id: str,
-    current_user: TokenData = Depends(require_admin_scope),
-    tenant_id: str = Depends(get_tenant_id)
-):
-    """Mark payroll run as paid"""
-    
-    # Mock payment - replace with real database update
-    mock_run = PayrollRunResponse(
-        id=run_id,
-        period="2024-01",
-        status="paid",
-        total_gross=50000.0,
-        total_net=40000.0,
-        employee_count=10,
-        created_at=datetime.now(),
-        approved_at=datetime.now(),
-        paid_at=datetime.now(),
-        created_by=current_user.user_id
-    )
-    
-    return mock_run
+    return detail
 
 
 @router.post("/runs", response_model=PayrollRunResponse, status_code=status.HTTP_201_CREATED)
 async def create_payroll_run(
-    period: str = Query(..., description="Payroll period in YYYY-MM format"),
+    payroll_data: PayrollRunCreate,
     current_user: TokenData = Depends(require_admin_scope),
     tenant_id: str = Depends(get_tenant_id)
 ):
     """Create a new payroll run"""
     
-    # Mock creation - replace with real database insert
-    mock_run = PayrollRunResponse(
-        id="new-run-id",
-        period=period,
-        status="draft",
-        total_gross=0.0,
-        total_net=0.0,
-        employee_count=0,
-        created_at=datetime.now(),
-        created_by=current_user.user_id
-    )
+    payroll_service = PayrollService(tenant_id)
+    payroll_run = await payroll_service.create_payroll_run(payroll_data, current_user.user_id)
     
-    return mock_run
+    return payroll_run
+
+
+@router.put("/runs/{run_id}", response_model=PayrollRunResponse)
+async def update_payroll_run(
+    run_id: str,
+    payroll_data: PayrollRunUpdate,
+    current_user: TokenData = Depends(require_admin_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Update a payroll run"""
+    
+    payroll_service = PayrollService(tenant_id)
+    payroll_run = await payroll_service.update_payroll_run(run_id, payroll_data, current_user.user_id)
+    
+    return payroll_run
+
+
+@router.post("/runs/{run_id}/calculate", response_model=PayrollDetailResponse)
+async def calculate_payroll(
+    run_id: str,
+    calculation_request: PayrollCalculationRequest,
+    current_user: TokenData = Depends(require_admin_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Calculate payroll for a run"""
+    
+    payroll_service = PayrollService(tenant_id)
+    calculation_request.payroll_run_id = run_id
+    detail = await payroll_service.calculate_payroll(calculation_request)
+    
+    return detail
+
+
+@router.post("/runs/{run_id}/approve", response_model=PayrollRunResponse)
+async def approve_payroll_run(
+    run_id: str,
+    approval_request: PayrollApprovalRequest,
+    current_user: TokenData = Depends(require_admin_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Approve a payroll run"""
+    
+    payroll_service = PayrollService(tenant_id)
+    approval_request.payroll_run_id = run_id
+    payroll_run = await payroll_service.approve_payroll(approval_request, current_user.user_id)
+    
+    return payroll_run
+
+
+@router.post("/runs/{run_id}/mark-paid", response_model=PayrollRunResponse)
+async def mark_payroll_paid(
+    run_id: str,
+    payment_request: PayrollPaymentRequest,
+    current_user: TokenData = Depends(require_admin_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Mark payroll run as paid"""
+    
+    payroll_service = PayrollService(tenant_id)
+    payment_request.payroll_run_id = run_id
+    payroll_run = await payroll_service.mark_as_paid(payment_request, current_user.user_id)
+    
+    return payroll_run
+
+
+@router.get("/stats", response_model=PayrollStats)
+async def get_payroll_stats(
+    current_user: TokenData = Depends(require_read_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Get payroll statistics"""
+    
+    payroll_service = PayrollService(tenant_id)
+    stats = await payroll_service.get_payroll_stats()
+    
+    return stats

@@ -8,6 +8,7 @@ import { Card, CardContent } from '../../common/Card';
 import { SimpleSocialAccount, SocialPlatform, Profile, PLATFORM_INFO } from './types';
 import { useSocialAccounts, useConnectAccount, useDisconnectAccount } from '../../../hooks/useSocial';
 import { SocialAccount } from '../../../api/social';
+import OAuthConnectModal from './OAuthConnectModal';
 
 interface AccountsViewProps {
   onBack: () => void;
@@ -39,24 +40,19 @@ const AccountsView: React.FC<AccountsViewProps> = ({ onBack }) => {
 
   const handleConnectClick = (platform: SocialPlatform) => {
     setSelectedPlatform(platform);
-    // TODO: Get profiles from real API
-    setAvailableProfiles([]);
-    setSelectedProfile('');
     setShowOAuthModal(true);
   };
 
-  const handleOAuthConfirm = async () => {
-    if (!selectedPlatform) return;
-    
-    setLoading(selectedPlatform);
+  const handleOAuthSuccess = async (platform: SocialPlatform, account: any) => {
+    setLoading(platform);
     setShowOAuthModal(false);
     
     try {
       // Use the connect account mutation
       await connectAccountMutation.mutateAsync({
-        platform: selectedPlatform,
-        token: 'mock_token', // In real implementation, this would come from OAuth flow
-        accountId: `${selectedPlatform}_${Date.now()}`
+        platform: platform,
+        token: account.access_token || 'mock_token',
+        accountId: account.id
       });
     } catch (error) {
       console.error('Connection failed:', error);
@@ -433,7 +429,7 @@ const AccountsView: React.FC<AccountsViewProps> = ({ onBack }) => {
                   Abbrechen
                 </button>
                 <button
-                  onClick={handleOAuthConfirm}
+                  onClick={() => setShowOAuthModal(true)}
                   className={`flex-1 px-4 py-2.5 text-sm font-semibold rounded-lg transition-all text-white shadow-lg ${PLATFORM_INFO[selectedPlatform].bgColor} hover:opacity-90 hover:shadow-xl`}
                 >
                   <i className="ri-shield-check-line mr-1"></i>
@@ -537,6 +533,13 @@ const AccountsView: React.FC<AccountsViewProps> = ({ onBack }) => {
           </div>
         </div>
       )}
+
+      {/* OAuth Connect Modal */}
+      <OAuthConnectModal
+        isOpen={showOAuthModal}
+        onClose={() => setShowOAuthModal(false)}
+        onSuccess={handleOAuthSuccess}
+      />
     </div>
   );
 };

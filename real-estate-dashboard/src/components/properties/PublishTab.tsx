@@ -13,6 +13,7 @@ import PortalChecklist from './PortalChecklist';
 import MappingBadges from './MappingBadges';
 import MediaPicker from './MediaPicker';
 import PublishStatusTable from './PublishStatusTable';
+import { PortalValidation } from '../../types/publish';
 
 interface PublishTabProps {
   propertyId: string;
@@ -56,7 +57,7 @@ const PublishTab: React.FC<PublishTabProps> = ({ propertyId, property }) => {
   const [scheduleDate, setScheduleDate] = useState<string>('');
   const [agreeToTerms, setAgreeToTerms] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [validations, setValidations] = useState<any[]>([]);
+  const [validations, setValidations] = useState<PortalValidation[]>([]);
 
   // Get current property publish status
   const publishStatus = getPropertyPublishStatus(propertyId);
@@ -65,17 +66,44 @@ const PublishTab: React.FC<PublishTabProps> = ({ propertyId, property }) => {
   React.useEffect(() => {
     if (selectedPortals.length > 0) {
       // Mock validation results
-      const mockValidations = selectedPortals.map(portal => ({
-        portal,
-        status: 'valid',
-        issues: [],
-        warnings: []
+      const mockValidations: PortalValidation[] = selectedPortals.map(portal => ({
+        portal: portal as any, // Cast to Portal type
+        isValid: true,
+        mappings: [
+          {
+            field: 'title',
+            label: 'Titel',
+            status: 'ok',
+            requirement: 'required',
+            value: property?.title || '',
+            message: 'Titel ist verfügbar'
+          },
+          {
+            field: 'price',
+            label: 'Preis',
+            status: 'ok',
+            requirement: 'required',
+            value: property?.price || 0,
+            message: 'Preis ist verfügbar'
+          },
+          {
+            field: 'description',
+            label: 'Beschreibung',
+            status: 'warn',
+            requirement: 'recommended',
+            value: property?.description || '',
+            message: 'Beschreibung könnte ausführlicher sein'
+          }
+        ],
+        errors: [],
+        warnings: ['Beschreibung könnte ausführlicher sein'],
+        missingRequired: []
       }));
       setValidations(mockValidations);
     } else {
       setValidations([]);
     }
-  }, [selectedPortals]);
+  }, [selectedPortals, property]);
 
   const handlePublish = async (scheduled: boolean = false) => {
     if (selectedPortals.length === 0) {
@@ -309,15 +337,13 @@ const PublishTab: React.FC<PublishTabProps> = ({ propertyId, property }) => {
 
         {/* Main Content Area */}
         <div className="xl:col-span-8 space-y-6">
-          {validations && validations.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-            >
-              <MappingBadges validations={validations} />
-            </motion.div>
-          )}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            <MappingBadges validations={validations} />
+          </motion.div>
           
           <motion.div
             initial={{ opacity: 0, y: 20 }}

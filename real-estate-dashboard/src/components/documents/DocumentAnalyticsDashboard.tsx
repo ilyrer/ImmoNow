@@ -5,15 +5,19 @@
 
 import React, { useMemo } from 'react';
 import {
-  DocumentTextIcon,
-  FolderIcon,
-  CloudArrowUpIcon,
-  EyeIcon,
-  HeartIcon,
-  ExclamationTriangleIcon,
-  ChartBarIcon,
-  CalendarDaysIcon,
-} from '@heroicons/react/24/solid';
+  FileText,
+  Folder,
+  Upload,
+  Eye,
+  Heart,
+  AlertTriangle,
+  BarChart3,
+  Calendar,
+  TrendingUp,
+  HardDrive,
+  Users,
+  Clock
+} from 'lucide-react';
 import { Document, DocumentAnalytics } from '../../types/document';
 
 interface DocumentAnalyticsDashboardProps {
@@ -140,7 +144,7 @@ const DocumentAnalyticsDashboard: React.FC<DocumentAnalyticsDashboardProps> = ({
               </p>
             </div>
             <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-full">
-              <DocumentTextIcon className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+              <FileText className="w-6 h-6 text-blue-600 dark:text-blue-400" />
             </div>
           </div>
         </div>
@@ -158,7 +162,7 @@ const DocumentAnalyticsDashboard: React.FC<DocumentAnalyticsDashboardProps> = ({
               </p>
             </div>
             <div className="p-3 bg-yellow-100 dark:bg-yellow-900/30 rounded-full">
-              <FolderIcon className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
+              <Folder className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
             </div>
           </div>
         </div>
@@ -176,7 +180,7 @@ const DocumentAnalyticsDashboard: React.FC<DocumentAnalyticsDashboardProps> = ({
               </p>
             </div>
             <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-full">
-              <CloudArrowUpIcon className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+              <Upload className="w-6 h-6 text-purple-600 dark:text-purple-400" />
             </div>
           </div>
         </div>
@@ -194,7 +198,7 @@ const DocumentAnalyticsDashboard: React.FC<DocumentAnalyticsDashboardProps> = ({
               </p>
             </div>
             <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-full">
-              <EyeIcon className="w-6 h-6 text-green-600 dark:text-green-400" />
+              <Eye className="w-6 h-6 text-green-600 dark:text-green-400" />
             </div>
           </div>
         </div>
@@ -208,7 +212,7 @@ const DocumentAnalyticsDashboard: React.FC<DocumentAnalyticsDashboardProps> = ({
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
               Aktivität
             </h3>
-            <ChartBarIcon className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+            <BarChart3 className="w-5 h-5 text-gray-500 dark:text-gray-400" />
           </div>
 
           <div className="space-y-4">
@@ -256,13 +260,13 @@ const DocumentAnalyticsDashboard: React.FC<DocumentAnalyticsDashboardProps> = ({
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
               Warnungen
             </h3>
-            <ExclamationTriangleIcon className="w-5 h-5 text-amber-500" />
+            <AlertTriangle className="w-5 h-5 text-amber-500" />
           </div>
 
           <div className="space-y-3">
             {calculatedMetrics.expiredDocs > 0 && (
               <div className="flex items-center p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded">
-                <ExclamationTriangleIcon className="w-5 h-5 text-red-500 mr-3" />
+                <AlertTriangle className="w-5 h-5 text-red-500 mr-3" />
                 <div>
                   <p className="text-sm font-medium text-red-700 dark:text-red-300">
                     {calculatedMetrics.expiredDocs} abgelaufene Dokumente
@@ -276,7 +280,7 @@ const DocumentAnalyticsDashboard: React.FC<DocumentAnalyticsDashboardProps> = ({
 
             {calculatedMetrics.expiringDocs > 0 && (
               <div className="flex items-center p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded">
-                <CalendarDaysIcon className="w-5 h-5 text-amber-500 mr-3" />
+                <Calendar className="w-5 h-5 text-amber-500 mr-3" />
                 <div>
                   <p className="text-sm font-medium text-amber-700 dark:text-amber-300">
                     {calculatedMetrics.expiringDocs} Dokumente laufen bald ab
@@ -290,7 +294,7 @@ const DocumentAnalyticsDashboard: React.FC<DocumentAnalyticsDashboardProps> = ({
 
             {calculatedMetrics.expiredDocs === 0 && calculatedMetrics.expiringDocs === 0 && (
               <div className="flex items-center p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded">
-                <HeartIcon className="w-5 h-5 text-green-500 mr-3" />
+                <Heart className="w-5 h-5 text-green-500 mr-3" />
                 <div>
                   <p className="text-sm font-medium text-green-700 dark:text-green-300">
                     Alle Dokumente aktuell
@@ -311,7 +315,7 @@ const DocumentAnalyticsDashboard: React.FC<DocumentAnalyticsDashboardProps> = ({
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
             Dokumenttypen
           </h3>
-          <ChartBarIcon className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+          <BarChart3 className="w-5 h-5 text-gray-500 dark:text-gray-400" />
         </div>
 
         <div className="space-y-3">
@@ -346,7 +350,7 @@ const DocumentAnalyticsDashboard: React.FC<DocumentAnalyticsDashboardProps> = ({
 
         {Object.keys(calculatedMetrics.typeDistribution).length === 0 && (
           <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-            <ChartBarIcon className="w-12 h-12 mx-auto mb-3 opacity-50" />
+            <BarChart3 className="w-12 h-12 mx-auto mb-3 opacity-50" />
             <p className="text-sm">Keine Daten verfügbar</p>
           </div>
         )}
@@ -359,7 +363,7 @@ const DocumentAnalyticsDashboard: React.FC<DocumentAnalyticsDashboardProps> = ({
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
               Neueste Dokumente
             </h3>
-            <EyeIcon className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+            <Eye className="w-5 h-5 text-gray-500 dark:text-gray-400" />
           </div>
 
           <div className="space-y-3">
@@ -379,7 +383,7 @@ const DocumentAnalyticsDashboard: React.FC<DocumentAnalyticsDashboardProps> = ({
                   </p>
                 </div>
                 <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
-                  <EyeIcon className="w-4 h-4 mr-1" />
+                  <Eye className="w-4 h-4 mr-1" />
                   {doc.views || 0}
                 </div>
               </div>

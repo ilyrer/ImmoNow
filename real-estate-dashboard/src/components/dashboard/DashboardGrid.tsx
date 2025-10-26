@@ -1,5 +1,6 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { Plus, Grip, X, Eye, EyeOff, Settings, RotateCcw } from 'lucide-react';
+import WidgetSettingsModal from '../CIM/WidgetSettingsModal';
 
 interface DashboardWidget {
   id: string;
@@ -13,7 +14,7 @@ interface DashboardWidget {
     h: number;
   };
   visible: boolean;
-  category: 'analytics' | 'sales' | 'properties' | 'team' | 'activities' | 'finance';
+  category: 'analytics' | 'sales' | 'properties' | 'team' | 'activities' | 'finance' | 'system' | 'billing' | 'documents' | 'hr' | 'calendar' | 'notifications' | 'social' | 'communication';
   icon: React.ElementType;
   color: string;
 }
@@ -48,12 +49,159 @@ const DashboardGrid: React.FC<DashboardGridProps> = ({
   const [dragOverPosition, setDragOverPosition] = useState<{ x: number; y: number } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [swapTarget, setSwapTarget] = useState<string | null>(null);
+  const [isResizing, setIsResizing] = useState(false);
+  const [resizeWidget, setResizeWidget] = useState<string | null>(null);
+  const [resizeHandle, setResizeHandle] = useState<string | null>(null);
+  const [resizeStart, setResizeStart] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const [settingsModalOpen, setSettingsModalOpen] = useState(false);
+  const [settingsWidgetId, setSettingsWidgetId] = useState<string | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
 
   // Grid-Konfiguration (12 Spalten)
   const GRID_COLUMNS = 12;
   const GRID_ROWS = 12;
   const CELL_HEIGHT = 80; // Höhe einer Grid-Zelle in px
+
+  // Resize-Handler-Funktionen
+  const handleResizeStart = useCallback((e: React.MouseEvent, widgetId: string, handle: string) => {
+    if (!isCustomizing) return;
+    
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const widget = widgets.find(w => w.id === widgetId);
+    if (!widget) return;
+    
+    setIsResizing(true);
+    setResizeWidget(widgetId);
+    setResizeHandle(handle);
+    setResizeStart({
+      x: widget.position.x,
+      y: widget.position.y,
+      w: widget.position.w,
+      h: widget.position.h
+    });
+  }, [isCustomizing, widgets]);
+
+  const handleResizeMove = useCallback((e: MouseEvent) => {
+    if (!isResizing || !resizeWidget || !resizeStart || !resizeHandle) return;
+    
+    if (!gridRef.current) return;
+    
+    const rect = gridRef.current.getBoundingClientRect();
+    const cellWidth = rect.width / GRID_COLUMNS;
+    const cellHeight = CELL_HEIGHT;
+    
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    
+    const gridX = Math.floor(mouseX / cellWidth);
+    const gridY = Math.floor(mouseY / cellHeight);
+    
+    let newX = resizeStart.x;
+    let newY = resizeStart.y;
+    let newW = resizeStart.w;
+    let newH = resizeStart.h;
+    
+    // Berechne neue Größe basierend auf Handle
+    switch (resizeHandle) {
+      case 'se': // Süd-Ost (rechts-unten)
+        newW = Math.max(2, Math.min(12, gridX - resizeStart.x + 1));
+        newH = Math.max(1, Math.min(8, gridY - resizeStart.y + 1));
+        break;
+      case 'sw': // Süd-West (links-unten)
+        newX = Math.max(0, Math.min(resizeStart.x + resizeStart.w - 2, gridX));
+        newW = Math.max(2, Math.min(12, resizeStart.x + resizeStart.w - newX));
+        newH = Math.max(1, Math.min(8, gridY - resizeStart.y + 1));
+        break;
+      case 'ne': // Nord-Ost (rechts-oben)
+        newY = Math.max(0, Math.min(resizeStart.y + resizeStart.h - 1, gridY));
+        newW = Math.max(2, Math.min(12, gridX - resizeStart.x + 1));
+        newH = Math.max(1, Math.min(8, resizeStart.y + resizeStart.h - newY));
+        break;
+      case 'nw': // Nord-West (links-oben)
+        newX = Math.max(0, Math.min(resizeStart.x + resizeStart.w - 2, gridX));
+        newY = Math.max(0, Math.min(resizeStart.y + resizeStart.h - 1, gridY));
+        newW = Math.max(2, Math.min(12, resizeStart.x + resizeStart.w - newX));
+        newH = Math.max(1, Math.min(8, resizeStart.y + resizeStart.h - newY));
+        break;
+    }
+    
+    // Prüfe ob neue Position frei ist
+    if (isPositionFree(newX, newY, newW, newH, resizeWidget)) {
+      onMoveWidget(resizeWidget, { x: newX, y: newY, w: newW, h: newH });
+    }
+  }, [isResizing, resizeWidget, resizeStart, resizeHandle, onMoveWidget]);
+
+  const handleResizeEnd = useCallback(() => {
+    setIsResizing(false);
+    setResizeWidget(null);
+    setResizeHandle(null);
+    setResizeStart(null);
+  }, []);
+
+  // Event Listeners für Resize
+  React.useEffect(() => {
+    if (isResizing) {
+      document.addEventListener('mousemove', handleResizeMove);
+      document.addEventListener('mouseup', handleResizeEnd);
+      return () => {
+        document.removeEventListener('mousemove', handleResizeMove);
+        document.removeEventListener('mouseup', handleResizeEnd);
+      };
+    }
+  }, [isResizing, handleResizeMove, handleResizeEnd]);
+
+  // Settings Modal Handler
+  const handleOpenSettings = (widgetId: string) => {
+    setSettingsWidgetId(widgetId);
+    setSettingsModalOpen(true);
+  };
+
+  const handleCloseSettings = () => {
+    setSettingsModalOpen(false);
+    setSettingsWidgetId(null);
+  };
+
+  const handleConfigChange = (widgetId: string, config: any) => {
+    // Config wird bereits in localStorage gespeichert
+    console.log('Widget config changed:', widgetId, config);
+    
+    // Dispatch Custom Event für Live-Updates
+    const widget = widgets.find(w => w.id === widgetId);
+    if (widget) {
+      const event = new CustomEvent('widgetConfigChanged', {
+        detail: {
+          widgetType: widget.type,
+          widgetId,
+          config
+        }
+      });
+      window.dispatchEvent(event);
+    }
+  };
+
+  // Bestimme ob Widget konfigurierbar ist
+  const isConfigurableWidget = (widgetType: string) => {
+    return [
+      'lead_conversion', 
+      'revenue_chart', 
+      'property_performance', 
+      'market_trends', 
+      'analytics', 
+      'performance',
+      'storage_usage',
+      'subscription_limits',
+      'document_analytics',
+      'hr_overview',
+      'payroll_summary',
+      'appointment_calendar',
+      'notifications_center',
+      'social_performance',
+      'property_inquiry',
+      'team_communication'
+    ].includes(widgetType);
+  };
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -336,18 +484,22 @@ const DashboardGrid: React.FC<DashboardGridProps> = ({
     
     return (
       <div
-        className="absolute bg-gradient-to-br from-blue-200/40 to-purple-200/40 dark:from-blue-500/30 dark:to-purple-500/30 border-2 border-dashed border-blue-400 dark:border-blue-400 rounded-xl pointer-events-none z-10 flex items-center justify-center animate-pulse"
+        className="absolute bg-gradient-to-br from-blue-500/20 to-purple-500/20 border-2 border-dashed border-blue-400 rounded-xl pointer-events-none z-50 flex items-center justify-center animate-pulse shadow-lg"
         style={{
           gridColumn: `${dragOverPosition.x + 1} / span 4`,
           gridRow: `${dragOverPosition.y + 1} / span 2`,
-          minHeight: `${2 * CELL_HEIGHT}px`
+          minHeight: `${2 * CELL_HEIGHT}px`,
+          backdropFilter: 'blur(10px)'
         }}
       >
         <div className="text-center">
-          <div className="text-blue-600 dark:text-blue-300 text-lg font-semibold mb-1">
-            📊 Widget hier ablegen
+          <div className="text-white text-lg font-semibold mb-1 flex items-center justify-center space-x-2">
+            <div className="w-6 h-6 rounded-lg bg-blue-500 flex items-center justify-center">
+              <span className="text-white text-sm">+</span>
+            </div>
+            <span>Widget hier ablegen</span>
           </div>
-          <div className="text-blue-500 dark:text-blue-400 text-sm">
+          <div className="text-white/80 text-sm">
             Loslassen zum Hinzufügen
           </div>
         </div>
@@ -414,7 +566,7 @@ const DashboardGrid: React.FC<DashboardGridProps> = ({
   return (
     <div
       ref={gridRef}
-      className={`dashboard-grid relative transition-all duration-300 ${className} ${
+      className={`dashboard-grid relative transition-all duration-300 z-[10001] ${className} ${
         isDragging 
           ? 'bg-gradient-to-br from-blue-50/50 to-purple-50/50 dark:from-blue-900/20 dark:to-purple-900/20 ring-2 ring-blue-300/50 dark:ring-blue-500/50 ring-inset' 
           : ''
@@ -481,6 +633,36 @@ const DashboardGrid: React.FC<DashboardGridProps> = ({
               })()}
             </div>
             
+            {/* Resize Handles (nur im Customizing-Modus) */}
+            {isCustomizing && (
+              <>
+                {/* Süd-Ost (rechts-unten) */}
+                <div
+                  className="absolute bottom-0 right-0 w-3 h-3 cursor-se-resize bg-blue-500/80 hover:bg-blue-600 rounded-tl-lg opacity-0 group-hover:opacity-100 transition-opacity z-50"
+                  onMouseDown={(e) => handleResizeStart(e, widget.id, 'se')}
+                  title="Größe ändern"
+                />
+                {/* Süd-West (links-unten) */}
+                <div
+                  className="absolute bottom-0 left-0 w-3 h-3 cursor-sw-resize bg-blue-500/80 hover:bg-blue-600 rounded-tr-lg opacity-0 group-hover:opacity-100 transition-opacity z-50"
+                  onMouseDown={(e) => handleResizeStart(e, widget.id, 'sw')}
+                  title="Größe ändern"
+                />
+                {/* Nord-Ost (rechts-oben) */}
+                <div
+                  className="absolute top-0 right-0 w-3 h-3 cursor-ne-resize bg-blue-500/80 hover:bg-blue-600 rounded-bl-lg opacity-0 group-hover:opacity-100 transition-opacity z-50"
+                  onMouseDown={(e) => handleResizeStart(e, widget.id, 'ne')}
+                  title="Größe ändern"
+                />
+                {/* Nord-West (links-oben) */}
+                <div
+                  className="absolute top-0 left-0 w-3 h-3 cursor-nw-resize bg-blue-500/80 hover:bg-blue-600 rounded-br-lg opacity-0 group-hover:opacity-100 transition-opacity z-50"
+                  onMouseDown={(e) => handleResizeStart(e, widget.id, 'nw')}
+                  title="Größe ändern"
+                />
+              </>
+            )}
+            
             {/* Widget Controls (nur im Customizing-Modus) */}
             {isCustomizing && (
               <div className="absolute top-3 right-3 flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity z-40 pointer-events-auto">
@@ -535,6 +717,17 @@ const DashboardGrid: React.FC<DashboardGridProps> = ({
                     </button>
                   </div>
                 </div>
+                
+                {/* Settings Button (nur für konfigurierbare Widgets) */}
+                {isConfigurableWidget(widget.type) && (
+                  <button
+                    onClick={() => handleOpenSettings(widget.id)}
+                    className="p-2 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors shadow-lg"
+                    title="Widget-Einstellungen"
+                  >
+                    <Settings className="w-4 h-4 text-blue-600" />
+                  </button>
+                )}
                 
                 <button
                   onClick={() => onToggleWidget(widget.id)}
@@ -599,6 +792,18 @@ const DashboardGrid: React.FC<DashboardGridProps> = ({
             />
           ))}
         </div>
+      )}
+      
+      {/* Settings Modal */}
+      {settingsModalOpen && settingsWidgetId && (
+        <WidgetSettingsModal
+          isOpen={settingsModalOpen}
+          onClose={handleCloseSettings}
+          widgetId={settingsWidgetId}
+          widgetType={widgets.find(w => w.id === settingsWidgetId)?.type || ''}
+          widgetTitle={widgets.find(w => w.id === settingsWidgetId)?.title || ''}
+          onConfigChange={handleConfigChange}
+        />
       )}
     </div>
   );

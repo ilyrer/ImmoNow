@@ -2,7 +2,7 @@
 Property Schemas
 """
 from typing import Optional, List, Dict, Any
-from datetime import datetime
+from datetime import datetime, date
 from pydantic import BaseModel, Field, ConfigDict, field_serializer, field_validator, model_validator
 
 from app.schemas.common import PropertyType, UserResponse
@@ -10,9 +10,9 @@ from app.schemas.common import PropertyType, UserResponse
 
 class Address(BaseModel):
     """Address model"""
-    street: str
+    street: Optional[str] = None
     house_number: Optional[str] = None
-    city: str
+    city: Optional[str] = None
     zip_code: Optional[str] = None
     postal_code: Optional[str] = None
     state: Optional[str] = None
@@ -161,6 +161,20 @@ class PropertyResponse(BaseModel):
     amenities: List[str] = Field(default_factory=list)
     tags: List[str] = Field(default_factory=list)
     
+    # PropStack-style additional fields
+    internal_id: Optional[str] = None
+    unit_number: Optional[str] = None
+    project_id: Optional[str] = None
+    floor_number: Optional[str] = None
+    condition_status: Optional[str] = None
+    availability_date: Optional[date] = None
+    commission: Optional[float] = None
+    parking_type: Optional[str] = None
+    object_description: Optional[str] = None
+    location_description: Optional[str] = None
+    last_modernization: Optional[int] = None
+    construction_phase: Optional[str] = None
+    
     address: Optional[Address] = None
     contact_person: Optional[ContactPerson] = None
     features: Optional[PropertyFeatures] = None
@@ -172,6 +186,11 @@ class PropertyResponse(BaseModel):
     @field_serializer('created_at', 'updated_at')
     def serialize_datetime(self, value: datetime) -> str:
         """Serialize datetime to ISO format string"""
+        return value.isoformat() if value else None
+    
+    @field_serializer('availability_date')
+    def serialize_availability_date(self, value: Optional[date]) -> Optional[str]:
+        """Serialize date to ISO format string"""
         return value.isoformat() if value else None
     
     model_config = ConfigDict(from_attributes=True)
@@ -194,21 +213,27 @@ class CreatePropertyRequest(BaseModel):
     model_config = ConfigDict(extra='ignore')  # Ignore extra fields like created_by
     
     # Area fields
-    living_area: Optional[int] = Field(None, ge=1)
-    total_area: Optional[int] = Field(None, ge=1)
-    plot_area: Optional[int] = Field(None, ge=1)
+    living_area: Optional[int] = Field(None, ge=0)
+    total_area: Optional[int] = Field(None, ge=0)
+    plot_area: Optional[int] = Field(None, ge=0)
     
     # Room fields
-    rooms: Optional[int] = Field(None, ge=1)
-    bedrooms: Optional[int] = Field(None, ge=1)
-    bathrooms: Optional[int] = Field(None, ge=1)
-    floors: Optional[int] = Field(None, ge=1)
+    rooms: Optional[int] = Field(None, ge=0)
+    bedrooms: Optional[int] = Field(None, ge=0)
+    bathrooms: Optional[int] = Field(None, ge=0)
+    floors: Optional[int] = Field(None, ge=0)
     
     # Building info
     year_built: Optional[int] = Field(None, ge=1800, le=2025)
     energy_class: Optional[str] = Field(None, max_length=10)
     energy_consumption: Optional[int] = Field(None, ge=0)
     heating_type: Optional[str] = Field(None, max_length=100)
+    
+    # Energy certificate fields
+    energy_certificate_type: Optional[str] = Field(None, max_length=50)
+    energy_certificate_valid_until: Optional[str] = None  # Accept string for now
+    energy_certificate_issue_date: Optional[str] = None   # Accept string for now
+    co2_emissions: Optional[int] = Field(None, ge=0)
     
     # Location coordinates
     coordinates_lat: Optional[float] = Field(None, ge=-90, le=90)
@@ -217,6 +242,24 @@ class CreatePropertyRequest(BaseModel):
     # Additional data
     amenities: Optional[List[str]] = Field(default_factory=list)
     tags: Optional[List[str]] = Field(default_factory=list)
+    
+    # Equipment and additional information
+    equipment_description: Optional[str] = Field(None, max_length=2000)
+    additional_info: Optional[str] = Field(None, max_length=2000)
+    
+    # PropStack-style additional fields
+    internal_id: Optional[str] = Field(None, max_length=50)
+    unit_number: Optional[str] = Field(None, max_length=50)
+    project_id: Optional[str] = Field(None, max_length=100)
+    floor_number: Optional[str] = Field(None, max_length=20)
+    condition_status: Optional[str] = Field(None, max_length=50)
+    availability_date: Optional[str] = None  # Accept string for now
+    commission: Optional[float] = Field(None, ge=0, le=100)
+    parking_type: Optional[str] = Field(None, max_length=50)
+    object_description: Optional[str] = Field(None, max_length=2000)
+    location_description: Optional[str] = Field(None, max_length=2000)
+    last_modernization: Optional[int] = Field(None, ge=1800, le=2025)
+    construction_phase: Optional[str] = Field(None, max_length=50)
     
     address: Optional[Address] = None
     contact_person: Optional[ContactPersonCreate] = None
@@ -248,21 +291,27 @@ class UpdatePropertyRequest(BaseModel):
     model_config = ConfigDict(extra='ignore')  # Ignore extra fields
     
     # Area fields
-    living_area: Optional[int] = Field(None, ge=1)
-    total_area: Optional[int] = Field(None, ge=1)
-    plot_area: Optional[int] = Field(None, ge=1)
+    living_area: Optional[int] = Field(None, ge=0)
+    total_area: Optional[int] = Field(None, ge=0)
+    plot_area: Optional[int] = Field(None, ge=0)
     
     # Room fields
-    rooms: Optional[int] = Field(None, ge=1)
-    bedrooms: Optional[int] = Field(None, ge=1)
-    bathrooms: Optional[int] = Field(None, ge=1)
-    floors: Optional[int] = Field(None, ge=1)
+    rooms: Optional[int] = Field(None, ge=0)
+    bedrooms: Optional[int] = Field(None, ge=0)
+    bathrooms: Optional[int] = Field(None, ge=0)
+    floors: Optional[int] = Field(None, ge=0)
     
     # Building info
     year_built: Optional[int] = Field(None, ge=1800, le=2025)
     energy_class: Optional[str] = Field(None, max_length=10)
     energy_consumption: Optional[int] = Field(None, ge=0)
     heating_type: Optional[str] = Field(None, max_length=100)
+    
+    # Energy certificate fields
+    energy_certificate_type: Optional[str] = Field(None, max_length=50)
+    energy_certificate_valid_until: Optional[str] = None  # Accept string for now
+    energy_certificate_issue_date: Optional[str] = None   # Accept string for now
+    co2_emissions: Optional[int] = Field(None, ge=0)
     
     # Location coordinates
     coordinates_lat: Optional[float] = Field(None, ge=-90, le=90)
@@ -272,9 +321,56 @@ class UpdatePropertyRequest(BaseModel):
     amenities: Optional[List[str]] = None
     tags: Optional[List[str]] = None
     
+    # Equipment and additional information
+    equipment_description: Optional[str] = Field(None, max_length=2000)
+    additional_info: Optional[str] = Field(None, max_length=2000)
+    
+    # PropStack-style additional fields
+    internal_id: Optional[str] = Field(None, max_length=50)
+    unit_number: Optional[str] = Field(None, max_length=50)
+    project_id: Optional[str] = Field(None, max_length=100)
+    floor_number: Optional[str] = Field(None, max_length=20)
+    condition_status: Optional[str] = Field(None, max_length=50)
+    availability_date: Optional[str] = None  # Accept string for now
+    commission: Optional[float] = Field(None, ge=0, le=100)
+    parking_type: Optional[str] = Field(None, max_length=50)
+    object_description: Optional[str] = Field(None, max_length=2000)
+    location_description: Optional[str] = Field(None, max_length=2000)
+    last_modernization: Optional[int] = Field(None, ge=1800, le=2025)
+    construction_phase: Optional[str] = Field(None, max_length=50)
+    
     address: Optional[Address] = None
     contact_person: Optional[ContactPersonCreate] = None
     features: Optional[PropertyFeatures] = None
+
+
+class PropertyContact(BaseModel):
+    """Property contact relationship model"""
+    id: str
+    property_id: str
+    contact_id: str
+    role: str
+    is_primary: bool = False
+    notes: Optional[str] = None
+    created_at: datetime
+    created_by: str
+    
+    @field_serializer('created_at')
+    def serialize_created_at(self, value: datetime) -> str:
+        """Serialize datetime to ISO format string"""
+        return value.isoformat() if value else None
+    
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PropertyContactCreate(BaseModel):
+    """Create property contact relationship model"""
+    contact_id: str = Field(..., description="ID of the contact to link")
+    role: str = Field(..., description="Role of the contact (owner, agent, manager, etc.)")
+    is_primary: bool = Field(False, description="Whether this is the primary contact for this role")
+    notes: Optional[str] = Field(None, max_length=1000, description="Notes about this relationship")
+    
+    model_config = ConfigDict(extra='ignore')
 
 
 class PropertyListResponse(BaseModel):

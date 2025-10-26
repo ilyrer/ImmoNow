@@ -333,14 +333,14 @@ async def start_oauth_flow(
 ):
     """Start OAuth flow for social media platform"""
     
-    if platform not in ['facebook', 'instagram', 'linkedin', 'twitter']:
+    if platform not in ['facebook', 'instagram', 'tiktok']:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid platform. Must be one of: facebook, instagram, linkedin, twitter"
+            detail="Invalid platform. Must be one of: facebook, instagram, tiktok"
         )
     
     social_service = SocialService(tenant_id)
-    auth_url = await social_service.get_oauth_url(platform)
+    auth_url = await social_service.get_oauth_url(platform, current_user.user_id)
     
     return {"auth_url": auth_url}
 
@@ -372,6 +372,62 @@ async def refresh_oauth_token(
     
     social_service = SocialService(tenant_id)
     result = await social_service.refresh_token(platform, account_id, current_user.user_id)
+    
+    return result
+
+
+@router.post("/accounts/{account_id}/test")
+async def test_account_connection(
+    account_id: str,
+    current_user: TokenData = Depends(require_write_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Test social media account connection"""
+    
+    social_service = SocialService(tenant_id)
+    is_connected = await social_service.test_account_connection(account_id)
+    
+    return {"connected": is_connected}
+
+
+@router.post("/accounts/{account_id}/sync")
+async def sync_account_data(
+    account_id: str,
+    current_user: TokenData = Depends(require_write_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Sync account data from platform"""
+    
+    social_service = SocialService(tenant_id)
+    account = await social_service.sync_account_data(account_id)
+    
+    if not account:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Account sync failed"
+        )
+    
+    return account
+
+
+@router.post("/posts/{post_id}/publish/{platform}")
+async def publish_post_to_platform(
+    post_id: str,
+    platform: str,
+    account_id: str = Query(..., description="Account ID to publish to"),
+    current_user: TokenData = Depends(require_write_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Publish post to specific platform"""
+    
+    social_service = SocialService(tenant_id)
+    result = await social_service.publish_post_to_platform(post_id, platform, account_id)
+    
+    if not result:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Post publishing failed"
+        )
     
     return result
 

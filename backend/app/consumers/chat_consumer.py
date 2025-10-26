@@ -6,11 +6,14 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.contrib.auth import get_user_model
 from app.db.models import Conversation, Message, ConversationParticipant, UserPresence
-from app.core.security import decode_token
+from app.core.security import JWTService
 from app.core.errors import NotFoundError
 from datetime import datetime
 
 User = get_user_model()
+
+# Create JWT service instance
+jwt_service = JWTService()
 
 
 class ChatConsumer(AsyncWebsocketConsumer):
@@ -32,16 +35,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
         
         try:
             # Decode token to get user info
-            payload = decode_token(token)
-            self.user_id = payload['user_id']
-            self.tenant_id = payload['tenant_id']
-            
-            # Verify token is not expired
-            if 'exp' in payload:
-                import time
-                if payload['exp'] < time.time():
-                    await self.close(code=4002)  # Custom close code for expired token
-                    return
+            token_data = jwt_service.verify_token(token)
+            self.user_id = token_data.user_id
+            self.tenant_id = token_data.tenant_id
                     
         except Exception as e:
             print(f"Token decode error: {e}")

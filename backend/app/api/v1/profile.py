@@ -16,7 +16,7 @@ from app.services.auth_service import AuthService
 from app.core.errors import UnauthorizedError, NotFoundError
 from app.db.models import User, TenantUser, NotificationPreference, AuditLog
 
-router = APIRouter(prefix="/profile", tags=["Profile"])
+router = APIRouter(prefix="/profile")
 security = HTTPBearer()
 
 

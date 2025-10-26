@@ -4,7 +4,7 @@ Core Settings Configuration
 import os
 from typing import List, Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field
+from pydantic import Field, field_validator
 
 
 class Settings(BaseSettings):
@@ -19,9 +19,44 @@ class Settings(BaseSettings):
     DATABASE_URL: str = Field(default="sqlite:///./cim_backend.db", env="DATABASE_URL")
     
     # JWT
-    JWT_SECRET_KEY: str = Field(default="jwt-secret-change-me-in-production", env="JWT_SECRET_KEY")
+    JWT_SECRET_KEY: str = Field(
+        default="", 
+        env="JWT_SECRET_KEY",
+        description="JWT Secret Key - MUST be at least 64 characters. Generate with: python -c 'import secrets; print(secrets.token_urlsafe(64))'"
+    )
     JWT_ALGORITHM: str = Field(default="HS256", env="JWT_ALGORITHM")
-    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=30, env="JWT_ACCESS_TOKEN_EXPIRE_MINUTES")
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=10080, env="JWT_ACCESS_TOKEN_EXPIRE_MINUTES")  # 7 days for development
+    
+    @field_validator('JWT_SECRET_KEY')
+    @classmethod
+    def validate_jwt_secret(cls, v):
+        """Validate JWT secret key strength"""
+        if not v:
+            raise ValueError("JWT_SECRET_KEY is required")
+        
+        if len(v) < 64:
+            raise ValueError(
+                f"JWT_SECRET_KEY must be at least 64 characters long (current: {len(v)}). "
+                "Generate a secure key with: python manage.py generate_jwt_secret"
+            )
+        
+        # Check for common weak patterns
+        weak_patterns = [
+            "jwt-secret-change-me",
+            "your-jwt-secret-key",
+            "secret",
+            "password",
+            "123456",
+            "changeme"
+        ]
+        
+        if any(pattern in v.lower() for pattern in weak_patterns):
+            raise ValueError(
+                "JWT_SECRET_KEY contains weak patterns. "
+                "Generate a cryptographically secure key with: python manage.py generate_jwt_secret"
+            )
+        
+        return v
     
     # CORS
     CORS_ORIGINS: str = Field(default="http://localhost:3000", env="CORS_ORIGINS")
@@ -78,6 +113,11 @@ class Settings(BaseSettings):
     
     # Frontend URL
     FRONTEND_URL: str = Field(default="http://localhost:3000", env="FRONTEND_URL")
+    
+    # Feature Flags
+    USAGE_ENFORCEMENT: bool = Field(default=False, env="USAGE_ENFORCEMENT")
+    METRICS_WIDGET: bool = Field(default=False, env="METRICS_WIDGET")
+    EMAIL_INGESTION: bool = Field(default=False, env="EMAIL_INGESTION")
 
 
 # Global settings instance

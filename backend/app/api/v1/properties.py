@@ -2,7 +2,8 @@
 Properties API Endpoints
 """
 from typing import Optional, List
-from fastapi import APIRouter, Depends, Query, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Body
+from typing import Any
 
 from app.api.deps import (
     require_read_scope, require_write_scope, require_delete_scope,
@@ -14,7 +15,9 @@ from app.schemas.properties import (
     PropertyResponse, PropertyListResponse,
     CreatePropertyRequest, UpdatePropertyRequest,
     PropertyImage as PropertyImageSchema,
-    PropertyDocument as PropertyDocumentSchema
+    PropertyDocument as PropertyDocumentSchema,
+    PropertyContact as PropertyContactSchema,
+    PropertyContactCreate
 )
 from app.schemas.common import PaginatedResponse
 from app.core.pagination import PaginationParams, get_pagination_offset, validate_sort_field
@@ -191,6 +194,35 @@ async def upload_property_images(
     Supported formats: JPG, PNG, WEBP
     """
     
+    # Debug logging
+    print(f"🔍 Upload endpoint called for property {property_id}")
+    print(f"🔍 Received {len(files)} files")
+    for i, file in enumerate(files):
+        print(f"🔍 File {i}: {file.filename}, size: {file.size}, type: {file.content_type}")
+    
+    # Validate files
+    if not files:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No files provided"
+        )
+    
+    # Check storage limit BEFORE upload
+    from app.services.storage_tracking_service import StorageTrackingService
+    total_size = sum(file.size for file in files if file.size)
+    
+    try:
+        await StorageTrackingService.check_storage_limit(tenant_id, total_size)
+    except ValidationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": "STORAGE_LIMIT_EXCEEDED",
+                "message": str(e),
+                "resource": "storage"
+            }
+        )
+    
     properties_service = PropertiesService(tenant_id)
     
     # Convert UploadFile to Django's UploadedFile format
@@ -229,6 +261,22 @@ async def upload_property_documents(
     Accepts multiple document files in multipart/form-data format.
     Supported formats: PDF, DOC, DOCX
     """
+    
+    # Check storage limit BEFORE upload
+    from app.services.storage_tracking_service import StorageTrackingService
+    total_size = sum(file.size for file in files if file.size)
+    
+    try:
+        await StorageTrackingService.check_storage_limit(tenant_id, total_size)
+    except ValidationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": "STORAGE_LIMIT_EXCEEDED",
+                "message": str(e),
+                "resource": "storage"
+            }
+        )
     
     properties_service = PropertiesService(tenant_id)
     
@@ -306,3 +354,69 @@ async def get_property_matching_contacts(
 
     contacts_service = ContactsService(tenant_id)
     return await contacts_service.get_matching_contacts_for_property(property_id, limit)
+
+
+@router.get("/{property_id}/contacts", response_model=List[PropertyContactSchema])
+async def get_property_contacts(
+    property_id: str,
+    current_user: TokenData = Depends(require_read_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Get all contacts linked to a property"""
+    
+    properties_service = PropertiesService(tenant_id)
+    contacts = await properties_service.get_property_contacts(property_id)
+    
+    return contacts
+
+
+@router.post("/{property_id}/contacts", response_model=PropertyContactSchema, status_code=201)
+async def link_contact_to_property(
+    property_id: str,
+    contact_data: PropertyContactCreate,
+    current_user: TokenData = Depends(require_write_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Link a contact to a property"""
+    
+    properties_service = PropertiesService(tenant_id)
+    contact = await properties_service.link_contact(
+        property_id, contact_data, current_user.user_id
+    )
+    
+    return contact
+
+
+@router.delete("/{property_id}/contacts/{contact_id}")
+async def unlink_contact_from_property(
+    property_id: str,
+    contact_id: str,
+    role: str = Query(..., description="Role of the contact to unlink"),
+    current_user: TokenData = Depends(require_write_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Unlink a contact from a property"""
+    
+    properties_service = PropertiesService(tenant_id)
+    await properties_service.unlink_contact(property_id, contact_id, role)
+
+
+@router.patch("/{property_id}/field/{field_name}", response_model=PropertyResponse)
+async def update_property_field(
+    property_id: str,
+    field_name: str,
+    value: Any = Body(..., description="New value for the field"),
+    current_user: TokenData = Depends(require_write_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Update a single field of a property"""
+    
+    properties_service = PropertiesService(tenant_id)
+    property_obj = await properties_service.update_property_field(
+        property_id, field_name, value, current_user.user_id
+    )
+    
+    if not property_obj:
+        raise NotFoundError("Property not found")
+    
+    return property_obj

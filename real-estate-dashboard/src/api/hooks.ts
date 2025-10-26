@@ -427,6 +427,34 @@ export const useUploadDocument = () => {
   });
 };
 
+export const useUpdateDocument = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation<DocumentResponse, Error, { id: string; data: UpdateDocumentRequest }>({
+    mutationFn: async ({ id, data }) => {
+      return apiClient.patch<DocumentResponse>(`/api/v1/documents/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.documents.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.documents.analytics });
+    },
+  });
+};
+
+export const useDeleteDocument = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation<void, Error, string>({
+    mutationFn: async (id) => {
+      return apiClient.delete(`/api/v1/documents/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.documents.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.documents.analytics });
+    },
+  });
+};
+
 export const useCreateFolder = () => {
   const queryClient = useQueryClient();
   

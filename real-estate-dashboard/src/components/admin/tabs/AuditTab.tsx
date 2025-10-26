@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Activity, Filter, AlertCircle, CheckCircle, AlertTriangle } from 'lucide-react';
 import { GlassCard, GlassButton, Badge } from '../GlassUI';
 import { 
-  useAdminAuditLogs,
+  useAuditLogs,
   AdminAuditLog 
 } from '../../../api/adminHooks';
 
@@ -14,7 +14,7 @@ const AuditTab: React.FC = () => {
     size: 20
   });
 
-  const { data: auditData, isLoading, error } = useAdminAuditLogs({
+  const { data: auditData, isLoading, error } = useAuditLogs({
     page: filters.page,
     size: filters.size,
     resource_type: filters.resource_type || undefined,

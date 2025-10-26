@@ -1,11 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { GlassCard, GlassButton } from '../GlassUI';
-import tenantService, { TenantDetail } from '../../../services/tenant.service';
+import { 
+  useTenantSettings, 
+  useUpdateTenantSettings,
+  TenantSettings 
+} from '../../../api/adminHooks';
 import { Building2, Save, Upload, Loader2, Check, AlertCircle, X } from 'lucide-react';
 
 export const OrganizationTab: React.FC = () => {
-  const [tenant, setTenant] = useState<TenantDetail | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: tenantSettings, isLoading: loading, error } = useTenantSettings();
+  const updateTenantMutation = useUpdateTenantSettings();
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
@@ -30,38 +34,26 @@ export const OrganizationTab: React.FC = () => {
   });
 
   useEffect(() => {
-    loadTenantData();
-  }, []);
-
-  const loadTenantData = async () => {
-    try {
-      setLoading(true);
-      const data = await tenantService.getTenant();
-      setTenant(data);
+    if (tenantSettings) {
       setFormData({
-        name: data.name || '',
-        email: data.email || '',
-        phone: data.phone || '',
-        website: data.website || '',
-        tax_id: data.tax_id || '',
-        registration_number: data.registration_number || '',
-        street: data.address?.street || '',
-        city: data.address?.city || '',
-        postal_code: data.address?.postal_code || '',
-        country: data.address?.country || '',
-        primary_color: data.branding?.primary_color || '#3B82F6',
-        secondary_color: data.branding?.secondary_color || '#1E40AF',
-        currency: data.defaults?.currency || 'EUR',
-        timezone: data.defaults?.timezone || 'Europe/Berlin',
-        language: data.defaults?.language || 'de'
+        name: tenantSettings.name || '',
+        email: '', // Not in TenantSettings interface
+        phone: '', // Not in TenantSettings interface
+        website: '', // Not in TenantSettings interface
+        tax_id: '', // Not in TenantSettings interface
+        registration_number: '', // Not in TenantSettings interface
+        street: '', // Not in TenantSettings interface
+        city: '', // Not in TenantSettings interface
+        postal_code: '', // Not in TenantSettings interface
+        country: '', // Not in TenantSettings interface
+        primary_color: tenantSettings.primary_color || '#3B82F6',
+        secondary_color: tenantSettings.secondary_color || '#1E40AF',
+        currency: tenantSettings.currency || 'EUR',
+        timezone: tenantSettings.timezone || 'Europe/Berlin',
+        language: tenantSettings.language || 'de'
       });
-    } catch (error) {
-      console.error('Failed to load tenant data:', error);
-      showMessage('error', 'Fehler beim Laden der Unternehmensdaten');
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [tenantSettings]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -71,17 +63,8 @@ export const OrganizationTab: React.FC = () => {
   const handleSave = async () => {
     try {
       setSaving(true);
-      await tenantService.updateTenant({
+      await updateTenantMutation.mutateAsync({
         name: formData.name,
-        email: formData.email,
-        phone: formData.phone,
-        website: formData.website,
-        tax_id: formData.tax_id,
-        registration_number: formData.registration_number,
-        street: formData.street,
-        city: formData.city,
-        postal_code: formData.postal_code,
-        country: formData.country,
         primary_color: formData.primary_color,
         secondary_color: formData.secondary_color,
         currency: formData.currency,
@@ -89,7 +72,6 @@ export const OrganizationTab: React.FC = () => {
         language: formData.language
       });
       showMessage('success', 'Unternehmensdaten erfolgreich gespeichert');
-      await loadTenantData();
     } catch (error) {
       console.error('Failed to save tenant data:', error);
       showMessage('error', 'Fehler beim Speichern der Daten');
@@ -99,34 +81,8 @@ export const OrganizationTab: React.FC = () => {
   };
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (file.size > 5 * 1024 * 1024) {
-      showMessage('error', 'Datei ist zu groß (max. 5MB)');
-      return;
-    }
-
-    const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/svg+xml', 'image/webp'];
-    if (!allowedTypes.includes(file.type)) {
-      showMessage('error', 'Ungültiger Dateityp (nur PNG, JPG, SVG, WebP)');
-      return;
-    }
-
-    try {
-      setUploadingLogo(true);
-      await tenantService.uploadLogo(file);
-      showMessage('success', 'Logo erfolgreich hochgeladen');
-      await loadTenantData();
-    } catch (error) {
-      console.error('Failed to upload logo:', error);
-      showMessage('error', 'Fehler beim Hochladen des Logos');
-    } finally {
-      setUploadingLogo(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    }
+    // TODO: Implement logo upload when backend supports it
+    showMessage('error', 'Logo-Upload noch nicht implementiert');
   };
 
   const showMessage = (type: 'success' | 'error', text: string) => {
@@ -244,9 +200,9 @@ export const OrganizationTab: React.FC = () => {
         <h3 className="text-lg font-semibold text-white mb-4">Unternehmenslogo</h3>
         <div className="flex items-center gap-6">
           <div className="w-32 h-32 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center overflow-hidden">
-            {tenant?.branding?.logo_url ? (
+            {tenantSettings?.logo_url ? (
               <img 
-                src={tenant.branding.logo_url} 
+                src={tenantSettings.logo_url} 
                 alt="Company Logo" 
                 className="w-full h-full object-contain"
               />
@@ -438,40 +394,6 @@ export const OrganizationTab: React.FC = () => {
           </div>
         </div>
       </GlassCard>
-
-      {tenant?.subscription && (
-        <GlassCard className="p-6">
-          <h3 className="text-lg font-semibold text-white mb-4">Abonnement</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div>
-              <p className="text-sm text-gray-400">Plan</p>
-              <p className="text-lg font-semibold text-white">{tenant.subscription.plan}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-400">Status</p>
-              <span className={`inline-block px-3 py-1 rounded-full text-sm ${
-                tenant.subscription.status === 'active' 
-                  ? 'bg-green-500/20 text-green-300' 
-                  : 'bg-yellow-500/20 text-yellow-300'
-              }`}>
-                {tenant.subscription.status}
-              </span>
-            </div>
-            <div>
-              <p className="text-sm text-gray-400">Benutzer</p>
-              <p className="text-lg font-semibold text-white">
-                {tenant.subscription.limits?.max_users || 'Unbegrenzt'}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-400">Immobilien</p>
-              <p className="text-lg font-semibold text-white">
-                {tenant.subscription.limits?.max_properties || 'Unbegrenzt'}
-              </p>
-            </div>
-          </div>
-        </GlassCard>
-      )}
 
       <div className="flex justify-end">
         <GlassButton

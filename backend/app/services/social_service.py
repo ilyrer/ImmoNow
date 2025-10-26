@@ -745,23 +745,112 @@ class SocialService:
         except SocialPost.DoesNotExist:
             return None
     
+    async def test_account_connection(self, account_id: str) -> bool:
+        """Test if social media account connection is working"""
+        try:
+            account = await sync_to_async(SocialAccount.objects.get)(
+                id=account_id,
+                tenant_id=self.tenant_id
+            )
+            
+            # Decrypt access token
+            from app.services.oauth_service import OAuthService
+            oauth_service = OAuthService()
+            decrypted_token = oauth_service.decrypt_token(account.access_token)
+            
+            # Test connection using platform API
+            from app.services.social_platform_api import SocialPlatformAPIFactory
+            return await SocialPlatformAPIFactory.test_connection(account.platform, decrypted_token)
+            
+        except Exception as e:
+            logger.error(f"Account connection test failed: {e}")
+            return False
+    
+    async def sync_account_data(self, account_id: str) -> Optional[SocialAccountResponse]:
+        """Sync account data from platform"""
+        try:
+            account = await sync_to_async(SocialAccount.objects.get)(
+                id=account_id,
+                tenant_id=self.tenant_id
+            )
+            
+            # Decrypt access token
+            from app.services.oauth_service import OAuthService
+            oauth_service = OAuthService()
+            decrypted_token = oauth_service.decrypt_token(account.access_token)
+            
+            # Get platform API
+            from app.services.social_platform_api import SocialPlatformAPIFactory
+            api = SocialPlatformAPIFactory.create_api(account.platform, decrypted_token)
+            
+            # Get user profile
+            profile = await api.get_user_profile()
+            
+            # Update account with latest data
+            account.account_name = profile.get('name') or profile.get('username') or profile.get('display_name') or account.account_name
+            account.last_sync_at = datetime.utcnow()
+            await sync_to_async(account.save)()
+            
+            return SocialAccountResponse(
+                id=str(account.id),
+                platform=account.platform,
+                account_name=account.account_name,
+                account_id=account.account_id,
+                status='active' if account.is_active else 'inactive',
+                created_at=account.created_at,
+                last_sync_at=account.last_sync_at
+            )
+            
+        except Exception as e:
+            logger.error(f"Account sync failed: {e}")
+            return None
+    
+    async def publish_post_to_platform(self, post_id: str, platform: str, account_id: str) -> Optional[Dict[str, Any]]:
+        """Publish post to specific platform"""
+        try:
+            # Get post
+            post = await sync_to_async(SocialPost.objects.get)(
+                id=post_id,
+                tenant_id=self.tenant_id
+            )
+            
+            # Get account
+            account = await sync_to_async(SocialAccount.objects.get)(
+                id=account_id,
+                tenant_id=self.tenant_id,
+                platform=platform
+            )
+            
+            # Decrypt access token
+            from app.services.oauth_service import OAuthService
+            oauth_service = OAuthService()
+            decrypted_token = oauth_service.decrypt_token(account.access_token)
+            
+            # Get platform API
+            from app.services.social_platform_api import SocialPlatformAPIFactory
+            api = SocialPlatformAPIFactory.create_api(platform, decrypted_token)
+            
+            # Publish post
+            result = await api.create_post(post.content, post.media_urls)
+            
+            # Update post status
+            post.status = 'published'
+            post.published_at = datetime.utcnow()
+            await sync_to_async(post.save)()
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Post publishing failed: {e}")
+            return None
+    
     # OAuth Methods
-    async def get_oauth_url(self, platform: str) -> str:
+    async def get_oauth_url(self, platform: str, user_id: str) -> str:
         """Get OAuth authorization URL for platform"""
+        from app.services.oauth_service import OAuthService
         
-        # In a real implementation, this would generate platform-specific OAuth URLs
-        # For now, return a mock URL
-        base_url = os.getenv('FRONTEND_URL', 'http://localhost:3000')
-        redirect_uri = f"{base_url}/oauth/callback"
-        
-        oauth_urls = {
-            'facebook': f"https://www.facebook.com/v18.0/dialog/oauth?client_id={{client_id}}&redirect_uri={redirect_uri}&scope=pages_manage_posts,pages_read_engagement",
-            'instagram': f"https://api.instagram.com/oauth/authorize?client_id={{client_id}}&redirect_uri={redirect_uri}&scope=user_profile,user_media",
-            'linkedin': f"https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id={{client_id}}&redirect_uri={redirect_uri}&scope=r_liteprofile,r_emailaddress,w_member_social",
-            'twitter': f"https://twitter.com/i/oauth2/authorize?response_type=code&client_id={{client_id}}&redirect_uri={redirect_uri}&scope=tweet.read,tweet.write,users.read"
-        }
-        
-        return oauth_urls.get(platform, "")
+        oauth_service = OAuthService()
+        return await oauth_service.get_oauth_url(platform, user_id, self.tenant_id)
     
     async def handle_oauth_callback(
         self,
@@ -771,19 +860,36 @@ class SocialService:
         user_id: str
     ) -> SocialAccountResponse:
         """Handle OAuth callback and create account"""
+        from app.services.oauth_service import OAuthService
         
-        # In a real implementation, this would exchange the code for tokens
-        # For now, create a mock account
-        account_name = f"{platform.title()} Account"
-        account_id = f"{platform}_{user_id}_{datetime.utcnow().timestamp()}"
+        oauth_service = OAuthService()
+        
+        # Exchange code for tokens
+        token_data = await oauth_service.exchange_code_for_token(platform, code, state)
+        
+        # Get user information
+        user_info = await oauth_service.get_user_info(platform, token_data['access_token'])
+        
+        # Encrypt tokens for storage
+        encrypted_access_token = oauth_service.encrypt_token(token_data['access_token'])
+        encrypted_refresh_token = None
+        if token_data.get('refresh_token'):
+            encrypted_refresh_token = oauth_service.encrypt_token(token_data['refresh_token'])
+        
+        # Calculate token expiration
+        token_expires_at = None
+        if token_data.get('expires_in'):
+            token_expires_at = datetime.utcnow() + timedelta(seconds=token_data['expires_in'])
         
         # Create account in database
         account = await sync_to_async(SocialAccount.objects.create)(
             tenant_id=self.tenant_id,
             platform=platform,
-            account_id=account_id,
-            account_name=account_name,
-            access_token="mock_token",  # In real app, this would be encrypted
+            account_id=user_info['id'],
+            account_name=user_info.get('name') or user_info.get('username') or user_info.get('display_name'),
+            access_token=encrypted_access_token,
+            refresh_token=encrypted_refresh_token,
+            token_expires_at=token_expires_at,
             created_by_id=user_id,
             is_active=True
         )

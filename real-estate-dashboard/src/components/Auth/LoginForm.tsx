@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Mail, Lock, Eye, EyeOff, LogIn } from 'lucide-react';
+import apiClient from '../../api/enhancedClient';
 
 interface LoginRequest {
   email: string;
@@ -41,9 +42,11 @@ const LoginForm: React.FC<LoginFormProps> = ({
 
     setIsLoading(true);
     try {
+      const response = await apiClient.login({ email, password });
+      // Login erfolgreich - onLogin wird vom Parent aufgerufen
       await onLogin({ email, password });
     } catch (err: any) {
-      setError(err.message || 'Login fehlgeschlagen');
+      setError(typeof err.message === 'string' ? err.message : 'Login fehlgeschlagen');
     } finally {
       setIsLoading(false);
     }
@@ -155,7 +158,7 @@ const LoginForm: React.FC<LoginFormProps> = ({
                 animate={{ opacity: 1, y: 0 }}
                 className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-red-600 dark:text-red-400 text-sm"
               >
-                {error}
+                {typeof error === 'string' ? error : JSON.stringify(error)}
               </motion.div>
             )}
 

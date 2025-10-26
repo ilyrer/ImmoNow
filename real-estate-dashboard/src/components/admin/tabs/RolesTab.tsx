@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Shield, Plus, Save } from 'lucide-react';
 import { GlassCard, GlassButton, Badge, EmptyState } from '../GlassUI';
 import { 
-  useAdminRoles, 
+  useRoles, 
   useAdminPermissions, 
   useCreateRole, 
   useUpdateRole, 
@@ -12,7 +12,7 @@ import {
 } from '../../../api/adminHooks';
 
 const RolesTab: React.FC = () => {
-  const { data: roles = [], isLoading: rolesLoading } = useAdminRoles();
+  const { data: roles = [], isLoading: rolesLoading } = useRoles();
   const { data: permissions = [], isLoading: permissionsLoading } = useAdminPermissions();
   const createRoleMutation = useCreateRole();
   const updateRoleMutation = useUpdateRole();

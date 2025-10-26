@@ -18,12 +18,40 @@ const LiveOverviewWidget: React.FC = () => {
   const [analytics, setAnalytics] = useState<LiveAnalytics | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const [revenueTarget, setRevenueTarget] = useState(120000); // Default target
+
+  // Hilfsfunktion für Zahlenformatierung
+  const formatCurrency = (value: number, showCurrency = true) => {
+    if (value >= 1000000) {
+      return `${(value / 1000000).toFixed(1)}M${showCurrency ? '€' : ''}`;
+    } else {
+      return `${(value / 1000).toFixed(0)}k${showCurrency ? '€' : ''}`;
+    }
+  };
+
+  // Lade Widget-Konfiguration aus localStorage
+  const loadWidgetConfig = () => {
+    try {
+      const config = localStorage.getItem('widget_config_revenue_chart');
+      if (config) {
+        const parsedConfig = JSON.parse(config);
+        if (parsedConfig.target) {
+          setRevenueTarget(parsedConfig.target);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading widget config:', error);
+    }
+  };
 
   useEffect(() => {
     const fetchAnalytics = async () => {
       try {
         setIsLoading(true);
         setError(null);
+
+        // Lade Konfiguration
+        loadWidgetConfig();
 
         // Fetch data from multiple endpoints
         const [dashboardData, propertiesData, contactsData] = await Promise.all([
@@ -47,7 +75,7 @@ const LiveOverviewWidget: React.FC = () => {
           new_inquiries: (contactsData as any).new_inquiries_this_week || 0,
           conversion_rate: Math.round((contactsData as any).conversion_rate || 0),
           revenue_current_month: (dashboardData as any).revenue_current_month || 0,
-          revenue_target: (dashboardData as any).revenue_target || 120000,
+          revenue_target: revenueTarget,
         };
 
         console.log('✅ Mapped Live Data:', liveData);
@@ -65,6 +93,19 @@ const LiveOverviewWidget: React.FC = () => {
     // Refresh data every 30 seconds for live updates
     const interval = setInterval(fetchAnalytics, 30000);
     return () => clearInterval(interval);
+  }, [revenueTarget]); // revenueTarget als Dependency hinzufügen
+
+  // Event Listener für localStorage Änderungen (Custom Event)
+  useEffect(() => {
+    const handleConfigChange = (e: CustomEvent) => {
+      if (e.detail?.widgetType === 'revenue_chart' && e.detail?.config?.target) {
+        setRevenueTarget(e.detail.config.target);
+        console.log('🎯 Live Overview: Revenue target updated to', e.detail.config.target);
+      }
+    };
+
+    window.addEventListener('widgetConfigChanged', handleConfigChange as EventListener);
+    return () => window.removeEventListener('widgetConfigChanged', handleConfigChange as EventListener);
   }, []);
 
   // Use analytics data or fallback to empty data
@@ -215,13 +256,13 @@ const LiveOverviewWidget: React.FC = () => {
           <div>
             <p className="text-xs text-gray-600 dark:text-gray-400 font-medium">Umsatz</p>
             <p className="text-lg font-bold text-gray-900 dark:text-white">
-              {displayData.revenue_current_month.toLocaleString('de-DE')}€
+              {formatCurrency(displayData.revenue_current_month)}
             </p>
           </div>
           <div className="text-right">
             <p className="text-xs text-gray-500 dark:text-gray-400">Ziel</p>
             <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-              {displayData.revenue_target.toLocaleString('de-DE')}€
+              {formatCurrency(displayData.revenue_target)}
             </p>
           </div>
         </div>

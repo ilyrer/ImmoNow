@@ -122,8 +122,25 @@ export const useCreateProperty = () => {
       toast.success('Immobilie erfolgreich erstellt!');
     },
     onError: (error: any) => {
-      const message = error?.response?.data?.detail || 'Fehler beim Erstellen der Immobilie';
-      toast.error(message);
+      let message = 'Fehler beim Erstellen der Immobilie';
+      
+      if (error?.response?.data?.detail) {
+        const detail = error.response.data.detail;
+        if (Array.isArray(detail)) {
+          message = detail.map((e: any) => {
+            const field = e.loc?.join('.') || 'unknown';
+            return `${field}: ${e.msg}`;
+          }).join(', ');
+        } else if (typeof detail === 'string') {
+          message = detail;
+        } else if (typeof detail === 'object') {
+          const field = detail.loc?.join('.') || 'unknown';
+          message = `${field}: ${detail.msg}`;
+        }
+      }
+      
+      const safeMessage = typeof message === 'string' ? message : JSON.stringify(message);
+      toast.error(safeMessage);
     },
   });
 };
@@ -140,7 +157,10 @@ export const useUpdateProperty = () => {
     { id: string; payload: UpdatePropertyPayload } // Variables type
   >({
     mutationFn: async ({ id, payload }) => {
-      return await propertiesService.updateProperty(id, payload);
+      console.log('🔍 useUpdateProperty: mutationFn called', { id, payload });
+      const result = await propertiesService.updateProperty(id, payload);
+      console.log('🔍 useUpdateProperty: mutationFn completed', result);
+      return result;
     },
     
     onSuccess: (data, { id }) => {
@@ -151,8 +171,28 @@ export const useUpdateProperty = () => {
     },
     
     onError: (error: any) => {
-      const message = error?.response?.data?.detail || 'Fehler beim Aktualisieren der Immobilie';
-      toast.error(message);
+      let message = 'Fehler beim Aktualisieren der Immobilie';
+      
+      if (error?.response?.data?.detail) {
+        const detail = error.response.data.detail;
+        if (Array.isArray(detail)) {
+          // Pydantic validation errors
+          message = detail.map((e: any) => {
+            const field = e.loc?.join('.') || 'unknown';
+            return `${field}: ${e.msg}`;
+          }).join(', ');
+        } else if (typeof detail === 'string') {
+          message = detail;
+        } else if (typeof detail === 'object') {
+          // Single validation error object
+          const field = detail.loc?.join('.') || 'unknown';
+          message = `${field}: ${detail.msg}`;
+        }
+      }
+      
+      // Ensure message is always a string
+      const safeMessage = typeof message === 'string' ? message : JSON.stringify(message);
+      toast.error(safeMessage);
     },
   });
 };
@@ -200,8 +240,26 @@ export const useDeleteProperty = () => {
           queryClient.setQueryData(queryKey, data);
         });
       }
-      const message = error?.response?.data?.detail || 'Fehler beim Löschen der Immobilie';
-      toast.error(message);
+      
+      let message = 'Fehler beim Löschen der Immobilie';
+      
+      if (error?.response?.data?.detail) {
+        const detail = error.response.data.detail;
+        if (Array.isArray(detail)) {
+          message = detail.map((e: any) => {
+            const field = e.loc?.join('.') || 'unknown';
+            return `${field}: ${e.msg}`;
+          }).join(', ');
+        } else if (typeof detail === 'string') {
+          message = detail;
+        } else if (typeof detail === 'object') {
+          const field = detail.loc?.join('.') || 'unknown';
+          message = `${field}: ${detail.msg}`;
+        }
+      }
+      
+      const safeMessage = typeof message === 'string' ? message : JSON.stringify(message);
+      toast.error(safeMessage);
     },
   });
 };
@@ -223,8 +281,25 @@ export const useUploadPropertyMedia = (propertyId: string) => {
     },
     
     onError: (error: any) => {
-      const message = error?.response?.data?.detail || 'Fehler beim Hochladen der Medien';
-      toast.error(message);
+      let message = 'Fehler beim Hochladen der Medien';
+      
+      if (error?.response?.data?.detail) {
+        const detail = error.response.data.detail;
+        if (Array.isArray(detail)) {
+          message = detail.map((e: any) => {
+            const field = e.loc?.join('.') || 'unknown';
+            return `${field}: ${e.msg}`;
+          }).join(', ');
+        } else if (typeof detail === 'string') {
+          message = detail;
+        } else if (typeof detail === 'object') {
+          const field = detail.loc?.join('.') || 'unknown';
+          message = `${field}: ${detail.msg}`;
+        }
+      }
+      
+      const safeMessage = typeof message === 'string' ? message : JSON.stringify(message);
+      toast.error(safeMessage);
     },
   });
 };
@@ -245,8 +320,25 @@ export const useDeletePropertyMedia = (propertyId: string) => {
     },
     
     onError: (error: any) => {
-      const message = error?.response?.data?.detail || 'Fehler beim Löschen des Mediums';
-      toast.error(message);
+      let message = 'Fehler beim Löschen des Mediums';
+      
+      if (error?.response?.data?.detail) {
+        const detail = error.response.data.detail;
+        if (Array.isArray(detail)) {
+          message = detail.map((e: any) => {
+            const field = e.loc?.join('.') || 'unknown';
+            return `${field}: ${e.msg}`;
+          }).join(', ');
+        } else if (typeof detail === 'string') {
+          message = detail;
+        } else if (typeof detail === 'object') {
+          const field = detail.loc?.join('.') || 'unknown';
+          message = `${field}: ${detail.msg}`;
+        }
+      }
+      
+      const safeMessage = typeof message === 'string' ? message : JSON.stringify(message);
+      toast.error(safeMessage);
     },
   });
 };
@@ -267,8 +359,25 @@ export const useSetPrimaryMedia = (propertyId: string) => {
     },
     
     onError: (error: any) => {
-      const message = error?.response?.data?.detail || 'Fehler beim Setzen des Hauptbildes';
-      toast.error(message);
+      let message = 'Fehler beim Setzen des Hauptbildes';
+      
+      if (error?.response?.data?.detail) {
+        const detail = error.response.data.detail;
+        if (Array.isArray(detail)) {
+          message = detail.map((e: any) => {
+            const field = e.loc?.join('.') || 'unknown';
+            return `${field}: ${e.msg}`;
+          }).join(', ');
+        } else if (typeof detail === 'string') {
+          message = detail;
+        } else if (typeof detail === 'object') {
+          const field = detail.loc?.join('.') || 'unknown';
+          message = `${field}: ${detail.msg}`;
+        }
+      }
+      
+      const safeMessage = typeof message === 'string' ? message : JSON.stringify(message);
+      toast.error(safeMessage);
     },
   });
 };
@@ -305,8 +414,25 @@ export const useBulkPropertyAction = () => {
     },
     
     onError: (error: any) => {
-      const message = error?.response?.data?.detail || 'Fehler bei der Bulk-Aktion';
-      toast.error(message);
+      let message = 'Fehler bei der Bulk-Aktion';
+      
+      if (error?.response?.data?.detail) {
+        const detail = error.response.data.detail;
+        if (Array.isArray(detail)) {
+          message = detail.map((e: any) => {
+            const field = e.loc?.join('.') || 'unknown';
+            return `${field}: ${e.msg}`;
+          }).join(', ');
+        } else if (typeof detail === 'string') {
+          message = detail;
+        } else if (typeof detail === 'object') {
+          const field = detail.loc?.join('.') || 'unknown';
+          message = `${field}: ${detail.msg}`;
+        }
+      }
+      
+      const safeMessage = typeof message === 'string' ? message : JSON.stringify(message);
+      toast.error(safeMessage);
     },
   });
 };

@@ -18,7 +18,11 @@ import {
   Settings,
   Eye,
   EyeOff,
-  Search
+  Search,
+  Layers,
+  Sparkles,
+  Palette,
+  Zap
 } from 'lucide-react';
 
 interface DashboardWidget {
@@ -33,7 +37,7 @@ interface DashboardWidget {
     h: number;
   };
   visible: boolean;
-  category: 'analytics' | 'sales' | 'properties' | 'team' | 'activities' | 'finance';
+  category: 'analytics' | 'sales' | 'properties' | 'team' | 'activities' | 'finance' | 'system' | 'billing' | 'documents' | 'hr' | 'calendar' | 'notifications' | 'social' | 'communication';
   icon: React.ElementType;
   color: string;
 }
@@ -111,90 +115,115 @@ const WidgetManager: React.FC<WidgetManagerProps> = ({
 
   return (
     <>
-      {/* Backdrop mit Click zum Schließen */}
+      {/* Backdrop mit Click zum Schließen - Transparent für bessere Sichtbarkeit */}
       <div 
-        className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[10002] transition-opacity"
+        className="fixed inset-0 bg-black/20 z-[10002] transition-all duration-300 pointer-events-auto"
         onClick={onClose}
       />
       
       {/* Sidebar */}
-      <div className="fixed left-0 top-0 bottom-0 z-[10003] w-96 h-full bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border-r border-white/20 dark:border-gray-700/50 shadow-2xl overflow-hidden">
-        {/* Close button - Grau und sichtbar */}
+      <div className="fixed left-0 top-0 bottom-0 z-[10003] w-[420px] h-screen bg-gradient-to-br from-white/10 via-white/5 to-transparent backdrop-blur-2xl border-r border-white/20 shadow-2xl overflow-hidden flex flex-col">
+        {/* Glasmorphismus Hintergrund */}
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-purple-500/5 to-pink-500/5" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-white/10" />
+        
+        {/* Scrollbar Container für den gesamten Inhalt */}
+        <div className="flex-1 overflow-y-auto widget-manager-scroll">
+        {/* Close button - Modernes Design */}
         <button 
           onClick={onClose}
-          className="absolute top-4 right-4 z-[10004] p-2.5 rounded-xl bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 transition-all shadow-lg hover:shadow-xl group"
+          className="absolute top-6 right-6 z-[10004] p-3 rounded-2xl bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white/80 hover:text-white transition-all duration-300 shadow-lg hover:shadow-xl group border border-white/20"
           title="Widget Manager schließen (ESC)"
         >
           <X className="w-5 h-5" />
-          <span className="absolute -bottom-8 right-0 bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+          <span className="absolute -bottom-10 right-0 bg-slate-800/90 backdrop-blur-sm text-white text-xs px-3 py-2 rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-300 whitespace-nowrap border border-white/10">
             ESC zum Schließen
           </span>
         </button>
         
         {/* Header */}
-        <div className="p-6 border-b border-white/10 dark:border-gray-700/50">
-          <div className="mb-4">
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                📊 Widget-Manager
-              </h2>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Widgets per Drag & Drop hinzufügen
-              </p>
+        <div className="relative p-8 border-b border-white/10">
+          <div className="mb-6">
+            <div className="flex items-center space-x-3 mb-2">
+              <div className="p-2 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 backdrop-blur-sm border border-white/20">
+                <Layers className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-white">
+                  Widget Manager
+                </h2>
+                <p className="text-sm text-white/70 font-medium">
+                  Dashboard anpassen und optimieren
+                </p>
+              </div>
             </div>
           </div>
           
           {/* Instructions */}
-          <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg border border-blue-200 dark:border-blue-700">
-            <div className="flex items-start space-x-2">
-              <div className="text-blue-500 mt-0.5">💡</div>
-              <div className="text-sm text-blue-700 dark:text-blue-300">
-                <strong>So geht's:</strong>
-                <ol className="mt-1 space-y-1 text-xs">
-                  <li>1. Widget aus der Liste unten auswählen</li>
-                  <li>2. Widget ins Dashboard ziehen & ablegen</li>
-                  <li>3. Zum Verschieben: "Anpassen" Button aktivieren</li>
+          <div className="mb-6 p-4 bg-gradient-to-r from-blue-500/10 to-purple-500/10 backdrop-blur-sm rounded-2xl border border-white/20">
+            <div className="flex items-start space-x-3">
+              <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500/20 to-purple-500/20">
+                <Sparkles className="w-4 h-4 text-blue-300" />
+              </div>
+              <div className="text-sm text-white/90">
+                <strong className="text-white font-semibold">Anleitung:</strong>
+                <ol className="mt-2 space-y-1.5 text-xs text-white/80">
+                  <li className="flex items-center space-x-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+                    <span>Widget aus der Liste auswählen</span>
+                  </li>
+                  <li className="flex items-center space-x-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-purple-400" />
+                    <span>Ins Dashboard ziehen & ablegen</span>
+                  </li>
+                  <li className="flex items-center space-x-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-pink-400" />
+                    <span>Zum Verschieben: "Anpassen" aktivieren</span>
+                  </li>
                 </ol>
               </div>
             </div>
           </div>
 
           {/* Search */}
-          <div className="relative mb-4">
+          <div className="relative mb-6">
             <input
               type="text"
               placeholder="Widgets durchsuchen..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full px-4 py-2 pl-10 bg-white/50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-3 pl-12 bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-400/50 focus:border-blue-400/50 text-white placeholder-white/60 transition-all duration-300"
             />
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-white/60" />
           </div>
 
           {/* Action Buttons */}
-          <div className="flex space-x-2">
+          <div className="flex space-x-3">
             <button
               onClick={onResetLayout}
-              className="flex-1 px-3 py-2 text-sm bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+              className="flex-1 px-4 py-3 text-sm font-medium bg-white/10 backdrop-blur-sm text-white/90 rounded-xl hover:bg-white/20 transition-all duration-300 border border-white/20 hover:border-white/30"
             >
-              Layout zurücksetzen
+              <div className="flex items-center justify-center space-x-2">
+                <Zap className="w-4 h-4" />
+                <span>Layout zurücksetzen</span>
+              </div>
             </button>
           </div>
         </div>
 
         {/* Categories */}
-        <div className="p-4 border-b border-white/10 dark:border-gray-700/50">
-          <div className="grid grid-cols-2 gap-2">
+        <div className="relative p-6 border-b border-white/10">
+          <div className="grid grid-cols-2 gap-3">
             {categories.map((category) => {
               const Icon = category.icon || Settings;
               return (
                 <button
                   key={category.id}
                   onClick={() => setSelectedCategory(category.id)}
-                  className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                  className={`flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-300 ${
                     selectedCategory === category.id
-                      ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
-                      : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                      ? 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 backdrop-blur-sm text-white border border-white/30 shadow-lg'
+                      : 'bg-white/5 backdrop-blur-sm text-white/70 hover:bg-white/10 hover:text-white border border-white/10 hover:border-white/20'
                   }`}
                 >
                   {Icon && <Icon className="w-4 h-4" />}
@@ -206,62 +235,74 @@ const WidgetManager: React.FC<WidgetManagerProps> = ({
         </div>
 
         {/* Active Widgets */}
-        <div className="p-4 border-b border-white/10 dark:border-gray-700/50">
-          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-            Aktive Widgets ({activeWidgets.length})
+        <div className="relative p-6 border-b border-white/10">
+          <h3 className="text-sm font-semibold text-white/90 mb-4 flex items-center space-x-2">
+            <div className="p-1.5 rounded-lg bg-gradient-to-br from-green-500/20 to-emerald-500/20">
+              <Eye className="w-3 h-3 text-green-300" />
+            </div>
+            <span>Aktive Widgets ({activeWidgets.length})</span>
           </h3>
-          <div className="space-y-2 max-h-32 overflow-y-auto">
+          <div className="space-y-3">
             {activeWidgets.map((widget) => {
               const Icon = widget.icon || Settings;
               return (
                 <div
                   key={widget.id}
-                  className="flex items-center justify-between p-2 bg-gray-100 dark:bg-gray-800 rounded-lg"
+                  className="flex items-center justify-between p-3 bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 hover:bg-white/10 transition-all duration-300"
                 >
-                  <div className="flex items-center space-x-2">
-                    {Icon && <Icon className="w-4 h-4 text-gray-600 dark:text-gray-400" />}
-                    <span className="text-sm text-gray-700 dark:text-gray-300 truncate">
+                  <div className="flex items-center space-x-3">
+                    <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500/20 to-purple-500/20">
+                      {Icon && <Icon className="w-4 h-4 text-white/80" />}
+                    </div>
+                    <span className="text-sm text-white/90 font-medium truncate">
                       {widget.title}
                     </span>
                   </div>
-                  <div className="flex items-center space-x-1">
+                  <div className="flex items-center space-x-2">
                     <button
                       onClick={() => onToggleWidget(widget.id)}
-                      className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                      className="p-2 rounded-lg hover:bg-white/10 transition-all duration-300"
                       title={widget.visible ? 'Ausblenden' : 'Anzeigen'}
                     >
                       {widget.visible ? (
-                        <Eye className="w-3 h-3 text-green-600" />
+                        <Eye className="w-4 h-4 text-green-400" />
                       ) : (
-                        <EyeOff className="w-3 h-3 text-gray-400" />
+                        <EyeOff className="w-4 h-4 text-white/40" />
                       )}
                     </button>
                     <button
                       onClick={() => onRemoveWidget(widget.id)}
-                      className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
+                      className="p-2 rounded-lg hover:bg-red-500/20 transition-all duration-300"
                       title="Widget entfernen"
                     >
-                      <X className="w-3 h-3 text-red-500" />
+                      <X className="w-4 h-4 text-red-400" />
                     </button>
                   </div>
                 </div>
               );
             })}
             {activeWidgets.length === 0 && (
-              <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
-                Keine aktiven Widgets
-              </p>
+              <div className="text-center py-6">
+                <div className="w-12 h-12 rounded-2xl bg-white/5 backdrop-blur-sm flex items-center justify-center mx-auto mb-3 border border-white/10">
+                  <Settings className="w-5 h-5 text-white/40" />
+                </div>
+                <p className="text-sm text-white/60">
+                  Keine aktiven Widgets
+                </p>
+              </div>
             )}
           </div>
         </div>
 
         {/* Available Widgets */}
-        <div className="flex-1 overflow-y-auto">
-          <div className="p-4">
-            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-              Verfügbare Widgets
-            </h3>
-            <div className="space-y-3">
+        <div className="p-6">
+          <h3 className="text-sm font-semibold text-white/90 mb-4 flex items-center space-x-2">
+            <div className="p-1.5 rounded-lg bg-gradient-to-br from-blue-500/20 to-purple-500/20">
+              <Palette className="w-3 h-3 text-blue-300" />
+            </div>
+            <span>Verfügbare Widgets</span>
+          </h3>
+          <div className="space-y-4 pb-4">
               {filteredWidgets.map((widget) => {
                 const Icon = widget.icon || Settings;
                 const isActive = isWidgetActive(widget.type);
@@ -271,70 +312,69 @@ const WidgetManager: React.FC<WidgetManagerProps> = ({
                     key={widget.type}
                     draggable={!isActive}
                     onDragStart={(e) => handleDragStart(e, widget)}
-                    className={`relative p-4 rounded-xl border-2 border-dashed transition-all group ${
+                    className={`relative p-5 rounded-2xl border-2 border-dashed transition-all duration-300 group ${
                       isActive
-                        ? 'border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-800 opacity-50 cursor-not-allowed'
-                        : 'border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-800/50 hover:border-blue-400 dark:hover:border-blue-500 hover:bg-gradient-to-br hover:from-blue-50 hover:to-purple-50 dark:hover:from-blue-900/20 dark:hover:to-purple-900/20 cursor-grab active:cursor-grabbing hover:shadow-lg hover:scale-[1.02]'
+                        ? 'border-white/20 bg-white/5 backdrop-blur-sm opacity-50 cursor-not-allowed'
+                        : 'border-white/20 bg-white/5 backdrop-blur-sm hover:border-blue-400/50 hover:bg-gradient-to-br hover:from-blue-500/10 hover:to-purple-500/10 cursor-grab active:cursor-grabbing hover:shadow-xl hover:scale-[1.02] hover:shadow-blue-500/10'
                     }`}
                   >
                     {!isActive && (
-                      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <div className="flex items-center space-x-1 bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
+                      <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                        <div className="flex items-center space-x-2 bg-white/20 backdrop-blur-sm text-white text-xs px-3 py-1.5 rounded-full shadow-lg border border-white/30">
                           <Grip className="w-3 h-3" />
-                          <span>Ziehen</span>
+                          <span className="font-medium">Ziehen</span>
                         </div>
                       </div>
                     )}
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center space-x-3">
-                        <div className={`p-2 rounded-lg ${widget.color}`}>
-                          {Icon && <Icon className="w-5 h-5 text-white" />}
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center space-x-4">
+                        <div className={`p-3 rounded-xl ${widget.color} shadow-lg`}>
+                          {Icon && <Icon className="w-6 h-6 text-white" />}
                         </div>
                         <div>
-                          <h4 className="font-medium text-gray-900 dark:text-white text-sm">
+                          <h4 className="font-semibold text-white text-base mb-1">
                             {widget.title}
                           </h4>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          <p className="text-sm text-white/70 leading-relaxed">
                             {widget.description}
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-1">
-                        <Grip className="w-4 h-4 text-gray-400" />
+                      <div className="flex items-center space-x-2">
                         {!isActive ? (
                           <button
                             onClick={() => onAddWidget(widget)}
-                            className="p-1 rounded bg-blue-500 hover:bg-blue-600 transition-colors"
+                            className="p-2 rounded-xl bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 transition-all duration-300 shadow-lg hover:shadow-xl"
                             title="Widget hinzufügen"
                           >
-                            <Plus className="w-3 h-3 text-white" />
+                            <Plus className="w-4 h-4 text-white" />
                           </button>
                         ) : (
-                          <div className="p-1 rounded bg-gray-400 cursor-not-allowed">
-                            <Plus className="w-3 h-3 text-white opacity-50" />
+                          <div className="p-2 rounded-xl bg-white/10 cursor-not-allowed">
+                            <Plus className="w-4 h-4 text-white/30" />
                           </div>
                         )}
                       </div>
                     </div>
                     
-                    <div className="flex items-center justify-between text-xs">
-                      <span className={`px-2 py-1 rounded-full ${
-                        widget.category === 'analytics' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' :
-                        widget.category === 'sales' ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400' :
-                        widget.category === 'properties' ? 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400' :
-                        widget.category === 'team' ? 'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400' :
-                        widget.category === 'activities' ? 'bg-teal-100 text-teal-600 dark:bg-teal-900/30 dark:text-teal-400' :
-                        'bg-pink-100 text-pink-600 dark:bg-pink-900/30 dark:text-pink-400'
+                    <div className="flex items-center justify-between text-sm">
+                      <span className={`px-3 py-1.5 rounded-full font-medium ${
+                        widget.category === 'analytics' ? 'bg-gradient-to-r from-blue-500/20 to-blue-600/20 text-blue-300 border border-blue-400/30' :
+                        widget.category === 'sales' ? 'bg-gradient-to-r from-green-500/20 to-green-600/20 text-green-300 border border-green-400/30' :
+                        widget.category === 'properties' ? 'bg-gradient-to-r from-purple-500/20 to-purple-600/20 text-purple-300 border border-purple-400/30' :
+                        widget.category === 'team' ? 'bg-gradient-to-r from-orange-500/20 to-orange-600/20 text-orange-300 border border-orange-400/30' :
+                        widget.category === 'activities' ? 'bg-gradient-to-r from-teal-500/20 to-teal-600/20 text-teal-300 border border-teal-400/30' :
+                        'bg-gradient-to-r from-pink-500/20 to-pink-600/20 text-pink-300 border border-pink-400/30'
                       }`}>
                         {categories.find(c => c.id === widget.category)?.label}
                       </span>
-                      <span className="text-gray-500 dark:text-gray-400">
+                      <span className="text-white/60 font-medium">
                         {getWidgetSizeLabel(widget.position.w, widget.position.h)}
                       </span>
                     </div>
                     
                     {isActive && (
-                      <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 text-center">
+                      <div className="mt-3 text-sm text-white/60 text-center py-2 bg-white/5 rounded-xl border border-white/10">
                         Bereits im Dashboard
                       </div>
                     )}
@@ -343,12 +383,15 @@ const WidgetManager: React.FC<WidgetManagerProps> = ({
               })}
               
               {filteredWidgets.length === 0 && (
-                <div className="text-center py-8">
-                  <div className="w-16 h-16 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center mx-auto mb-4">
-                    <Settings className="w-6 h-6 text-gray-400" />
+                <div className="text-center py-12">
+                  <div className="w-20 h-20 rounded-3xl bg-white/5 backdrop-blur-sm flex items-center justify-center mx-auto mb-6 border border-white/10">
+                    <Settings className="w-8 h-8 text-white/40" />
                   </div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                  <p className="text-base text-white/60 font-medium">
                     Keine Widgets gefunden
+                  </p>
+                  <p className="text-sm text-white/40 mt-2">
+                    Versuchen Sie eine andere Kategorie oder Suchbegriff
                   </p>
                 </div>
               )}
@@ -356,16 +399,20 @@ const WidgetManager: React.FC<WidgetManagerProps> = ({
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="p-4 border-t border-white/10 dark:border-gray-700/50 bg-gray-50 dark:bg-gray-800/50">
-          <div className="text-xs text-gray-500 dark:text-gray-400">
-            <div className="flex items-center space-x-2 mb-2">
-              <Grip className="w-3 h-3" />
-              <span>Ziehen Sie Widgets ins Dashboard</span>
+        {/* Footer - außerhalb des Scroll-Containers */}
+        <div className="relative p-6 border-t border-white/10 bg-gradient-to-r from-white/5 to-transparent backdrop-blur-sm">
+          <div className="text-sm text-white/70">
+            <div className="flex items-center space-x-3 mb-3">
+              <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500/20 to-purple-500/20">
+                <Grip className="w-4 h-4 text-blue-300" />
+              </div>
+              <span className="font-medium">Ziehen Sie Widgets ins Dashboard</span>
             </div>
-            <div className="flex items-center space-x-2">
-              <Plus className="w-3 h-3" />
-              <span>Oder klicken Sie auf + zum Hinzufügen</span>
+            <div className="flex items-center space-x-3">
+              <div className="p-2 rounded-lg bg-gradient-to-br from-green-500/20 to-emerald-500/20">
+                <Plus className="w-4 h-4 text-green-300" />
+              </div>
+              <span className="font-medium">Oder klicken Sie auf + zum Hinzufügen</span>
             </div>
           </div>
         </div>

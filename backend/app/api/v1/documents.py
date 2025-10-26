@@ -250,6 +250,20 @@ async def upload_document(
     if file.size > 50 * 1024 * 1024:  # 50MB limit
         raise ValidationError("File too large. Maximum size is 50MB")
     
+    # Check storage limit BEFORE upload
+    from app.services.storage_tracking_service import StorageTrackingService
+    try:
+        await StorageTrackingService.check_storage_limit(tenant_id, file.size)
+    except ValidationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": "STORAGE_LIMIT_EXCEEDED",
+                "message": str(e),
+                "resource": "storage"
+            }
+        )
+    
     # Upload file to storage
     storage_service = StorageService()
     upload_result = await storage_service.upload_file(

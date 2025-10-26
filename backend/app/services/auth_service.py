@@ -15,6 +15,13 @@ from asgiref.sync import sync_to_async
 
 from app.db.models import User, Tenant, TenantUser
 from app.core.billing_config import PLAN_LIMITS
+from app.middleware.structured_logging import (
+    log_audit_event,
+    log_business_event,
+    log_error,
+    get_current_tenant_id,
+    get_current_user_id
+)
 
 
 def slugify(text: str) -> str:
@@ -163,6 +170,13 @@ class AuthService:
         
         # Check if user already exists
         if User.objects.filter(email=request.email).exists():
+            log_audit_event(
+                event_type="user_registration_failed",
+                resource_type="user",
+                resource_id=request.email,
+                action="create",
+                details={"reason": "user_already_exists"}
+            )
             raise ConflictError(f"User with email {request.email} already exists")
         
         # Find or create tenant using company info
@@ -236,6 +250,33 @@ class AuthService:
         # Update last login
         user.last_login = timezone.now()
         user.save()
+        
+        # Log successful registration
+        log_audit_event(
+            event_type="user_registration_success",
+            resource_type="user",
+            resource_id=str(user.id),
+            action="create",
+            details={
+                "email": user.email,
+                "tenant_id": str(tenant.id),
+                "tenant_name": tenant.name,
+                "tenant_created": tenant_created,
+                "role": tenant_user.role
+            },
+            user_id=str(user.id),
+            tenant_id=str(tenant.id)
+        )
+        
+        log_business_event(
+            event_type="new_user_registered",
+            event_data={
+                "user_id": str(user.id),
+                "tenant_id": str(tenant.id),
+                "tenant_created": tenant_created,
+                "plan": tenant.plan
+            }
+        )
         
         # Create appropriate welcome message
         if tenant_created:
@@ -470,7 +511,7 @@ class AuthService:
                 avatar=user.avatar,
                 is_active=user.is_active,
                 tenant_id=str(tenant_membership.tenant_id) if tenant_membership else tenant_id,
-                created_at=user.date_joined.isoformat(),
+                created_at=user.created_at.isoformat(),
                 last_login=user.last_login.isoformat() if user.last_login else None
             ))
         

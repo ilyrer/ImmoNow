@@ -9,13 +9,14 @@ from django.core.files.uploadedfile import UploadedFile
 from asgiref.sync import sync_to_async
 import os
 
-from app.db.models import Property, Address, ContactPerson, PropertyFeatures, PropertyImage, PropertyDocument, User
+from app.db.models import Property, Address, ContactPerson, PropertyFeatures, PropertyImage, PropertyDocument, PropertyContact, User
 from app.schemas.properties import (
     PropertyResponse, CreatePropertyRequest, UpdatePropertyRequest,
     Address as AddressSchema, ContactPerson as ContactPersonSchema,
     ContactPersonCreate,
     PropertyFeatures as PropertyFeaturesSchema, PropertyImage as PropertyImageSchema,
-    PropertyDocument as PropertyDocumentSchema
+    PropertyDocument as PropertyDocumentSchema, PropertyContact as PropertyContactSchema,
+    PropertyContactCreate
 )
 from app.core.errors import NotFoundError
 from app.services.audit import AuditService
@@ -207,6 +208,22 @@ class PropertiesService:
                 # Additional data
                 amenities=property_data.amenities or [],
                 tags=property_data.tags or [],
+                # Equipment and additional information
+                equipment_description=property_data.equipment_description,
+                additional_info=property_data.additional_info,
+                # New fields
+                internal_id=property_data.internal_id,
+                unit_number=property_data.unit_number,
+                project_id=property_data.project_id,
+                floor_number=property_data.floor_number,
+                condition_status=property_data.condition_status,
+                availability_date=property_data.availability_date,
+                commission=property_data.commission,
+                parking_type=property_data.parking_type,
+                object_description=property_data.object_description,
+                location_description=property_data.location_description,
+                last_modernization=property_data.last_modernization,
+                construction_phase=property_data.construction_phase,
                 created_by=user
             )
             
@@ -253,12 +270,13 @@ class PropertiesService:
                 )
             
             # Audit log
-            AuditService.audit_action(
-                user=user,
+            audit_service = AuditService(self.tenant_id)
+            audit_service.audit_action(
+                user_id=created_by_id,
                 action="create",
                 resource_type="property",
                 resource_id=str(property_obj.id),
-                new_values={"title": property_obj.title, "property_type": property_obj.property_type}
+                description=f"Created property: {property_obj.title}"
             )
             
             return property_obj
@@ -292,6 +310,21 @@ class PropertiesService:
             
             # Update fields
             update_data = property_data.model_dump(exclude_unset=True)
+            
+            # Convert date strings to date objects
+            if 'energy_certificate_valid_until' in update_data and update_data['energy_certificate_valid_until']:
+                try:
+                    from datetime import datetime
+                    update_data['energy_certificate_valid_until'] = datetime.strptime(update_data['energy_certificate_valid_until'], '%Y-%m-%d').date()
+                except ValueError:
+                    update_data['energy_certificate_valid_until'] = None
+            
+            if 'energy_certificate_issue_date' in update_data and update_data['energy_certificate_issue_date']:
+                try:
+                    from datetime import datetime
+                    update_data['energy_certificate_issue_date'] = datetime.strptime(update_data['energy_certificate_issue_date'], '%Y-%m-%d').date()
+                except ValueError:
+                    update_data['energy_certificate_issue_date'] = None
             
             for field, value in update_data.items():
                 if field not in ['address', 'contact_person', 'features']:
@@ -344,14 +377,22 @@ class PropertiesService:
             
             features.save()
             
+            # Update equipment and additional info fields
+            if 'equipment_description' in update_data:
+                property_obj.equipment_description = update_data['equipment_description']
+            if 'additional_info' in update_data:
+                property_obj.additional_info = update_data['additional_info']
+            
+            property_obj.save()
+            
             # Audit log
-            AuditService.audit_action(
-                user=user,
+            audit_service = AuditService(self.tenant_id)
+            audit_service.audit_action(
+                user_id=updated_by_id,
                 action="update",
                 resource_type="property",
-                resource_id=property_id,
-                old_values=old_values,
-                new_values=update_data
+                resource_id=str(property_obj.id),
+                description=f"Updated property: {property_obj.title}"
             )
             
             return property_obj
@@ -482,6 +523,22 @@ class PropertiesService:
                 # Additional data
                 amenities=property_obj.amenities or [],
                 tags=property_obj.tags or [],
+                # Equipment and additional information
+                equipment_description=property_obj.equipment_description,
+                additional_info=property_obj.additional_info,
+                # New fields
+                internal_id=property_obj.internal_id,
+                unit_number=property_obj.unit_number,
+                project_id=property_obj.project_id,
+                floor_number=property_obj.floor_number,
+                condition_status=property_obj.condition_status,
+                availability_date=property_obj.availability_date,
+                commission=float(property_obj.commission) if property_obj.commission else None,
+                parking_type=property_obj.parking_type,
+                object_description=property_obj.object_description,
+                location_description=property_obj.location_description,
+                last_modernization=property_obj.last_modernization,
+                construction_phase=property_obj.construction_phase,
                 address=address,
                 contact_person=contact_person,
                 features=features,
@@ -744,3 +801,173 @@ class PropertiesService:
             document.delete()
         
         await delete_document_sync()
+    
+    async def get_property_contacts(self, property_id: str) -> List[PropertyContactSchema]:
+        """Get all contacts linked to a property"""
+        
+        @sync_to_async
+        def get_contacts_sync():
+            try:
+                property_obj = Property.objects.get(id=property_id, tenant_id=self.tenant_id)
+            except Property.DoesNotExist:
+                raise NotFoundError("Property not found")
+            
+            contacts = []
+            for pc in property_obj.property_contacts.all():
+                contacts.append(PropertyContactSchema(
+                    id=str(pc.id),
+                    property_id=str(pc.property.id),
+                    contact_id=str(pc.contact.id),
+                    role=pc.role,
+                    is_primary=pc.is_primary,
+                    notes=pc.notes,
+                    created_at=pc.created_at,
+                    created_by=str(pc.created_by.id)
+                ))
+            
+            return contacts
+        
+        return await get_contacts_sync()
+    
+    async def link_contact(
+        self, 
+        property_id: str, 
+        contact_data: PropertyContactCreate, 
+        created_by_id: str
+    ) -> PropertyContactSchema:
+        """Link a contact to a property"""
+        
+        @sync_to_async
+        def link_contact_sync():
+            try:
+                property_obj = Property.objects.get(id=property_id, tenant_id=self.tenant_id)
+            except Property.DoesNotExist:
+                raise NotFoundError("Property not found")
+            
+            # Check if contact exists
+            from app.db.models import Contact
+            try:
+                contact = Contact.objects.get(id=contact_data.contact_id, tenant_id=self.tenant_id)
+            except Contact.DoesNotExist:
+                raise NotFoundError("Contact not found")
+            
+            user = User.objects.get(id=created_by_id)
+            
+            # Check if relationship already exists
+            existing = PropertyContact.objects.filter(
+                property=property_obj,
+                contact=contact,
+                role=contact_data.role
+            ).first()
+            
+            if existing:
+                # Update existing relationship
+                existing.is_primary = contact_data.is_primary
+                existing.notes = contact_data.notes
+                existing.save()
+                pc = existing
+            else:
+                # Create new relationship
+                pc = PropertyContact.objects.create(
+                    property=property_obj,
+                    contact=contact,
+                    role=contact_data.role,
+                    is_primary=contact_data.is_primary,
+                    notes=contact_data.notes,
+                    created_by=user
+                )
+            
+            # If this is set as primary, remove primary flag from other contacts with same role
+            if contact_data.is_primary:
+                PropertyContact.objects.filter(
+                    property=property_obj,
+                    role=contact_data.role
+                ).exclude(id=pc.id).update(is_primary=False)
+            
+            return PropertyContactSchema(
+                id=str(pc.id),
+                property_id=str(pc.property.id),
+                contact_id=str(pc.contact.id),
+                role=pc.role,
+                is_primary=pc.is_primary,
+                notes=pc.notes,
+                created_at=pc.created_at,
+                created_by=str(pc.created_by.id)
+            )
+        
+        return await link_contact_sync()
+    
+    async def unlink_contact(self, property_id: str, contact_id: str, role: str) -> None:
+        """Unlink a contact from a property"""
+        
+        @sync_to_async
+        def unlink_contact_sync():
+            try:
+                property_obj = Property.objects.get(id=property_id, tenant_id=self.tenant_id)
+            except Property.DoesNotExist:
+                raise NotFoundError("Property not found")
+            
+            try:
+                pc = PropertyContact.objects.get(
+                    property=property_obj,
+                    contact_id=contact_id,
+                    role=role
+                )
+                pc.delete()
+            except PropertyContact.DoesNotExist:
+                raise NotFoundError("Contact relationship not found")
+        
+        await unlink_contact_sync()
+    
+    async def update_property_field(
+        self, 
+        property_id: str, 
+        field: str, 
+        value: Any, 
+        updated_by_id: str
+    ) -> Optional[PropertyResponse]:
+        """Update a single field of a property"""
+        
+        @sync_to_async
+        def update_field_sync():
+            try:
+                property_obj = Property.objects.get(id=property_id, tenant_id=self.tenant_id)
+            except Property.DoesNotExist:
+                return None
+            
+            # Validate field exists and is allowed
+            allowed_fields = [
+                'title', 'description', 'status', 'property_type',
+                'price', 'price_currency', 'price_type', 'location',
+                'living_area', 'total_area', 'plot_area',
+                'rooms', 'bedrooms', 'bathrooms', 'floors',
+                'year_built', 'energy_class', 'energy_consumption', 'heating_type',
+                'coordinates_lat', 'coordinates_lng',
+                'amenities', 'tags',
+                'equipment_description', 'additional_info',
+                'internal_id', 'unit_number', 'project_id', 'floor_number',
+                'condition_status', 'availability_date', 'commission',
+                'parking_type', 'object_description', 'location_description',
+                'last_modernization', 'construction_phase'
+            ]
+            
+            if field not in allowed_fields:
+                raise ValueError(f"Field '{field}' is not allowed for update")
+            
+            # Handle special field types
+            if field == 'availability_date' and value:
+                try:
+                    from datetime import datetime
+                    value = datetime.strptime(value, '%Y-%m-%d').date()
+                except ValueError:
+                    value = None
+            
+            setattr(property_obj, field, value)
+            property_obj.save()
+            
+            return property_obj
+        
+        property_obj = await update_field_sync()
+        if property_obj:
+            return await self._build_property_response(property_obj)
+        return None

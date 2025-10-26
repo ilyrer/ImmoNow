@@ -196,20 +196,41 @@ class BillingGuard:
         additional_count: int, 
         current_plan: str
     ) -> None:
-        """Prüfe Storage-Limit"""
+        """Prüfe Storage-Limit mit echter S3/MinIO Berechnung"""
         limit_gb = limits['storage_gb']
         
         # Unbegrenzt
         if limit_gb == -1:
             return
         
-        # Aktuelle Storage berechnen (vereinfacht)
-        # TODO: Implementiere echte Storage-Berechnung
-        current_storage_mb = 0  # Placeholder
+        # Hole aktuelle Storage-Berechnung aus TenantUsage
+        try:
+            from app.db.models import TenantUsage
+            from app.services.storage_service import storage_service
+            
+            tenant_usage = await sync_to_async(TenantUsage.objects.get)(
+                tenant_id=tenant_id
+            )
+            current_storage_bytes = tenant_usage.storage_bytes_used
+            
+            # Falls TenantUsage leer ist, berechne direkt von S3/MinIO
+            if current_storage_bytes == 0:
+                current_storage_bytes = storage_service.get_tenant_storage_size(tenant_id)
+                # Update TenantUsage für nächste Prüfung
+                await sync_to_async(tenant_usage.__setattr__)('storage_bytes_used', current_storage_bytes)
+                await sync_to_async(tenant_usage.save)()
+            
+        except TenantUsage.DoesNotExist:
+            # Fallback: berechne direkt von S3/MinIO
+            from app.services.storage_service import storage_service
+            current_storage_bytes = storage_service.get_tenant_storage_size(tenant_id)
         
         # Prüfe Limit (additional_count ist in MB)
-        additional_gb = additional_count / 1024  # MB zu GB
-        if (current_storage_mb / 1024) + additional_gb > limit_gb:
+        additional_bytes = additional_count * 1024 * 1024  # MB zu Bytes
+        current_gb = current_storage_bytes / (1024 ** 3)
+        additional_gb = additional_bytes / (1024 ** 3)
+        
+        if current_gb + additional_gb > limit_gb:
             required_plan = get_required_plan_for_limit(current_plan, 'storage_gb')
             
             raise HTTPException(
@@ -217,7 +238,7 @@ class BillingGuard:
                 detail={
                     "code": "PLAN_LIMIT_REACHED",
                     "message": f"Storage limit reached ({limit_gb}GB)",
-                    "current_storage_gb": current_storage_mb / 1024,
+                    "current_storage_gb": round(current_gb, 2),
                     "limit_gb": limit_gb,
                     "required_plan": required_plan,
                     "resource": "storage_gb"

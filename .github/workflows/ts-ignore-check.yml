@@ -1,0 +1,47 @@
+name: TypeScript @ts-ignore Check
+
+on:
+  pull_request:
+    branches: [ main, master, develop ]
+  push:
+    branches: [ main, master, develop ]
+
+jobs:
+  ts-ignore-check:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        
+    - name: Run @ts-ignore Counter
+      run: |
+        python scripts/ci/check_ts_ignore.py --exit-on-increase
+        
+    - name: Comment PR with results
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const { execSync } = require('child_process');
+          try {
+            const output = execSync('python scripts/ci/check_ts_ignore.py', { encoding: 'utf8' });
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## TypeScript @ts-ignore Analysis\n\n\`\`\`\n${output}\n\`\`\``
+            });
+          } catch (error) {
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## TypeScript @ts-ignore Check Failed\n\n❌ New @ts-ignore comments found that need to be addressed:\n\n\`\`\`\n${error.stdout}\n\`\`\``
+            });
+          }

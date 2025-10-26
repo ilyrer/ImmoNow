@@ -1,244 +1,216 @@
 """
 Employee Documents API Endpoints
-Dokumentenverwaltung für Mitarbeiter (Admin-spezifisch)
+Dokumentenverwaltung für Mitarbeiter
 """
 from typing import Optional, List
-from datetime import datetime
 from fastapi import APIRouter, Depends, Query, HTTPException, status, UploadFile, File
-from pydantic import BaseModel
+from fastapi.responses import StreamingResponse
+import io
 
-from app.api.deps import require_admin_scope, get_tenant_id
+from app.api.deps import require_read_scope, require_write_scope, require_admin_scope, get_tenant_id
 from app.core.security import TokenData
+from app.schemas.employee_document import (
+    DocumentTypeCreate, DocumentTypeUpdate, DocumentTypeResponse,
+    EmployeeDocumentCreate, EmployeeDocumentUpdate, EmployeeDocumentResponse,
+    EmployeeDocumentListResponse, DocumentUploadRequest, DocumentSignRequest,
+    DocumentFilterRequest, DocumentStats, DocumentTemplateCreate, DocumentTemplateUpdate,
+    DocumentTemplateResponse
+)
+from app.services.employee_document_service import EmployeeDocumentService
 
 router = APIRouter()
 
 
-class EmployeeDocumentResponse(BaseModel):
-    """Employee document response model"""
-    id: str
-    employee_id: Optional[str] = None
-    employee_name: Optional[str] = None
-    type: str  # contract, nda, certificate, id_document, other
-    title: str
-    file_name: str
-    version: str
-    valid_until: Optional[datetime] = None
-    sign_status: str  # pending, signed, expired, rejected
-    uploaded_at: datetime
-    uploaded_by: str
-    file_size: Optional[int] = None
-    mime_type: Optional[str] = None
+@router.get("/document-types", response_model=List[DocumentTypeResponse])
+async def get_document_types(
+    current_user: TokenData = Depends(require_read_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Get all document types"""
     
-    class Config:
-        from_attributes = True
+    document_service = EmployeeDocumentService(tenant_id)
+    document_types = await document_service.get_document_types()
+    
+    return document_types
 
 
-class DocumentTypeResponse(BaseModel):
-    """Document type response model"""
-    id: str
-    name: str
-    description: str
-
-
-@router.get("/employee-documents", response_model=List[EmployeeDocumentResponse])
-async def get_employee_documents(
-    employee_id: Optional[str] = Query(None, description="Filter by employee ID"),
-    document_type: Optional[str] = Query(None, description="Filter by document type"),
-    sign_status: Optional[str] = Query(None, description="Filter by sign status"),
+@router.post("/document-types", response_model=DocumentTypeResponse, status_code=status.HTTP_201_CREATED)
+async def create_document_type(
+    doc_type_data: DocumentTypeCreate,
     current_user: TokenData = Depends(require_admin_scope),
     tenant_id: str = Depends(get_tenant_id)
 ):
-    """Get employee documents"""
+    """Create a new document type"""
     
-    # Mock data for now - replace with real database queries
-    mock_documents = [
-        EmployeeDocumentResponse(
-            id="1",
-            employee_id="1",
-            employee_name="Max Mustermann",
-            type="contract",
-            title="Arbeitsvertrag",
-            file_name="arbeitsvertrag_max_mustermann.pdf",
-            version="1.0",
-            valid_until=datetime(2025, 12, 31),
-            sign_status="signed",
-            uploaded_at=datetime.now(),
-            uploaded_by=current_user.user_id,
-            file_size=1024000,
-            mime_type="application/pdf"
-        ),
-        EmployeeDocumentResponse(
-            id="2",
-            employee_id="1",
-            employee_name="Max Mustermann",
-            type="nda",
-            title="Geheimhaltungsvereinbarung",
-            file_name="nda_max_mustermann.pdf",
-            version="1.0",
-            sign_status="signed",
-            uploaded_at=datetime.now(),
-            uploaded_by=current_user.user_id,
-            file_size=512000,
-            mime_type="application/pdf"
-        ),
-        EmployeeDocumentResponse(
-            id="3",
-            employee_id="2",
-            employee_name="Anna Schmidt",
-            type="contract",
-            title="Arbeitsvertrag",
-            file_name="arbeitsvertrag_anna_schmidt.pdf",
-            version="1.0",
-            valid_until=datetime(2025, 6, 30),
-            sign_status="pending",
-            uploaded_at=datetime.now(),
-            uploaded_by=current_user.user_id,
-            file_size=1024000,
-            mime_type="application/pdf"
-        ),
-        EmployeeDocumentResponse(
-            id="4",
-            employee_id="2",
-            employee_name="Anna Schmidt",
-            type="certificate",
-            title="Führerschein",
-            file_name="fuehrerschein_anna_schmidt.pdf",
-            version="1.0",
-            valid_until=datetime(2026, 3, 15),
-            sign_status="signed",
-            uploaded_at=datetime.now(),
-            uploaded_by=current_user.user_id,
-            file_size=256000,
-            mime_type="application/pdf"
-        )
-    ]
+    document_service = EmployeeDocumentService(tenant_id)
+    document_type = await document_service.create_document_type(doc_type_data, current_user.user_id)
     
-    # Apply filters
-    filtered_documents = mock_documents
+    return document_type
+
+
+@router.get("/employee-documents", response_model=EmployeeDocumentListResponse)
+async def get_employee_documents(
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
+    employee_id: Optional[str] = Query(None),
+    document_type_id: Optional[str] = Query(None),
+    sign_status: Optional[str] = Query(None),
+    is_expired: Optional[bool] = Query(None),
+    is_confidential: Optional[bool] = Query(None),
+    uploaded_by: Optional[str] = Query(None),
+    current_user: TokenData = Depends(require_read_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Get employee documents with filtering and pagination"""
     
-    if employee_id:
-        filtered_documents = [doc for doc in filtered_documents if doc.employee_id == employee_id]
+    filters = DocumentFilterRequest(
+        employee_id=employee_id,
+        document_type_id=document_type_id,
+        sign_status=sign_status,
+        is_expired=is_expired,
+        is_confidential=is_confidential,
+        uploaded_by=uploaded_by
+    )
     
-    if document_type:
-        filtered_documents = [doc for doc in filtered_documents if doc.type == document_type]
+    document_service = EmployeeDocumentService(tenant_id)
+    result = await document_service.get_employee_documents(page, size, filters)
     
-    if sign_status:
-        filtered_documents = [doc for doc in filtered_documents if doc.sign_status == sign_status]
-    
-    return filtered_documents
+    return result
 
 
 @router.get("/employee-documents/{document_id}", response_model=EmployeeDocumentResponse)
 async def get_employee_document(
     document_id: str,
-    current_user: TokenData = Depends(require_admin_scope),
+    current_user: TokenData = Depends(require_read_scope),
     tenant_id: str = Depends(get_tenant_id)
 ):
-    """Get specific employee document"""
+    """Get a specific employee document"""
     
-    # Mock data - replace with real database query
-    mock_document = EmployeeDocumentResponse(
-        id=document_id,
-        employee_id="1",
-        employee_name="Max Mustermann",
-        type="contract",
-        title="Arbeitsvertrag",
-        file_name="arbeitsvertrag_max_mustermann.pdf",
-        version="1.0",
-        valid_until=datetime(2025, 12, 31),
-        sign_status="signed",
-        uploaded_at=datetime.now(),
-        uploaded_by=current_user.user_id,
-        file_size=1024000,
-        mime_type="application/pdf"
-    )
+    document_service = EmployeeDocumentService(tenant_id)
+    document = await document_service.get_employee_document(document_id)
     
-    return mock_document
+    return document
 
 
 @router.post("/employee-documents/upload", response_model=EmployeeDocumentResponse, status_code=status.HTTP_201_CREATED)
 async def upload_employee_document(
-    file: UploadFile = File(...),
-    employee_id: Optional[str] = Query(None, description="Employee ID"),
-    document_type: str = Query(..., description="Document type"),
+    employee_id: str = Query(..., description="Employee ID"),
+    document_type_id: str = Query(..., description="Document type ID"),
     title: str = Query(..., description="Document title"),
-    valid_until: Optional[datetime] = Query(None, description="Valid until date"),
-    current_user: TokenData = Depends(require_admin_scope),
+    description: Optional[str] = Query(None, description="Document description"),
+    valid_until: Optional[str] = Query(None, description="Valid until date (YYYY-MM-DD)"),
+    is_confidential: bool = Query(False, description="Is confidential"),
+    file: UploadFile = File(..., description="Document file"),
+    current_user: TokenData = Depends(require_write_scope),
     tenant_id: str = Depends(get_tenant_id)
 ):
-    """Upload employee document"""
+    """Upload an employee document"""
     
-    # Mock upload - replace with real file handling
-    mock_document = EmployeeDocumentResponse(
-        id="new-document-id",
+    # Read file content
+    file_content = await file.read()
+    
+    upload_request = DocumentUploadRequest(
         employee_id=employee_id,
-        employee_name="Employee Name",  # Would be fetched from database
-        type=document_type,
+        document_type_id=document_type_id,
         title=title,
-        file_name=file.filename or "document.pdf",
-        version="1.0",
+        description=description,
         valid_until=valid_until,
-        sign_status="pending",
-        uploaded_at=datetime.now(),
-        uploaded_by=current_user.user_id,
-        file_size=file.size,
-        mime_type=file.content_type
+        is_confidential=is_confidential
     )
     
-    return mock_document
+    document_service = EmployeeDocumentService(tenant_id)
+    document = await document_service.upload_document(
+        upload_request, file_content, file.filename, current_user.user_id
+    )
+    
+    return document
 
 
 @router.put("/employee-documents/{document_id}/sign", response_model=EmployeeDocumentResponse)
 async def sign_document(
     document_id: str,
-    current_user: TokenData = Depends(require_admin_scope),
+    sign_request: DocumentSignRequest,
+    current_user: TokenData = Depends(require_write_scope),
     tenant_id: str = Depends(get_tenant_id)
 ):
-    """Mark document as signed"""
+    """Sign a document"""
     
-    # Mock signing - replace with real database update
-    mock_document = EmployeeDocumentResponse(
-        id=document_id,
-        employee_id="1",
-        employee_name="Max Mustermann",
-        type="contract",
-        title="Arbeitsvertrag",
-        file_name="arbeitsvertrag_max_mustermann.pdf",
-        version="1.0",
-        valid_until=datetime(2025, 12, 31),
-        sign_status="signed",
-        uploaded_at=datetime.now(),
-        uploaded_by=current_user.user_id,
-        file_size=1024000,
-        mime_type="application/pdf"
-    )
+    document_service = EmployeeDocumentService(tenant_id)
+    document = await document_service.sign_document(sign_request, current_user.user_id)
     
-    return mock_document
+    return document
 
 
-@router.delete("/employee-documents/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/employee-documents/{document_id}", status_code=status.HTTP_200_OK)
 async def delete_employee_document(
     document_id: str,
     current_user: TokenData = Depends(require_admin_scope),
     tenant_id: str = Depends(get_tenant_id)
 ):
-    """Delete employee document"""
+    """Delete an employee document"""
     
-    # Mock deletion - replace with real database delete
-    pass
+    document_service = EmployeeDocumentService(tenant_id)
+    await document_service.delete_document(document_id, current_user.user_id)
+    
+    return {"message": "Document deleted successfully"}
 
 
-@router.get("/document-types", response_model=List[DocumentTypeResponse])
-async def get_document_types(
+@router.get("/employee-documents/{document_id}/download")
+async def download_employee_document(
+    document_id: str,
+    current_user: TokenData = Depends(require_read_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Download an employee document"""
+    
+    document_service = EmployeeDocumentService(tenant_id)
+    file_content, file_name, mime_type = await document_service.download_document(
+        document_id, current_user.user_id
+    )
+    
+    return StreamingResponse(
+        io.BytesIO(file_content),
+        media_type=mime_type,
+        headers={"Content-Disposition": f"attachment; filename={file_name}"}
+    )
+
+
+@router.get("/employee-documents/stats", response_model=DocumentStats)
+async def get_document_stats(
+    current_user: TokenData = Depends(require_read_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Get document statistics"""
+    
+    document_service = EmployeeDocumentService(tenant_id)
+    stats = await document_service.get_document_stats()
+    
+    return stats
+
+
+@router.get("/document-templates", response_model=List[DocumentTemplateResponse])
+async def get_document_templates(
+    document_type_id: Optional[str] = Query(None),
+    current_user: TokenData = Depends(require_read_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Get document templates"""
+    
+    document_service = EmployeeDocumentService(tenant_id)
+    templates = await document_service.get_document_templates(document_type_id)
+    
+    return templates
+
+
+@router.post("/document-templates", response_model=DocumentTemplateResponse, status_code=status.HTTP_201_CREATED)
+async def create_document_template(
+    template_data: DocumentTemplateCreate,
     current_user: TokenData = Depends(require_admin_scope),
     tenant_id: str = Depends(get_tenant_id)
 ):
-    """Get available document types"""
+    """Create a new document template"""
     
-    return [
-        DocumentTypeResponse(id="contract", name="Arbeitsvertrag", description="Employment contract"),
-        DocumentTypeResponse(id="nda", name="Geheimhaltungsvereinbarung", description="Non-disclosure agreement"),
-        DocumentTypeResponse(id="certificate", name="Zertifikat", description="Certificate or license"),
-        DocumentTypeResponse(id="id_document", name="Ausweisdokument", description="ID document"),
-        DocumentTypeResponse(id="other", name="Sonstiges", description="Other document")
-    ]
+    document_service = EmployeeDocumentService(tenant_id)
+    template = await document_service.create_document_template(template_data, current_user.user_id)
+    
+    return template

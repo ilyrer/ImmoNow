@@ -15,14 +15,46 @@ const RevenueChartWidget: React.FC = () => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [monthlyData, setMonthlyData] = useState<MonthlyRevenue[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [targetValue, setTargetValue] = useState(120000); // Default target
+
+  // Hilfsfunktion für Zahlenformatierung
+  const formatCurrency = (value: number, showCurrency = true) => {
+    if (value >= 1000000) {
+      return `${(value / 1000000).toFixed(1)}M${showCurrency ? ' €' : ''}`;
+    } else {
+      return `${(value / 1000).toFixed(0)}k${showCurrency ? ' €' : ''}`;
+    }
+  };
+
+  // Lade Widget-Konfiguration aus localStorage
+  const loadWidgetConfig = () => {
+    try {
+      const config = localStorage.getItem('widget_config_revenue_chart');
+      if (config) {
+        const parsedConfig = JSON.parse(config);
+        if (parsedConfig.target) {
+          setTargetValue(parsedConfig.target);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading widget config:', error);
+    }
+  };
 
   // Fetch real revenue data from backend
   useEffect(() => {
     const fetchRevenueData = async () => {
       try {
         setIsLoading(true);
+        
+        // Lade Konfiguration
+        loadWidgetConfig();
+        
         const response = await apiClient.get('/api/v1/analytics/dashboard');
-        const data = (response as any)?.data || {};
+        const data = response as any || {};  // Type assertion für TypeScript
+        
+        console.log('📊 Revenue Chart - Raw response:', response);
+        console.log('📊 Revenue Chart - Monthly trends:', data.monthly_revenue_trends);
         
         // Get monthly revenue trends
         const monthlyTrends = data.monthly_revenue_trends || [];
@@ -61,7 +93,7 @@ const RevenueChartWidget: React.FC = () => {
           return {
             month: monthName,
             revenue: isFuture ? 0 : (monthData?.revenue || 0),
-            target: monthData?.target || 120000,
+            target: targetValue,  // Use configured target, not backend target
             color: colors[index]
           };
         });
@@ -89,7 +121,7 @@ const RevenueChartWidget: React.FC = () => {
         setMonthlyData(monthNames.map((month, index) => ({
           month,
           revenue: 0,
-          target: 120000,
+          target: targetValue,
           color: colors[index]
         })));
       } finally {
@@ -102,17 +134,30 @@ const RevenueChartWidget: React.FC = () => {
     // Refresh every 5 minutes
     const interval = setInterval(fetchRevenueData, 5 * 60 * 1000);
     return () => clearInterval(interval);
+  }, [targetValue]); // targetValue als Dependency hinzufügen
+
+  // Event Listener für localStorage Änderungen (Custom Event)
+  useEffect(() => {
+    const handleConfigChange = (e: CustomEvent) => {
+      if (e.detail?.widgetType === 'revenue_chart' && e.detail?.config?.target) {
+        setTargetValue(e.detail.config.target);
+        console.log('🎯 Revenue Chart: Target updated to', e.detail.config.target);
+      }
+    };
+
+    window.addEventListener('widgetConfigChanged', handleConfigChange as EventListener);
+    return () => window.removeEventListener('widgetConfigChanged', handleConfigChange as EventListener);
   }, []);
 
   // Aktuelle Daten (nur Monate mit Umsatz) - mit sicheren Defaults
   const actualData = monthlyData.length > 0 ? monthlyData.filter(m => m.revenue > 0) : [];
-  const currentMonth = actualData.length > 0 ? actualData[actualData.length - 1] : { revenue: 0, target: 120000, month: 'Okt', color: 'from-orange-500 to-orange-600' };
+  const currentMonth = actualData.length > 0 ? actualData[actualData.length - 1] : { revenue: 0, target: targetValue, month: 'Okt', color: 'from-orange-500 to-orange-600' };
   const totalRevenue = actualData.length > 0 ? actualData.reduce((sum, month) => sum + month.revenue, 0) : 0;
   const avgRevenue = actualData.length > 0 ? Math.round(totalRevenue / actualData.length) : 0;
   const growth = actualData.length > 1 ? 
     ((currentMonth.revenue - actualData[actualData.length - 2].revenue) / actualData[actualData.length - 2].revenue * 100) : 0;
 
-  const maxValue = monthlyData.length > 0 ? Math.max(...monthlyData.map(m => Math.max(m.revenue, m.target))) : 120000;
+  const maxValue = monthlyData.length > 0 ? Math.max(...monthlyData.map(m => Math.max(m.revenue, m.target))) : targetValue;
 
   // Animation Logic mit Auto-Scroll
   useEffect(() => {
@@ -220,19 +265,19 @@ const RevenueChartWidget: React.FC = () => {
         <div className="text-center p-2 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
           <div className="text-xs text-gray-500 dark:text-gray-400">Aktuell</div>
           <div className="text-sm font-bold text-gray-900 dark:text-white">
-            {(currentMonth.revenue / 1000).toFixed(0)}k €
+            {formatCurrency(currentMonth.revenue)}
           </div>
         </div>
         <div className="text-center p-2 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
           <div className="text-xs text-gray-500 dark:text-gray-400">Durchschnitt</div>
           <div className="text-sm font-bold text-gray-900 dark:text-white">
-            {(avgRevenue / 1000).toFixed(0)}k €
+            {formatCurrency(avgRevenue)}
           </div>
         </div>
         <div className="text-center p-2 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
           <div className="text-xs text-gray-500 dark:text-gray-400">Ziel</div>
           <div className="text-sm font-bold text-gray-900 dark:text-white">
-            {(currentMonth.target / 1000).toFixed(0)}k €
+            {formatCurrency(currentMonth.target)}
           </div>
         </div>
       </div>
@@ -300,7 +345,7 @@ const RevenueChartWidget: React.FC = () => {
                 {/* Kompakter Tooltip */}
                 {isHighlighted && (
                   <div className="absolute -top-6 left-0 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 px-2 py-0.5 rounded text-xs whitespace-nowrap z-20">
-                    {isFutureMonth ? 'Geplant' : `${(month.revenue / 1000).toFixed(0)}k € (${((month.revenue / month.target) * 100).toFixed(1)}%)`}
+                    {isFutureMonth ? 'Geplant' : `${formatCurrency(month.revenue)} (${((month.revenue / month.target) * 100).toFixed(1)}%)`}
                   </div>
                 )}
               </div>
@@ -308,7 +353,7 @@ const RevenueChartWidget: React.FC = () => {
               <div className={`text-xs font-medium w-10 text-right transition-colors ${
                 isHighlighted ? 'text-gray-900 dark:text-white font-bold' : 'text-gray-700 dark:text-gray-300'
               }`}>
-                {isFutureMonth ? '---' : `${(month.revenue / 1000).toFixed(0)}k`}
+                {isFutureMonth ? '---' : formatCurrency(month.revenue, false)}
               </div>
             </div>
           );

@@ -10,7 +10,9 @@ from app.schemas.admin import (
     PermissionResponse, RoleResponse, CreateRoleRequest, UpdateRoleRequest,
     FeatureFlagResponse, CreateFeatureFlagRequest, UpdateFeatureFlagRequest,
     UserResponse, TenantResponse, AuditLogResponse, SystemStatsResponse,
-    AssignRoleRequest
+    AssignRoleRequest, InviteUserRequest, InviteUserResponse, BulkUserActionRequest,
+    BulkUserActionResponse, UserActivationRequest, UserDeletionRequest,
+    ResendInvitationRequest, UserListResponse, UserStats
 )
 from app.schemas.common import PaginatedResponse
 from app.core.pagination import PaginationParams, get_pagination_offset
@@ -86,17 +88,7 @@ async def delete_role(
     await admin_service.delete_role(role_id, current_user.user_id)
 
 
-@router.get("/users", response_model=List[UserResponse])
-async def get_users(
-    current_user: TokenData = Depends(require_admin_scope),
-    tenant_id: str = Depends(get_tenant_id)
-):
-    """Get all users for tenant"""
-    
-    admin_service = AdminService(tenant_id)
-    users = await admin_service.get_users()
-    
-    return users
+# This endpoint is replaced by the paginated version below
 
 
 @router.put("/users/{user_id}/roles", response_model=UserResponse)
@@ -221,3 +213,124 @@ async def get_tenants(
     ]
     
     return tenants
+
+
+# User Management Endpoints
+@router.post("/users/invite", response_model=InviteUserResponse, status_code=status.HTTP_201_CREATED)
+async def invite_user(
+    invite_request: InviteUserRequest,
+    current_user: TokenData = Depends(require_admin_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Invite a new user"""
+    
+    admin_service = AdminService(tenant_id)
+    result = await admin_service.invite_user(invite_request, current_user.user_id)
+    
+    return result
+
+
+@router.post("/users/{user_id}/activate", status_code=status.HTTP_200_OK)
+async def activate_user(
+    user_id: str,
+    activation_request: UserActivationRequest,
+    current_user: TokenData = Depends(require_admin_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Activate or deactivate a user"""
+    
+    admin_service = AdminService(tenant_id)
+    await admin_service.activate_user(activation_request, current_user.user_id)
+    
+    return {"message": "User status updated successfully"}
+
+
+@router.post("/users/{user_id}/deactivate", status_code=status.HTTP_200_OK)
+async def deactivate_user(
+    user_id: str,
+    activation_request: UserActivationRequest,
+    current_user: TokenData = Depends(require_admin_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Deactivate a user"""
+    
+    admin_service = AdminService(tenant_id)
+    activation_request.is_active = False
+    await admin_service.activate_user(activation_request, current_user.user_id)
+    
+    return {"message": "User deactivated successfully"}
+
+
+@router.delete("/users/{user_id}", status_code=status.HTTP_200_OK)
+async def delete_user(
+    user_id: str,
+    deletion_request: UserDeletionRequest,
+    current_user: TokenData = Depends(require_admin_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Delete a user"""
+    
+    admin_service = AdminService(tenant_id)
+    await admin_service.delete_user(deletion_request, current_user.user_id)
+    
+    return {"message": "User deleted successfully"}
+
+
+@router.post("/users/bulk-action", response_model=BulkUserActionResponse, status_code=status.HTTP_200_OK)
+async def bulk_user_action(
+    bulk_request: BulkUserActionRequest,
+    current_user: TokenData = Depends(require_admin_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Perform bulk actions on users"""
+    
+    admin_service = AdminService(tenant_id)
+    result = await admin_service.bulk_user_action(bulk_request, current_user.user_id)
+    
+    return result
+
+
+@router.post("/users/{user_id}/resend-invitation", status_code=status.HTTP_200_OK)
+async def resend_invitation(
+    user_id: str,
+    resend_request: ResendInvitationRequest,
+    current_user: TokenData = Depends(require_admin_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Resend invitation to a user"""
+    
+    admin_service = AdminService(tenant_id)
+    await admin_service.resend_invitation(resend_request, current_user.user_id)
+    
+    return {"message": "Invitation resent successfully"}
+
+
+@router.get("/users", response_model=UserListResponse)
+async def get_users(
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
+    search: Optional[str] = Query(None),
+    is_active: Optional[bool] = Query(None),
+    role: Optional[str] = Query(None),
+    current_user: TokenData = Depends(require_admin_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Get users with filtering and pagination"""
+    
+    admin_service = AdminService(tenant_id)
+    result = await admin_service.get_users(page, size, search, is_active, role)
+    
+    return result
+
+
+@router.get("/users/stats", response_model=UserStats)
+async def get_user_stats(
+    current_user: TokenData = Depends(require_admin_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Get user statistics"""
+    
+    admin_service = AdminService(tenant_id)
+    stats = await admin_service.get_user_stats()
+    
+    return stats

@@ -13,6 +13,7 @@ from datetime import datetime
 
 from app.db.models import Property, PublishJob, User
 from app.services.immoscout_service import ImmoScout24Service
+from app.services.immowelt_service import ImmoweltService
 from app.services.auth_service import AuthService
 from app.core.errors import NotFoundError, UnauthorizedError, ExternalServiceError
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -89,8 +90,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     except Exception as e:
         raise UnauthorizedError(f"Authentication failed: {str(e)}")
 
-# Service instances
-immoscout_service = ImmoScout24Service()
+# Service instances - will be initialized per request
 
 @router.post(
     "/publish",
@@ -131,10 +131,18 @@ async def publish_property(
         
         # Publish based on portal
         if request.portal == 'immoscout24':
+            # Initialize service with tenant_id
+            immoscout_service = ImmoScout24Service(str(current_user.tenant_id))
             result = await immoscout_service.publish_property(
-                str(request.property_id),
-                str(current_user.tenant_id),
-                str(current_user.id)
+                request.property_id,
+                request.portal
+            )
+        elif request.portal == 'immowelt':
+            # Initialize service with tenant_id
+            immowelt_service = ImmoweltService(str(current_user.tenant_id))
+            result = await immowelt_service.publish_property(
+                request.property_id,
+                request.portal
             )
         else:
             raise HTTPException(
@@ -186,9 +194,16 @@ async def unpublish_property(
         
         # Unpublish based on portal
         if publish_job.portal == 'immoscout24':
+            # Initialize service with tenant_id
+            immoscout_service = ImmoScout24Service(str(current_user.tenant_id))
             result = await immoscout_service.unpublish_property(
-                str(request.publish_job_id),
-                str(current_user.tenant_id)
+                request.publish_job_id
+            )
+        elif publish_job.portal == 'immowelt':
+            # Initialize service with tenant_id
+            immowelt_service = ImmoweltService(str(current_user.tenant_id))
+            result = await immowelt_service.unpublish_property(
+                request.publish_job_id
             )
         else:
             raise HTTPException(
@@ -311,9 +326,10 @@ async def get_property_metrics(
     Get metrics for a specific property from the portal
     """
     try:
+        # Initialize service with tenant_id
+        immoscout_service = ImmoScout24Service(str(current_user.tenant_id))
         metrics = await immoscout_service.get_property_metrics(
-            portal_property_id,
-            str(current_user.tenant_id)
+            portal_property_id
         )
         
         return MetricsResponse(
@@ -350,9 +366,9 @@ async def sync_all_metrics(
     Sync metrics for all published properties from external portals
     """
     try:
-        result = await immoscout_service.sync_all_property_metrics(
-            str(current_user.tenant_id)
-        )
+        # Initialize service with tenant_id
+        immoscout_service = ImmoScout24Service(str(current_user.tenant_id))
+        result = await immoscout_service.sync_all_property_metrics()
         
         return SyncMetricsResponse(
             success=result['success'],
@@ -406,10 +422,11 @@ async def retry_publish_job(
         
         # Retry publishing
         if job.portal == 'immoscout24':
+            # Initialize service with tenant_id
+            immoscout_service = ImmoScout24Service(str(current_user.tenant_id))
             result = await immoscout_service.publish_property(
-                str(job.property.id),
-                str(current_user.tenant_id),
-                str(current_user.id)
+                job.property.id,
+                job.portal
             )
         else:
             raise HTTPException(

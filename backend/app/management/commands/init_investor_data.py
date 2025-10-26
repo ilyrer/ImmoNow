@@ -1,9 +1,11 @@
 """
 Management command to initialize investor data
 Creates sample performance snapshots, vacancy records, and cost records
-"""
 
-from django.core.management.base import BaseCommand
+SECURITY WARNING: This command should only be run in development environments!
+"""
+import os
+from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -16,7 +18,7 @@ from app.db.models import (
 
 
 class Command(BaseCommand):
-    help = 'Initialize investor data with sample records'
+    help = 'Initialize investor data with sample records (DEVELOPMENT ONLY)'
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -30,10 +32,33 @@ class Command(BaseCommand):
             default=12,
             help='Number of months of historical data to create',
         )
+        parser.add_argument(
+            '--dev',
+            action='store_true',
+            help='Explicitly confirm this is a development environment',
+        )
 
     def handle(self, *args, **options):
+        # SECURITY CHECK: Only allow in development environments
+        if not self._is_development_environment():
+            raise CommandError(
+                'SECURITY ERROR: This command can only be run in development environments!\n'
+                'Set ENV=development or use --dev flag to override (not recommended).'
+            )
+        
         tenant_id = options['tenant_id']
         months = options['months']
+        dev_flag = options['dev']
+        
+        # Additional confirmation for production-like environments
+        if not dev_flag and not self._is_safe_environment():
+            self.stdout.write(
+                self.style.WARNING(
+                    'WARNING: This appears to be a production-like environment.\n'
+                    'Use --dev flag to explicitly confirm this is safe.'
+                )
+            )
+            return
         
         if not tenant_id:
             self.stdout.write(
@@ -49,7 +74,12 @@ class Command(BaseCommand):
             )
             return
 
-        self.stdout.write(f'Initializing investor data for tenant: {tenant.name}')
+        self.stdout.write(
+            self.style.SUCCESS(f'Initializing investor data for tenant: {tenant.name}')
+        )
+        self.stdout.write(
+            self.style.WARNING('⚠️  This will create sample/mock data - use only for development!')
+        )
         
         # Get properties for this tenant
         properties = Property.objects.filter(tenant=tenant)
@@ -368,3 +398,34 @@ class Command(BaseCommand):
             package.properties.set(properties[:pkg_data['property_count']])
         
         self.stdout.write('Created 3 sample marketplace packages')
+
+    def _is_development_environment(self) -> bool:
+        """Check if we're in a development environment"""
+        # Check environment variables
+        env = os.getenv('ENV', '').lower()
+        django_env = os.getenv('DJANGO_ENV', '').lower()
+        debug = os.getenv('DEBUG', '').lower()
+        
+        # Development indicators
+        dev_indicators = [
+            env in ['development', 'dev', 'local'],
+            django_env in ['development', 'dev', 'local'],
+            debug in ['true', '1', 'yes'],
+            os.getenv('DJANGO_SETTINGS_MODULE', '').endswith('.development'),
+            os.getenv('DJANGO_SETTINGS_MODULE', '').endswith('.local'),
+        ]
+        
+        return any(dev_indicators)
+    
+    def _is_safe_environment(self) -> bool:
+        """Check if environment appears safe for seed data"""
+        # Additional safety checks
+        safe_indicators = [
+            os.getenv('DATABASE_URL', '').startswith('sqlite'),
+            os.getenv('DATABASE_URL', '').startswith('postgresql://localhost'),
+            'test' in os.getenv('DJANGO_SETTINGS_MODULE', ''),
+            os.path.exists('.env.local'),
+            os.path.exists('.env.development'),
+        ]
+        
+        return any(safe_indicators)

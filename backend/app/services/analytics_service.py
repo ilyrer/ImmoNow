@@ -43,7 +43,7 @@ class AnalyticsService:
             # Properties
             all_properties = Property.objects.filter(tenant_id=self.tenant_id)
             total_properties = all_properties.count()
-            active_listings = all_properties.filter(status='active').count()
+            active_listings = all_properties.filter(status='aktiv').count()
             sold_properties = all_properties.filter(status='verkauft').count()
             
             # Contacts
@@ -87,6 +87,33 @@ class AnalyticsService:
             task_completion_rate = (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0
             conversion_rate = (sold_properties / total_contacts * 100) if total_contacts > 0 else 0
             
+            # Generate monthly revenue trends for the current year
+            monthly_revenue_trends = []
+            current_year = end_date.year
+            
+            for month in range(1, 13):  # January to December
+                month_start = datetime(current_year, month, 1)
+                if month == 12:
+                    month_end = datetime(current_year + 1, 1, 1)
+                else:
+                    month_end = datetime(current_year, month + 1, 1)
+                
+                # Calculate revenue for this month (sold properties)
+                month_revenue = Property.objects.filter(
+                    tenant_id=self.tenant_id,
+                    status='verkauft',
+                    updated_at__gte=month_start,
+                    updated_at__lt=month_end
+                ).aggregate(
+                    total=Sum('price')
+                )['total'] or 0
+                
+                monthly_revenue_trends.append({
+                    'month': month_start.isoformat(),
+                    'revenue': float(month_revenue),
+                    'target': 100000.0  # Default monthly target - will be overridden by frontend config
+                })
+            
             return {
                 'total_properties': total_properties,
                 'active_properties': active_listings,
@@ -107,7 +134,8 @@ class AnalyticsService:
                 'sales_this_month': sales_this_month,
                 'viewings_this_week': viewings_week,
                 'recent_activities': [],
-                'property_value_trend': []
+                'property_value_trend': [],
+                'monthly_revenue_trends': monthly_revenue_trends
             }
         
         return await get_all_stats()
@@ -136,7 +164,7 @@ class AnalyticsService:
             total_properties = queryset.count()
             
             # Active listings (available, not sold)
-            active_listings = queryset.filter(status='active').count()
+            active_listings = queryset.filter(status='aktiv').count()
             
             # Sales this month
             sales_this_month = queryset.filter(
@@ -311,3 +339,84 @@ class AnalyticsService:
             'monthly_task_creation': [],
             'productivity_metrics': {}
         }
+    
+    async def get_top_properties(
+        self,
+        limit: int = 5,
+        metric: str = "views",
+        timeframe: str = "month"
+    ) -> Dict[str, Any]:
+        """Get top performing properties"""
+        
+        @sync_to_async
+        def get_top_properties_data():
+            queryset = Property.objects.filter(tenant_id=self.tenant_id)
+            
+            # Calculate date range based on timeframe
+            end_date = datetime.utcnow()
+            if timeframe == "week":
+                start_date = end_date - timedelta(days=7)
+            elif timeframe == "month":
+                start_date = end_date - timedelta(days=30)
+            elif timeframe == "quarter":
+                start_date = end_date - timedelta(days=90)
+            elif timeframe == "year":
+                start_date = end_date - timedelta(days=365)
+            else:
+                start_date = end_date - timedelta(days=30)
+            
+            # Filter properties created in timeframe
+            queryset = queryset.filter(created_at__gte=start_date)
+            
+            # Mock metrics for now (since we don't have view/inquiry tracking yet)
+            properties = list(queryset[:limit])
+            
+            # Add mock performance data
+            top_properties = []
+            for i, property in enumerate(properties):
+                # Mock performance metrics
+                views = 100 + (i * 20)  # Decreasing views
+                inquiries = 5 + i  # Decreasing inquiries
+                favorites = 10 + (i * 2)  # Decreasing favorites
+                
+                # Get address safely
+                try:
+                    address_obj = property.address
+                    address_str = f"{address_obj.street}, {address_obj.city}" if address_obj else property.location or "No address"
+                except:
+                    address_str = property.location or "No address"
+                
+                top_properties.append({
+                    'id': str(property.id),
+                    'title': property.title or f"Property {property.id}",
+                    'address': address_str,
+                    'price': float(property.price) if property.price else 0,
+                    'property_type': property.property_type or "Unknown",
+                    'status': property.status or "Unknown",
+                    'views': views,
+                    'inquiries': inquiries,
+                    'favorites': favorites,
+                    'created_at': property.created_at.isoformat() if property.created_at else None,
+                    'image_url': None,  # TODO: Add image URL when available
+                    'performance_score': views + (inquiries * 10) + (favorites * 5)
+                })
+            
+            # Sort by metric
+            if metric == "views":
+                top_properties.sort(key=lambda x: x['views'], reverse=True)
+            elif metric == "inquiries":
+                top_properties.sort(key=lambda x: x['inquiries'], reverse=True)
+            elif metric == "favorites":
+                top_properties.sort(key=lambda x: x['favorites'], reverse=True)
+            else:
+                top_properties.sort(key=lambda x: x['performance_score'], reverse=True)
+            
+            return {
+                'properties': top_properties[:limit],
+                'total': len(top_properties),
+                'timeframe': timeframe,
+                'metric': metric,
+                'generated_at': datetime.utcnow().isoformat()
+            }
+        
+        return await get_top_properties_data()
