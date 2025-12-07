@@ -56,8 +56,8 @@ class KPIService {
    * Get KPI dashboard data
    */
   async getKPIDashboard(timeframe: 'week' | 'month' | 'quarter' | 'year' = 'month'): Promise<KPIDashboardResponse> {
-    const response = await api.get(`/api/v1/analytics/kpi?timeframe=${timeframe}`) as any;
-    return response.data as KPIDashboardResponse;
+    const response = await api.get(`/api/v1/analytics/kpi?timeframe=${timeframe}`);
+    return response as KPIDashboardResponse;
   }
 }
 

@@ -5,10 +5,10 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Sun, Moon, Bell, User, Settings, LogOut, HelpCircle, Shield, CreditCard } from 'lucide-react';
 import GlobalSearch from './GlobalSearch';
 import { useNotifications, useUnreadCount } from '../../hooks/useNotifications';
-import { 
+import {
   NOTIFICATION_TYPE_CONFIG,
   NOTIFICATION_CATEGORY_CONFIG,
-  type Notification as NotificationType 
+  type Notification as NotificationType
 } from '../../types/notification';
 import { formatDistanceToNow } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -43,7 +43,7 @@ const GlobalHeader: React.FC = () => {
   useEffect(() => {
     const savedDarkMode = localStorage.getItem('darkMode') === 'true';
     setIsDarkMode(savedDarkMode);
-    
+
     if (savedDarkMode) {
       document.documentElement.classList.add('dark');
     } else {
@@ -64,7 +64,7 @@ const GlobalHeader: React.FC = () => {
     const newDarkMode = !isDarkMode;
     setIsDarkMode(newDarkMode);
     localStorage.setItem('darkMode', newDarkMode.toString());
-    
+
     if (newDarkMode) {
       document.documentElement.classList.add('dark');
     } else {
@@ -82,14 +82,14 @@ const GlobalHeader: React.FC = () => {
   const userName = hasValidName ? `${user.first_name} ${user.last_name}` : user.email;
   const userInitials = userName.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
 
-  const unreadCount = unreadCountData || 0;
+  const unreadCount = unreadCountData?.count || 0;
 
   // Helper function to format notification time
   const formatNotificationTime = (dateString: string) => {
     try {
-      return formatDistanceToNow(new Date(dateString), { 
+      return formatDistanceToNow(new Date(dateString), {
         addSuffix: true,
-        locale: de 
+        locale: de
       });
     } catch {
       return dateString;
@@ -108,21 +108,21 @@ const GlobalHeader: React.FC = () => {
 
   const handleLogout = () => {
     console.log('🚪 GlobalHeader: Logout initiiert');
-    
+
     // Clear auth using AuthContext
     clearAuth();
-    
+
     // Also clear any legacy tokens
     localStorage.removeItem('authToken');
     localStorage.removeItem('user');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('tokenExpiry');
-    
+
     // Close user menu
     setShowUserMenu(false);
-    
+
     console.log('✅ GlobalHeader: Alle Auth-Daten gelöscht, Weiterleitung zu /login');
-    
+
     // Redirect to login
     navigate('/login', { replace: true });
   };
@@ -204,13 +204,13 @@ const GlobalHeader: React.FC = () => {
         <h1 className="text-xl font-semibold text-gray-900 dark:text-dark-text-primary">
           {getPageTitle()}
         </h1>
-        
+
         <div className="flex items-center space-x-4">
           {/* Search Field */}
           <div className="w-80">
             <GlobalSearch placeholder="Search analytics, users, reports" />
           </div>
-          
+
           {/* Date Dropdown */}
           <div className="relative">
             <select className="bg-white/10 dark:bg-glass-dark backdrop-blur-xl border border-white/20 dark:border-glass-dark-border px-4 py-2.5 rounded-xl text-sm text-gray-900 dark:text-dark-text-primary focus:outline-none focus:ring-2 focus:ring-apple-blue/50 appearance-none pr-8 shadow-apple-soft transition-all duration-200 hover:bg-white/20 dark:hover:bg-glass-dark-hover hover:scale-102">
@@ -222,17 +222,16 @@ const GlobalHeader: React.FC = () => {
               <i className="ri-arrow-down-s-line text-gray-400 dark:text-dark-text-tertiary text-sm"></i>
             </div>
           </div>
-          
+
           {/* Dark/Light Mode Toggle */}
-          <button 
+          <button
             onClick={toggleDarkMode}
             className="relative w-12 h-6 bg-white/10 dark:bg-glass-dark backdrop-blur-xl border border-white/20 dark:border-glass-dark-border rounded-full transition-all duration-300 hover:bg-white/20 dark:hover:bg-glass-dark-hover shadow-apple-soft group hover:scale-102"
           >
-            <div className={`absolute top-0.5 w-5 h-5 bg-gradient-to-r ${
-              isDarkMode 
-                ? 'from-apple-blue to-apple-purple translate-x-6' 
+            <div className={`absolute top-0.5 w-5 h-5 bg-gradient-to-r ${isDarkMode
+                ? 'from-apple-blue to-apple-purple translate-x-6'
                 : 'from-apple-orange to-apple-yellow translate-x-0.5'
-            } rounded-full transition-all duration-300 shadow-apple-soft flex items-center justify-center`}>
+              } rounded-full transition-all duration-300 shadow-apple-soft flex items-center justify-center`}>
               {isDarkMode ? (
                 <Moon className="w-3 h-3 text-white" />
               ) : (
@@ -244,7 +243,7 @@ const GlobalHeader: React.FC = () => {
 
           {/* Notifications */}
           <div className="relative z-[10000]" ref={notificationRef}>
-            <button 
+            <button
               onClick={() => setShowNotifications(!showNotifications)}
               className="relative w-10 h-10 bg-white/10 dark:bg-glass-dark backdrop-blur-xl border border-white/20 dark:border-glass-dark-border rounded-xl flex items-center justify-center hover:bg-white/20 dark:hover:bg-glass-dark-hover transition-all duration-300 shadow-apple-soft hover:scale-102"
             >
@@ -298,9 +297,8 @@ const GlobalHeader: React.FC = () => {
                               setShowNotifications(false);
                             }
                           }}
-                          className={`p-3 border-b border-gray-100 dark:border-glass-dark-border hover:bg-gray-50 dark:hover:bg-glass-dark-hover transition-colors cursor-pointer ${
-                            !notification.read ? 'bg-blue-50/50 dark:bg-glass-blue' : ''
-                          }`}
+                          className={`p-3 border-b border-gray-100 dark:border-glass-dark-border hover:bg-gray-50 dark:hover:bg-glass-dark-hover transition-colors cursor-pointer ${!notification.read ? 'bg-blue-50/50 dark:bg-glass-blue' : ''
+                            }`}
                         >
                           <div className="flex items-start gap-2.5">
                             <div className={`w-8 h-8 ${config.bgColor} rounded-lg flex items-center justify-center flex-shrink-0`}>
@@ -331,7 +329,7 @@ const GlobalHeader: React.FC = () => {
 
                 {/* Footer */}
                 <div className="p-2 border-t border-gray-200 dark:border-glass-dark-border bg-gray-50 dark:bg-dark-300/50 backdrop-blur-xl">
-                  <button 
+                  <button
                     onClick={() => {
                       navigate('/notifications');
                       setShowNotifications(false);
@@ -344,7 +342,7 @@ const GlobalHeader: React.FC = () => {
               </div>
             )}
           </div>
-          
+
           {/* User Profile */}
           <div className="relative z-[10000]" ref={userMenuRef}>
             <button
@@ -360,9 +358,8 @@ const GlobalHeader: React.FC = () => {
                 <span className="text-sm font-medium text-gray-900 dark:text-dark-text-primary">
                   {userName}
                 </span>
-                <i className={`ri-arrow-down-s-line text-gray-400 dark:text-dark-text-tertiary text-sm transition-transform duration-200 ${
-                  showUserMenu ? 'rotate-180' : ''
-                }`}></i>
+                <i className={`ri-arrow-down-s-line text-gray-400 dark:text-dark-text-tertiary text-sm transition-transform duration-200 ${showUserMenu ? 'rotate-180' : ''
+                  }`}></i>
               </div>
             </button>
 

@@ -49,7 +49,7 @@ export class AdminSettingsService {
       const response = await apiClient.get<IntegrationSettings>(
         '/api/v1/admin/settings/integrations'
       );
-      return response.data;
+      return response;
     } catch (error: any) {
       console.error('Error fetching integration settings:', error);
       throw new Error(error.response?.data?.detail || 'Fehler beim Laden der Integrationseinstellungen');
@@ -67,7 +67,7 @@ export class AdminSettingsService {
         '/api/v1/admin/settings/integrations',
         settings
       );
-      return response.data;
+      return response;
     } catch (error: any) {
       console.error('Error updating integration settings:', error);
       throw new Error(error.response?.data?.detail || 'Fehler beim Speichern der Integrationseinstellungen');
@@ -83,7 +83,7 @@ export class AdminSettingsService {
         '/api/v1/admin/settings/integrations/test/google-maps',
         { api_key: apiKey }
       );
-      return response.data;
+      return response;
     } catch (error: any) {
       console.error('Error testing Google Maps API key:', error);
       throw new Error(error.response?.data?.detail || 'Fehler beim Testen des Google Maps API-Schlüssels');
@@ -100,12 +100,12 @@ export class AdminSettingsService {
     try {
       const response = await apiClient.post<TestResult>(
         '/api/v1/admin/settings/integrations/test/immoscout',
-        { 
+        {
           client_id: clientId,
           client_secret: clientSecret
         }
       );
-      return response.data;
+      return response;
     } catch (error: any) {
       console.error('Error testing ImmoScout24 credentials:', error);
       throw new Error(error.response?.data?.detail || 'Fehler beim Testen der ImmoScout24 API-Zugangsdaten');

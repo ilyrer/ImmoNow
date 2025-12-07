@@ -1,26 +1,47 @@
 /**
- * SocialHub Queue Component
- * Warteschlange für zu veröffentlichende Posts
+ * SocialHub Queue Component - Premium Design
+ * Warteschlange für zu veröffentlichende Posts mit Apple-Style Glassmorphism
  */
 
 import React, { useState } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '../../common/Card';
-// TODO: Implement real queue API
+import { motion, AnimatePresence } from 'framer-motion';
 import {
-  QueueItem,
-  PLATFORM_ICONS,
-  PLATFORM_COLORS,
-} from '../Types';
+  ArrowLeft,
+  RefreshCw,
+  Clock,
+  Loader2,
+  CheckCircle2,
+  AlertCircle,
+  Calendar,
+  Eye,
+  Edit3,
+  Trash2,
+  Send,
+  RotateCcw,
+  ListOrdered,
+  Inbox
+} from 'lucide-react';
+import { usePostQueue } from '../../../api/hooks';
 
 interface QueueViewProps {
   onBack: () => void;
 }
 
+const PLATFORM_CONFIG: Record<string, { icon: string; bgGradient: string; name: string }> = {
+  instagram: { icon: 'ri-instagram-line', bgGradient: 'from-purple-600 via-pink-600 to-orange-500', name: 'Instagram' },
+  facebook: { icon: 'ri-facebook-fill', bgGradient: 'from-blue-600 to-blue-700', name: 'Facebook' },
+  linkedin: { icon: 'ri-linkedin-fill', bgGradient: 'from-blue-700 to-blue-800', name: 'LinkedIn' },
+  twitter: { icon: 'ri-twitter-x-fill', bgGradient: 'from-gray-800 to-gray-900', name: 'X (Twitter)' },
+  youtube: { icon: 'ri-youtube-fill', bgGradient: 'from-red-600 to-red-700', name: 'YouTube' },
+};
+
 const QueueView: React.FC<QueueViewProps> = ({ onBack }) => {
-  const [queueItems] = useState<QueueItem[]>([]); // TODO: Load from real API
   const [filter, setFilter] = useState<'all' | 'queued' | 'processing' | 'failed'>('all');
 
-  const filteredItems = queueItems.filter(item => 
+  const { data: queueData, isLoading, refetch } = usePostQueue();
+  const queueItems = queueData || [];
+
+  const filteredItems = queueItems.filter(item =>
     filter === 'all' || item.status === filter
   );
 
@@ -37,12 +58,12 @@ const QueueView: React.FC<QueueViewProps> = ({ onBack }) => {
     const now = new Date();
     const scheduled = new Date(dateString);
     const diff = scheduled.getTime() - now.getTime();
-    
+
     if (diff < 0) return 'Überfällig';
-    
+
     const hours = Math.floor(diff / (1000 * 60 * 60));
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    
+
     if (hours > 24) {
       const days = Math.floor(hours / 24);
       return `in ${days} Tag${days > 1 ? 'en' : ''}`;
@@ -51,239 +72,262 @@ const QueueView: React.FC<QueueViewProps> = ({ onBack }) => {
     return `in ${minutes} Min.`;
   };
 
-  const getPriorityColor = (priority: QueueItem['priority']): string => {
-    switch (priority) {
-      case 'high': return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300';
-      case 'medium': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300';
-      case 'low': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300';
-    }
-  };
+  const stats = [
+    {
+      label: 'In Warteschlange',
+      value: queueItems.filter(i => i.status === 'queued').length,
+      icon: Clock,
+      gradient: 'from-blue-500 to-cyan-500',
+      bgGlow: 'bg-blue-500/20',
+    },
+    {
+      label: 'Wird verarbeitet',
+      value: queueItems.filter(i => i.status === 'processing').length,
+      icon: Loader2,
+      gradient: 'from-purple-500 to-violet-500',
+      bgGlow: 'bg-purple-500/20',
+    },
+    {
+      label: 'Erfolgreich',
+      value: queueItems.filter(i => i.status === 'published').length,
+      icon: CheckCircle2,
+      gradient: 'from-emerald-500 to-teal-500',
+      bgGlow: 'bg-emerald-500/20',
+    },
+    {
+      label: 'Fehlgeschlagen',
+      value: queueItems.filter(i => i.status === 'failed').length,
+      icon: AlertCircle,
+      gradient: 'from-red-500 to-rose-500',
+      bgGlow: 'bg-red-500/20',
+    },
+  ];
 
-  const getStatusColor = (status: QueueItem['status']): string => {
-    switch (status) {
-      case 'queued': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300';
-      case 'processing': return 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300';
-      case 'posted': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300';
-      case 'failed': return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300';
-    }
-  };
-
-  const getStatusLabel = (status: QueueItem['status']): string => {
-    switch (status) {
-      case 'queued': return 'In Warteschlange';
-      case 'processing': return 'Wird verarbeitet';
-      case 'posted': return 'Veröffentlicht';
-      case 'failed': return 'Fehlgeschlagen';
-    }
-  };
+  const filters = [
+    { id: 'all', label: 'Alle' },
+    { id: 'queued', label: 'Wartend' },
+    { id: 'processing', label: 'Verarbeitung' },
+    { id: 'failed', label: 'Fehler' },
+  ];
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <button
-            onClick={onBack}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-          >
-            <i className="ri-arrow-left-line text-xl text-gray-600 dark:text-gray-400"></i>
-          </button>
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-              Warteschlange
-            </h2>
-            <p className="text-gray-600 dark:text-gray-400 mt-1">
-              Überwachen Sie Ihre Beiträge in der Warteschlange
-            </p>
+    <div className="space-y-8">
+      {/* Premium Header */}
+      <div className="relative">
+        <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-purple-500/10 rounded-[32px] blur-3xl -z-10"></div>
+
+        <div className="relative bg-white/10 dark:bg-[#1C1C1E]/40 backdrop-blur-xl rounded-[32px] p-8 border border-white/20 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.12)]">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-5">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={onBack}
+                className="w-12 h-12 bg-white/20 dark:bg-white/10 backdrop-blur-sm rounded-2xl flex items-center justify-center border border-white/30 dark:border-white/10 hover:bg-white/30 dark:hover:bg-white/20 transition-all shadow-lg"
+              >
+                <ArrowLeft className="w-5 h-5 text-[#1C1C1E] dark:text-white" />
+              </motion.button>
+              <div>
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-cyan-600 via-blue-600 to-purple-600 dark:from-cyan-400 dark:via-blue-400 dark:to-purple-400 bg-clip-text text-transparent">
+                  Warteschlange
+                </h1>
+                <p className="text-[#3A3A3C] dark:text-gray-400 mt-1">
+                  Überwachen Sie Ihre Beiträge in der Warteschlange
+                </p>
+              </div>
+            </div>
+
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => refetch()}
+              className="px-5 py-2.5 bg-white/20 dark:bg-white/10 backdrop-blur-sm rounded-xl flex items-center gap-2 border border-white/30 dark:border-white/10 text-[#1C1C1E] dark:text-white font-medium hover:bg-white/30 transition-all"
+            >
+              <RefreshCw className="w-5 h-5" />
+              Aktualisieren
+            </motion.button>
           </div>
         </div>
-        <button className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center">
-          <i className="ri-refresh-line mr-2"></i>
-          Aktualisieren
-        </button>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">In Warteschlange</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                  {queueItems.filter(i => i.status === 'queued').length}
-                </p>
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {stats.map((stat, index) => {
+          const Icon = stat.icon;
+          return (
+            <motion.div
+              key={stat.label}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1 }}
+              className="relative group"
+            >
+              <div className={`absolute inset-0 ${stat.bgGlow} rounded-[24px] blur-2xl opacity-50 group-hover:opacity-70 transition-opacity`}></div>
+              <div className="relative bg-white/10 dark:bg-[#1C1C1E]/30 backdrop-blur-xl rounded-[24px] p-6 border border-white/20 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.12)]">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-[#3A3A3C] dark:text-gray-400 mb-1">{stat.label}</p>
+                    <p className="text-3xl font-bold text-[#1C1C1E] dark:text-white">{stat.value}</p>
+                  </div>
+                  <div className={`w-14 h-14 bg-gradient-to-br ${stat.gradient} rounded-2xl flex items-center justify-center shadow-lg`}>
+                    <Icon className={`w-7 h-7 text-white ${stat.label === 'Wird verarbeitet' ? 'animate-spin' : ''}`} />
+                  </div>
+                </div>
               </div>
-              <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
-                <i className="ri-time-line text-xl text-blue-600 dark:text-blue-400"></i>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Wird verarbeitet</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                  {queueItems.filter(i => i.status === 'processing').length}
-                </p>
-              </div>
-              <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center">
-                <i className="ri-loader-4-line text-xl text-purple-600 dark:text-purple-400"></i>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Erfolgreich</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                  {queueItems.filter(i => i.status === 'posted').length}
-                </p>
-              </div>
-              <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
-                <i className="ri-checkbox-circle-line text-xl text-green-600 dark:text-green-400"></i>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Fehlgeschlagen</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                  {queueItems.filter(i => i.status === 'failed').length}
-                </p>
-              </div>
-              <div className="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-lg flex items-center justify-center">
-                <i className="ri-error-warning-line text-xl text-red-600 dark:text-red-400"></i>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </motion.div>
+          );
+        })}
       </div>
 
       {/* Filters */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex items-center space-x-2">
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300 mr-2">
-              Filter:
-            </span>
-            {(['all', 'queued', 'processing', 'failed'] as const).map((f) => (
-              <button
-                key={f}
-                onClick={() => setFilter(f)}
-                className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
-                  filter === f
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                }`}
+      <div className="bg-white/10 dark:bg-[#1C1C1E]/30 backdrop-blur-xl rounded-[24px] p-5 border border-white/20 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.12)]">
+        <div className="flex items-center gap-4 flex-wrap">
+          <span className="text-sm font-medium text-[#3A3A3C] dark:text-gray-400 flex items-center gap-2">
+            <ListOrdered className="w-4 h-4" />
+            Filter:
+          </span>
+          <div className="flex items-center gap-2">
+            {filters.map((f) => (
+              <motion.button
+                key={f.id}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => setFilter(f.id as typeof filter)}
+                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${filter === f.id
+                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/25'
+                    : 'bg-white/10 dark:bg-white/5 text-[#3A3A3C] dark:text-gray-400 hover:bg-white/20 dark:hover:bg-white/10 border border-white/20 dark:border-white/10'
+                  }`}
               >
-                {f === 'all' && 'Alle'}
-                {f === 'queued' && 'Wartend'}
-                {f === 'processing' && 'Verarbeitung'}
-                {f === 'failed' && 'Fehler'}
-              </button>
+                {f.label}
+              </motion.button>
             ))}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Queue Items */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Beiträge</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <div className="bg-white/10 dark:bg-[#1C1C1E]/30 backdrop-blur-xl rounded-[32px] p-8 border border-white/20 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.12)]">
+        <h2 className="text-2xl font-bold text-[#1C1C1E] dark:text-white mb-6 flex items-center gap-3">
+          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center">
+            <Inbox className="w-5 h-5 text-white" />
+          </div>
+          Beiträge
+        </h2>
+
+        {isLoading ? (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="w-10 h-10 text-purple-500 animate-spin" />
+          </div>
+        ) : filteredItems.length === 0 ? (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="text-center py-16"
+          >
+            <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-3xl flex items-center justify-center">
+              <Inbox className="w-12 h-12 text-blue-500" />
+            </div>
+            <h3 className="text-2xl font-bold text-[#1C1C1E] dark:text-white mb-3">
+              Keine Beiträge in der Warteschlange
+            </h3>
+            <p className="text-[#3A3A3C] dark:text-gray-400">
+              Alle Beiträge wurden verarbeitet
+            </p>
+          </motion.div>
+        ) : (
           <div className="space-y-4">
-            {filteredItems.length === 0 ? (
-              <div className="text-center py-12">
-                <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center">
-                  <i className="ri-inbox-line text-2xl text-gray-400 dark:text-gray-500"></i>
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                  Keine Beiträge in der Warteschlange
-                </h3>
-                <p className="text-gray-600 dark:text-gray-400">
-                  Alle Beiträge wurden verarbeitet
-                </p>
-              </div>
-            ) : (
-              filteredItems
-                .sort((a, b) => new Date(a.scheduledFor).getTime() - new Date(b.scheduledFor).getTime())
-                .map((item) => (
-                  <div
+            <AnimatePresence>
+              {filteredItems
+                .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())
+                .map((item, idx) => (
+                  <motion.div
                     key={item.id}
-                    className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:shadow-md transition-shadow"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    transition={{ delay: idx * 0.05 }}
+                    className="group bg-white/10 dark:bg-[#1C1C1E]/40 backdrop-blur-sm rounded-2xl p-6 border border-white/20 dark:border-white/10 hover:border-purple-500/30 transition-all"
                   >
-                    <div className="flex items-start justify-between">
-                      {/* Left Side */}
+                    <div className="flex items-start justify-between gap-6">
+                      {/* Content */}
                       <div className="flex-1">
-                        {/* Status & Priority */}
-                        <div className="flex items-center space-x-2 mb-3">
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(item.status)}`}>
-                            {getStatusLabel(item.status)}
+                        {/* Status Badges */}
+                        <div className="flex items-center gap-2 mb-4 flex-wrap">
+                          <span className={`px-3 py-1.5 text-xs font-semibold rounded-xl ${item.status === 'queued'
+                              ? 'bg-blue-500/20 text-blue-600 dark:text-blue-400'
+                              : item.status === 'processing'
+                                ? 'bg-purple-500/20 text-purple-600 dark:text-purple-400'
+                                : item.status === 'published'
+                                  ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                                  : 'bg-red-500/20 text-red-600 dark:text-red-400'
+                            }`}>
+                            {item.status === 'queued' && 'In Warteschlange'}
+                            {item.status === 'processing' && 'Wird verarbeitet'}
+                            {item.status === 'published' && 'Veröffentlicht'}
+                            {item.status === 'failed' && 'Fehlgeschlagen'}
                           </span>
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${getPriorityColor(item.priority)}`}>
-                            {item.priority === 'high' && 'Hoch'}
-                            {item.priority === 'medium' && 'Mittel'}
-                            {item.priority === 'low' && 'Niedrig'}
-                          </span>
-                          {item.retryCount > 0 && (
-                            <span className="px-2 py-1 text-xs font-medium bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300 rounded-full">
-                              Versuch {item.retryCount + 1}
+                          {item.priority && (
+                            <span className={`px-3 py-1.5 text-xs font-semibold rounded-xl ${item.priority === 'high'
+                                ? 'bg-red-500/20 text-red-600 dark:text-red-400'
+                                : item.priority === 'medium'
+                                  ? 'bg-yellow-500/20 text-yellow-600 dark:text-yellow-400'
+                                  : 'bg-green-500/20 text-green-600 dark:text-green-400'
+                              }`}>
+                              {item.priority === 'high' && 'Hoch'}
+                              {item.priority === 'medium' && 'Mittel'}
+                              {item.priority === 'low' && 'Niedrig'}
+                            </span>
+                          )}
+                          {item.retry_count > 0 && (
+                            <span className="px-3 py-1.5 text-xs font-semibold bg-orange-500/20 text-orange-600 dark:text-orange-400 rounded-xl">
+                              Versuch {item.retry_count + 1}
                             </span>
                           )}
                         </div>
 
-                        {/* Content */}
-                        <p className="text-gray-900 dark:text-white font-medium mb-2 line-clamp-2">
-                          {item.post.content.text}
+                        {/* Content Text */}
+                        <p className="text-[#1C1C1E] dark:text-white font-medium mb-4 line-clamp-2 text-lg">
+                          {item.content}
                         </p>
 
                         {/* Platforms */}
-                        <div className="flex items-center space-x-2 mb-3">
-                          {item.post.platforms.map((platform) => (
-                            <div
-                              key={platform}
-                              className={`px-2 py-1 rounded text-xs font-medium ${PLATFORM_COLORS[platform]}`}
-                            >
-                              <i className={`${PLATFORM_ICONS[platform]} mr-1`}></i>
-                              {platform.charAt(0).toUpperCase() + platform.slice(1)}
-                            </div>
-                          ))}
+                        <div className="flex items-center gap-2 mb-4 flex-wrap">
+                          {item.platforms.map((platform) => {
+                            const config = PLATFORM_CONFIG[platform];
+                            return (
+                              <div
+                                key={platform}
+                                className={`px-3 py-1.5 bg-gradient-to-r ${config?.bgGradient || 'from-gray-500 to-gray-600'} rounded-xl text-xs font-medium text-white shadow-md flex items-center gap-1.5`}
+                              >
+                                <i className={`${config?.icon || 'ri-global-line'}`}></i>
+                                {config?.name || platform}
+                              </div>
+                            );
+                          })}
                         </div>
 
-                        {/* Meta Info */}
-                        <div className="flex items-center space-x-4 text-sm text-gray-600 dark:text-gray-400">
-                          <span className="flex items-center">
-                            <i className="ri-calendar-line mr-1"></i>
-                            {formatDateTime(item.scheduledFor)}
+                        {/* Meta */}
+                        <div className="flex items-center gap-6 text-sm text-[#3A3A3C] dark:text-gray-400">
+                          <span className="flex items-center gap-1.5">
+                            <Calendar className="w-4 h-4" />
+                            {formatDateTime(item.scheduled_at)}
                           </span>
-                          <span className="flex items-center">
-                            <i className="ri-time-line mr-1"></i>
-                            {getTimeUntil(item.scheduledFor)}
+                          <span className="flex items-center gap-1.5">
+                            <Clock className="w-4 h-4" />
+                            {getTimeUntil(item.scheduled_at)}
                           </span>
                         </div>
 
                         {/* Error Message */}
                         {item.error && (
-                          <div className="mt-3 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-                            <div className="flex items-start space-x-2">
-                              <i className="ri-error-warning-line text-red-600 dark:text-red-400 mt-0.5"></i>
+                          <div className="mt-4 p-4 bg-red-500/10 border border-red-500/20 rounded-xl">
+                            <div className="flex items-start gap-3">
+                              <AlertCircle className="w-5 h-5 text-red-500 mt-0.5" />
                               <div>
-                                <p className="text-sm font-medium text-red-800 dark:text-red-300">
+                                <p className="text-sm font-semibold text-red-600 dark:text-red-400">
                                   Fehler beim Veröffentlichen
                                 </p>
-                                <p className="text-sm text-red-600 dark:text-red-400 mt-1">
+                                <p className="text-sm text-red-500 dark:text-red-400/80 mt-1">
                                   {item.error}
                                 </p>
                               </div>
@@ -292,42 +336,62 @@ const QueueView: React.FC<QueueViewProps> = ({ onBack }) => {
                         )}
                       </div>
 
-                      {/* Right Side - Actions */}
-                      <div className="flex flex-col items-end space-y-2 ml-4">
+                      {/* Actions */}
+                      <div className="flex flex-col gap-2">
                         {item.status === 'queued' && (
                           <>
-                            <button className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors text-sm">
-                              <i className="ri-edit-line mr-1"></i>
+                            <motion.button
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
+                              className="px-4 py-2 bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded-xl hover:bg-blue-500/30 transition-all text-sm font-medium flex items-center gap-2"
+                            >
+                              <Edit3 className="w-4 h-4" />
                               Bearbeiten
-                            </button>
-                            <button className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-lg hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors text-sm">
-                              <i className="ri-send-plane-line mr-1"></i>
+                            </motion.button>
+                            <motion.button
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
+                              className="px-4 py-2 bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-xl hover:bg-emerald-500/30 transition-all text-sm font-medium flex items-center gap-2"
+                            >
+                              <Send className="w-4 h-4" />
                               Jetzt senden
-                            </button>
+                            </motion.button>
                           </>
                         )}
                         {item.status === 'failed' && (
-                          <button className="px-3 py-1 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 rounded-lg hover:bg-orange-200 dark:hover:bg-orange-900/50 transition-colors text-sm">
-                            <i className="ri-refresh-line mr-1"></i>
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            className="px-4 py-2 bg-orange-500/20 text-orange-600 dark:text-orange-400 rounded-xl hover:bg-orange-500/30 transition-all text-sm font-medium flex items-center gap-2"
+                          >
+                            <RotateCcw className="w-4 h-4" />
                             Wiederholen
-                          </button>
+                          </motion.button>
                         )}
-                        <button className="px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm">
-                          <i className="ri-eye-line mr-1"></i>
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          className="px-4 py-2 bg-white/10 text-[#3A3A3C] dark:text-gray-400 rounded-xl hover:bg-white/20 transition-all text-sm font-medium flex items-center gap-2"
+                        >
+                          <Eye className="w-4 h-4" />
                           Vorschau
-                        </button>
-                        <button className="px-3 py-1 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors text-sm">
-                          <i className="ri-delete-bin-line mr-1"></i>
+                        </motion.button>
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          className="px-4 py-2 bg-red-500/20 text-red-600 dark:text-red-400 rounded-xl hover:bg-red-500/30 transition-all text-sm font-medium flex items-center gap-2"
+                        >
+                          <Trash2 className="w-4 h-4" />
                           Entfernen
-                        </button>
+                        </motion.button>
                       </div>
                     </div>
-                  </div>
-                ))
-            )}
+                  </motion.div>
+                ))}
+            </AnimatePresence>
           </div>
-        </CardContent>
-      </Card>
+        )}
+      </div>
     </div>
   );
 };

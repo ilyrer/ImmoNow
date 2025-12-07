@@ -81,7 +81,7 @@ export class ExposeService {
           keywords: request.keywords || []
         }
       );
-      return response.data;
+      return response;
     } catch (error: any) {
       console.error('Error generating exposé:', error);
       throw new Error(error.response?.data?.detail || 'Fehler beim Generieren des Exposés');
@@ -96,7 +96,7 @@ export class ExposeService {
       const response = await apiClient.get<ExposeListResponse>(
         `/api/v1/properties/${propertyId}/expose/versions`
       );
-      return response.data;
+      return response;
     } catch (error: any) {
       console.error('Error fetching exposé versions:', error);
       throw new Error(error.response?.data?.detail || 'Fehler beim Laden der Exposé-Versionen');
@@ -123,7 +123,7 @@ export class ExposeService {
           keywords: request.keywords || []
         }
       );
-      return response.data;
+      return response;
     } catch (error: any) {
       console.error('Error saving exposé:', error);
       throw new Error(error.response?.data?.detail || 'Fehler beim Speichern des Exposés');
@@ -152,7 +152,7 @@ export class ExposeService {
       const response = await apiClient.post<ExposeVersionData>(
         `/api/v1/properties/${propertyId}/expose/${versionId}/publish`
       );
-      return response.data;
+      return response;
     } catch (error: any) {
       console.error('Error publishing exposé:', error);
       throw new Error(error.response?.data?.detail || 'Fehler beim Veröffentlichen des Exposés');
@@ -175,7 +175,7 @@ export class ExposeService {
           template: request.template || 'standard'
         }
       );
-      return response.data;
+      return response;
     } catch (error: any) {
       console.error('Error generating PDF:', error);
       throw new Error(error.response?.data?.detail || 'Fehler beim Generieren des PDFs');
@@ -193,7 +193,7 @@ export class ExposeService {
           responseType: 'blob'
         }
       );
-      return response.data as Blob;
+      return response as unknown as Blob;
     } catch (error: any) {
       console.error('Error downloading PDF:', error);
       throw new Error(error.response?.data?.detail || 'Fehler beim Herunterladen des PDFs');
@@ -206,18 +206,18 @@ export class ExposeService {
   static async downloadPDFFile(propertyId: string, versionId: string, filename?: string): Promise<void> {
     try {
       const blob = await this.downloadPDF(propertyId, versionId);
-      
+
       // Create download link
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       link.download = filename || `Expose_${propertyId}_${new Date().toISOString().split('T')[0]}.pdf`;
-      
+
       // Trigger download
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      
+
       // Clean up
       window.URL.revokeObjectURL(url);
     } catch (error: any) {

@@ -32,6 +32,7 @@ import SettingsPage from './pages/SettingsPage.tsx';
 import AvmPage from './pages/AvmPage.tsx';
 import MatchingPage from './pages/MatchingPage.tsx';
 import SocialHubIndex from './components/SocialHub';
+import OAuthCallbackPage from './pages/OAuthCallback.tsx';
 import ProfilePage from './components/profile/ProfilePage.tsx';
 import AdminConsole from './components/admin/AdminConsole.tsx';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -49,28 +50,28 @@ function AppContent() {
   const { data: tenantInfo, isLoading: tenantLoading, error: tenantError } = useCurrentTenant({
     enabled: !!token && isAuthenticated
   });
-  
+
   const loginMutation = useLogin();
   const logoutMutation = useLogout();
 
   // EINFACHER Authentication check - KEINE automatischen Löschungen
   useEffect(() => {
     console.log('🔍 App: Simple auth check - token:', !!token, 'isAuthenticated:', isAuthenticated, 'user:', !!user);
-    
+
     // Wenn wir bereits einen User haben, brauchen wir nichts zu tun
     if (user) {
       console.log('✅ App: User already loaded');
       setLoading(false);
       return;
     }
-    
+
     // Wenn kein Token, zeige Login
     if (!token || !isAuthenticated) {
       console.log('⚠️ App: No token, showing login');
       setLoading(false);
       return;
     }
-    
+
     // Wir haben einen Token - lass React Query die User-Daten laden
     console.log('✅ App: Token found, React Query will load user data');
     setLoading(false);
@@ -98,19 +99,19 @@ function AppContent() {
     try {
       console.log('🔐 App: Starting login process...');
       setLoading(true);
-      
+
       // Use React Query mutation
       const response = await loginMutation.mutateAsync(payload);
       console.log('✅ App: Login response received:', response);
-      
+
       // Speichere Tokens im AuthContext
       if (response.access_token && response.tenant?.id) {
         console.log('✅ App: Setting auth tokens in AuthContext');
         console.log('🔍 Token preview:', response.access_token.substring(0, 20) + '...');
         console.log('🔍 Tenant ID:', response.tenant.id);
-        
+
         setAuth(response.access_token, response.tenant.id);
-        
+
         // Speichere Tenant-Informationen für Sidebar
         if (response.tenant) {
           localStorage.setItem('tenant_info', JSON.stringify({
@@ -122,12 +123,12 @@ function AppContent() {
             logo_url: response.tenant.logo_url
           }));
         }
-        
+
         // Speichere auch refresh token
         if (response.refresh_token) {
           localStorage.setItem('refresh_token', response.refresh_token);
         }
-        
+
         // Debug localStorage nach Login
         setTimeout(() => {
           console.log('🔍 localStorage after login:', {
@@ -139,10 +140,10 @@ function AppContent() {
       } else {
         console.error('❌ App: No access_token or tenant in response:', response);
       }
-      
+
       console.log('✅ App: Login complete');
       setLoading(false);
-      
+
     } catch (error) {
       console.error('❌ App: Login failed:', error);
       setLoading(false);
@@ -191,6 +192,7 @@ function AppContent() {
           <Route path="/register/details" element={<RegistrationWithPayment />} />
           <Route path="/registration/complete" element={<RegistrationComplete />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/oauth/callback" element={<OAuthCallbackPage />} />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </div>
@@ -231,6 +233,7 @@ function AppContent() {
           <Route path="/avm" element={<AvmPage />} />
           <Route path="/matching" element={<MatchingPage />} />
           <Route path="/social-hub" element={<SocialHubIndex />} />
+          <Route path="/oauth/callback" element={<OAuthCallbackPage />} />
           <Route path="/reports" element={<RemovedFeatureRedirect />} />
           <Route path="/communications" element={<RemovedFeatureRedirect />} />
           <Route path="/analytics" element={<RemovedFeatureRedirect />} />

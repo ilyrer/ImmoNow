@@ -10,6 +10,7 @@ export type { PropertyResponse, Address, ContactPerson, PropertyFeatures, Proper
 
 // Property Status Enum
 export enum PropertyStatus {
+  AKQUISE = 'akquise',
   VORBEREITUNG = 'vorbereitung',
   AKTIV = 'aktiv',
   RESERVIERT = 'reserviert',
@@ -196,6 +197,7 @@ export const formatPropertyArea = (area?: number): string => {
 
 export const getPropertyStatusLabel = (status: PropertyStatus | string): string => {
   const labels: Record<string, string> = {
+    akquise: 'Akquise',
     vorbereitung: 'Vorbereitung',
     aktiv: 'Aktiv',
     reserviert: 'Reserviert',
@@ -220,6 +222,7 @@ export const getPropertyTypeLabel = (type: PropertyType | string): string => {
 
 export const getPropertyStatusColor = (status: PropertyStatus | string): string => {
   const colors: Record<string, string> = {
+    akquise: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
     vorbereitung: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
     aktiv: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
     reserviert: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',

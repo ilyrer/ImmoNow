@@ -289,7 +289,7 @@ export function useNotificationManager() {
     hasNext: notificationsQuery.hasNext,
     hasPrev: notificationsQuery.hasPrev,
     stats: notificationsQuery.stats,
-    unreadCount: unreadCount || 0,
+    unreadCount: unreadCount?.count || 0,
 
     // State
     isLoading: notificationsQuery.isLoading,
@@ -325,7 +325,8 @@ export function useNotificationManager() {
  * Hook to poll for new notifications
  */
 export function useNotificationPolling(intervalMs: number = 60000) {
-  const { data: unreadCount } = useUnreadCount(intervalMs);
+  const { data: unreadCountData } = useUnreadCount(intervalMs);
+  const unreadCount = unreadCountData?.count;
   const [previousCount, setPreviousCount] = useState<number>(0);
   const [hasNewNotifications, setHasNewNotifications] = useState(false);
 

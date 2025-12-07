@@ -7,12 +7,12 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Sparkles, 
-  FileText, 
-  Globe, 
-  Target, 
-  Zap, 
+import {
+  Sparkles,
+  FileText,
+  Globe,
+  Target,
+  Zap,
   RefreshCw,
   Save,
   AlertCircle,
@@ -20,7 +20,10 @@ import {
   Loader,
   Download,
   Trash2,
-  Eye
+  Eye,
+  Home,
+  Key,
+  Briefcase
 } from 'lucide-react';
 import { useExpose } from '../../hooks/useExpose';
 import { ExposeVersionData } from '../../services/expose';
@@ -57,7 +60,7 @@ const ExposeTab: React.FC<ExposeTabProps> = ({ propertyId }) => {
   const [length, setLength] = useState<'short' | 'standard' | 'long'>('standard');
   const [keywords, setKeywords] = useState<string[]>([]);
   const [keywordInput, setKeywordInput] = useState('');
-  
+
   // UI state
   const [showPreview, setShowPreview] = useState(false);
   const [selectedVersion, setSelectedVersion] = useState<ExposeVersionData | null>(null);
@@ -68,7 +71,7 @@ const ExposeTab: React.FC<ExposeTabProps> = ({ propertyId }) => {
   const handleGenerate = async () => {
     try {
       setSuccessMessage(null);
-      
+
       generateExpose({
         audience,
         tone,
@@ -187,20 +190,19 @@ const ExposeTab: React.FC<ExposeTabProps> = ({ propertyId }) => {
                 </label>
                 <div className="grid grid-cols-3 gap-2">
                   {[
-                    { value: 'kauf', label: 'Kauf', icon: '🏠' },
-                    { value: 'miete', label: 'Miete', icon: '🔑' },
-                    { value: 'investor', label: 'Investor', icon: '💼' }
+                    { value: 'kauf', label: 'Kauf', Icon: Home },
+                    { value: 'miete', label: 'Miete', Icon: Key },
+                    { value: 'investor', label: 'Investor', Icon: Briefcase }
                   ].map((option) => (
                     <button
                       key={option.value}
                       onClick={() => setAudience(option.value as 'kauf' | 'miete' | 'investor')}
-                      className={`p-3 rounded-xl border-2 transition-all duration-200 ${
-                        audience === option.value
+                      className={`p-3 rounded-xl border-2 transition-all duration-200 ${audience === option.value
                           ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 shadow-md'
                           : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
-                      }`}
+                        }`}
                     >
-                      <div className="text-2xl mb-1">{option.icon}</div>
+                      <option.Icon className={`h-5 w-5 mx-auto mb-1 ${audience === option.value ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`} />
                       <div className="text-xs font-medium">{option.label}</div>
                     </button>
                   ))}
@@ -232,19 +234,18 @@ const ExposeTab: React.FC<ExposeTabProps> = ({ propertyId }) => {
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   {[
-                    { value: 'de', label: 'Deutsch', flag: '🇩🇪' },
-                    { value: 'en', label: 'English', flag: '🇬🇧' }
+                    { value: 'de', label: 'Deutsch', code: 'DE' },
+                    { value: 'en', label: 'English', code: 'EN' }
                   ].map((option) => (
                     <button
                       key={option.value}
                       onClick={() => setLanguage(option.value as 'de' | 'en')}
-                      className={`p-3 rounded-xl border-2 transition-all duration-200 flex items-center justify-center gap-2 ${
-                        language === option.value
+                      className={`p-3 rounded-xl border-2 transition-all duration-200 flex items-center justify-center gap-2 ${language === option.value
                           ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 shadow-md'
                           : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
-                      }`}
+                        }`}
                     >
-                      <span className="text-xl">{option.flag}</span>
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded ${language === option.value ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300'}`}>{option.code}</span>
                       <span className="text-xs font-medium">{option.label}</span>
                     </button>
                   ))}

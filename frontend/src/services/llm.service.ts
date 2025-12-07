@@ -60,7 +60,7 @@ export class LLMService {
         temperature: options.temperature || 0.7,
       });
 
-      return response.data;
+      return response;
     } catch (error: any) {
       console.error('LLM Error:', error);
       throw new Error(error.response?.data?.detail || 'Fehler beim Senden der Anfrage');
@@ -82,7 +82,7 @@ export class LLMService {
         }
       );
 
-      return response.data;
+      return response;
     } catch (error: any) {
       console.error('Dashboard LLM Error:', error);
       throw new Error(error.response?.data?.detail || 'Fehler beim Senden der Dashboard-Anfrage');
@@ -103,7 +103,7 @@ export class LLMService {
   ): Promise<LLMResponse> {
     // Baue Kontext auf
     let contextString = '';
-    
+
     if (context?.previousMessages && context.previousMessages.length > 0) {
       const lastMessages = context.previousMessages.slice(-5); // Letzte 5 Nachrichten
       contextString += 'Vorherige Nachrichten:\n';
@@ -393,7 +393,7 @@ Erstelle eine prägnante Analyse mit:
       });
 
       const lines = response.response.split('\n').filter(l => l.trim());
-      
+
       return {
         summary: lines.slice(0, 2).join(' '),
         keyInsights: lines.slice(2, 7),
@@ -458,11 +458,11 @@ Erstelle eine Investment-Analyse:
       });
 
       const lines = response.response.split('\n').filter(l => l.trim());
-      
+
       // Extrahiere Score aus erster Zeile
       const scoreMatch = lines[0]?.match(/(\d+)/);
       const score = scoreMatch ? parseInt(scoreMatch[1]) : 7;
-      
+
       return {
         investmentScore: Math.min(10, Math.max(1, score)),
         pros: lines.slice(1, 5),
@@ -510,7 +510,7 @@ Erstelle eine Investment-Analyse:
       });
 
       const lines = response.response.split('\n').filter(l => l.trim());
-      
+
       return {
         trendSummary: lines.slice(0, 2).join(' '),
         priceEvolution: lines.slice(2, 4).join(' '),
@@ -574,18 +574,18 @@ Erstelle eine Preisprognose:
 
       const text = response.response;
       const lines = text.split('\n').filter(l => l.trim());
-      
+
       // Versuche Preis und Prozent zu extrahieren
       const priceMatch = text.match(/(\d+(?:\.\d+)?)\s*€/);
       const percentMatch = text.match(/(\d+(?:\.\d+)?)\s*%/);
-      
+
       const changePercent = percentMatch ? parseFloat(percentMatch[1]) : 3.5;
-      const predictedPrice = priceMatch 
+      const predictedPrice = priceMatch
         ? parseFloat(priceMatch[1])
         : currentPrice * (1 + changePercent / 100);
-      
+
       const priceChange = predictedPrice - currentPrice;
-      
+
       return {
         predictedPrice: Math.round(predictedPrice),
         priceChange: Math.round(priceChange),
@@ -598,7 +598,7 @@ Erstelle eine Preisprognose:
       console.error('Price Prediction Error:', error);
       const changePercent = 3.5;
       const predictedPrice = currentPrice * (1 + changePercent / 100);
-      
+
       return {
         predictedPrice: Math.round(predictedPrice),
         priceChange: Math.round(predictedPrice - currentPrice),
@@ -626,7 +626,7 @@ Erstelle eine Preisprognose:
   }> {
     const diff = propertyValue - averageMarketPrice;
     const percentDiff = (diff / averageMarketPrice) * 100;
-    
+
     const prompt = `Vergleiche diese Immobilie mit dem Markt:
 
 Immobilienwert: ${propertyValue.toLocaleString('de-DE')}€
@@ -647,7 +647,7 @@ Erkläre:
       });
 
       const lines = response.response.split('\n').filter(l => l.trim());
-      
+
       return {
         comparison: lines[0] || 'Immobilie liegt im Marktdurchschnitt.',
         competitive: Math.abs(percentDiff) < 5 ? 'at' : percentDiff > 0 ? 'above' : 'below',

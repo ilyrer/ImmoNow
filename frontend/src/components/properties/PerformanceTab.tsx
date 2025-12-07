@@ -2,26 +2,42 @@
  * PerformanceTab Component
  * 
  * Displays property performance metrics from external portals
+ * Includes auto-publish settings and manual push functionality
  */
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  BarChart3, 
-  TrendingUp, 
-  Eye, 
-  MessageSquare, 
-  Heart, 
-  RefreshCw, 
+import {
+  BarChart3,
+  TrendingUp,
+  Eye,
+  MessageSquare,
+  Heart,
+  RefreshCw,
   Calendar,
   ExternalLink,
   AlertCircle,
   CheckCircle,
-  Loader
+  Loader,
+  Upload,
+  Settings,
+  Clock,
+  Building2,
+  ToggleLeft,
+  ToggleRight
 } from 'lucide-react';
 import { usePublishing, usePropertyMetrics } from '../../hooks/usePublishing';
 import { PublishingService } from '../../services/publishing';
+import { useAutoPublishSettings, useUpdateAutoPublishSettings, usePushPropertyToPortals } from '../../api/hooks';
 import toast from 'react-hot-toast';
+
+// Verfügbare Immobilienportale für Auto-Publish
+const PROPERTY_PORTALS = [
+  { id: 'immoscout24', name: 'ImmoScout24', color: 'from-orange-500 to-red-500', icon: '🏠' },
+  { id: 'immowelt', name: 'Immowelt', color: 'from-blue-500 to-cyan-500', icon: '🏢' },
+  { id: 'immonet', name: 'Immonet', color: 'from-green-500 to-emerald-500', icon: '🏡' },
+  { id: 'ebay_kleinanzeigen', name: 'eBay Kleinanzeigen', color: 'from-lime-500 to-green-600', icon: '📋' },
+];
 
 interface PerformanceTabProps {
   propertyId: string;
@@ -39,11 +55,27 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ propertyId, property })
   const [selectedTimeframe, setSelectedTimeframe] = useState<'7d' | '30d' | '90d'>('30d');
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
 
+  // Auto-Publish Settings
+  const { data: autoPublishSettings, isLoading: loadingSettings, refetch: refetchSettings } = useAutoPublishSettings(propertyId);
+  const updateAutoPublish = useUpdateAutoPublishSettings();
+  const pushNow = usePushPropertyToPortals();
+
+  const [autoPublishEnabled, setAutoPublishEnabled] = useState(false);
+  const [selectedPortals, setSelectedPortals] = useState<string[]>(['immoscout24', 'immowelt']);
+
+  // Sync local state with server data
+  useEffect(() => {
+    if (autoPublishSettings) {
+      setAutoPublishEnabled(autoPublishSettings.auto_publish_enabled || false);
+      setSelectedPortals(autoPublishSettings.auto_publish_portals || ['immoscout24', 'immowelt']);
+    }
+  }, [autoPublishSettings]);
+
   // Get publish status for this property
   const publishStatus = getPropertyPublishStatus(propertyId);
 
   // Get metrics for published properties
-  const publishedJobs = propertyPublishJobs.filter(job => 
+  const publishedJobs = propertyPublishJobs.filter(job =>
     job.status === 'published' && job.portal_property_id
   );
 
@@ -114,6 +146,67 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ propertyId, property })
     }
   };
 
+  // Handle Push Now - Sofort an alle aktivierten Portale pushen
+  const handlePushNow = async () => {
+    if (selectedPortals.length === 0) {
+      toast.error('Bitte wählen Sie mindestens ein Portal aus');
+      return;
+    }
+
+    try {
+      await pushNow.mutateAsync({ propertyId, portals: selectedPortals });
+      toast.success(`Immobilie wird an ${selectedPortals.length} Portal(e) gepusht!`);
+      refetchSettings();
+    } catch (error) {
+      toast.error('Fehler beim Pushen der Immobilie');
+      console.error('Push error:', error);
+    }
+  };
+
+  // Handle Auto-Publish Toggle
+  const handleAutoPublishToggle = async () => {
+    const newValue = !autoPublishEnabled;
+    setAutoPublishEnabled(newValue);
+
+    try {
+      await updateAutoPublish.mutateAsync({
+        propertyId,
+        data: {
+          auto_publish_enabled: newValue,
+          auto_publish_portals: selectedPortals
+        }
+      });
+      toast.success(newValue ? 'Auto-Publish aktiviert (10x täglich)' : 'Auto-Publish deaktiviert');
+    } catch (error) {
+      setAutoPublishEnabled(!newValue); // Rollback
+      toast.error('Fehler beim Ändern der Einstellung');
+      console.error('Auto-publish toggle error:', error);
+    }
+  };
+
+  // Handle Portal Selection
+  const handlePortalToggle = async (portalId: string) => {
+    const newSelection = selectedPortals.includes(portalId)
+      ? selectedPortals.filter(p => p !== portalId)
+      : [...selectedPortals, portalId];
+
+    setSelectedPortals(newSelection);
+
+    if (autoPublishEnabled) {
+      try {
+        await updateAutoPublish.mutateAsync({
+          propertyId,
+          data: {
+            auto_publish_enabled: autoPublishEnabled,
+            auto_publish_portals: newSelection
+          }
+        });
+      } catch (error) {
+        console.error('Portal selection error:', error);
+      }
+    }
+  };
+
   const formatNumber = (num: number) => {
     if (num >= 1000000) {
       return (num / 1000000).toFixed(1) + 'M';
@@ -135,7 +228,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ propertyId, property })
   return (
     <div className="space-y-8 animate-fadeIn">
       {/* Header Section */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 backdrop-blur-xl rounded-2xl p-6 border border-purple-200/50 dark:border-purple-700/30 shadow-xl"
@@ -150,7 +243,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ propertyId, property })
               <p className="text-gray-600 dark:text-gray-400 mt-1">Echtzeitdaten von externen Portalen</p>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-3">
             {lastSyncTime && (
               <div className="text-sm text-gray-600 dark:text-gray-400">
@@ -175,6 +268,141 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ propertyId, property })
         </div>
       </motion.div>
 
+      {/* ===== AUTO-PUBLISH SECTION ===== */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.05 }}
+        className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 backdrop-blur-xl rounded-2xl p-6 border border-blue-200/50 dark:border-blue-700/30 shadow-xl"
+      >
+        <div className="flex items-center gap-4 mb-6">
+          <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+            <Upload className="h-6 w-6 text-white" />
+          </div>
+          <div className="flex-1">
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white">Portal-Publishing</h3>
+            <p className="text-gray-600 dark:text-gray-400 text-sm">Veröffentlichen Sie diese Immobilie auf Immobilienportalen</p>
+          </div>
+
+          {/* Jetzt Pushen Button */}
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={handlePushNow}
+            disabled={pushNow.isPending || selectedPortals.length === 0}
+            className="px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-bold rounded-xl shadow-lg disabled:opacity-50 flex items-center gap-2 transition-all duration-300"
+          >
+            {pushNow.isPending ? (
+              <Loader className="h-5 w-5 animate-spin" />
+            ) : (
+              <Upload className="h-5 w-5" />
+            )}
+            <span>Jetzt Pushen</span>
+          </motion.button>
+        </div>
+
+        {/* Auto-Publish Toggle */}
+        <div className="bg-white/60 dark:bg-gray-800/60 rounded-xl p-4 mb-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Clock className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              <div>
+                <h4 className="font-semibold text-gray-900 dark:text-white">Automatisch aktualisieren</h4>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Immobilie wird 10× täglich automatisch an Portale gepusht
+                </p>
+              </div>
+            </div>
+
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={handleAutoPublishToggle}
+              disabled={updateAutoPublish.isPending}
+              className="relative"
+            >
+              {autoPublishEnabled ? (
+                <ToggleRight className="h-10 w-10 text-green-500" />
+              ) : (
+                <ToggleLeft className="h-10 w-10 text-gray-400" />
+              )}
+            </motion.button>
+          </div>
+
+          {autoPublishEnabled && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700"
+            >
+              <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
+                <CheckCircle className="h-4 w-4" />
+                <span>Nächster Push in ca. 2,4 Stunden</span>
+              </div>
+            </motion.div>
+          )}
+        </div>
+
+        {/* Portal Selection */}
+        <div className="space-y-3">
+          <h4 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+            <Building2 className="h-4 w-4" />
+            Portale auswählen
+          </h4>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {PROPERTY_PORTALS.map((portal) => {
+              const isSelected = selectedPortals.includes(portal.id);
+              return (
+                <motion.button
+                  key={portal.id}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => handlePortalToggle(portal.id)}
+                  className={`relative p-4 rounded-xl border-2 transition-all duration-200 ${isSelected
+                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                      : 'border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-800/50 hover:border-gray-300 dark:hover:border-gray-600'
+                    }`}
+                >
+                  <div className="flex flex-col items-center gap-2">
+                    <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${portal.color} flex items-center justify-center shadow-md`}>
+                      <span className="text-lg">{portal.icon}</span>
+                    </div>
+                    <span className={`text-sm font-medium ${isSelected ? 'text-blue-700 dark:text-blue-300' : 'text-gray-700 dark:text-gray-300'}`}>
+                      {portal.name}
+                    </span>
+                  </div>
+
+                  {isSelected && (
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      className="absolute -top-1 -right-1 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center"
+                    >
+                      <CheckCircle className="h-3 w-3 text-white" />
+                    </motion.div>
+                  )}
+                </motion.button>
+              );
+            })}
+          </div>
+
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+            {selectedPortals.length} von {PROPERTY_PORTALS.length} Portalen ausgewählt
+          </p>
+        </div>
+
+        {/* Last Push Info */}
+        {autoPublishSettings?.last_auto_publish && (
+          <div className="mt-4 pt-4 border-t border-blue-200 dark:border-blue-700/50">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Letzter automatischer Push: {new Date(autoPublishSettings.last_auto_publish).toLocaleString('de-DE')}
+            </p>
+          </div>
+        )}
+      </motion.div>
+
       {/* Publishing Status */}
       {publishStatus.isPublished && (
         <motion.div
@@ -193,7 +421,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ propertyId, property })
               </p>
             </div>
           </div>
-          
+
           <div className="flex flex-wrap gap-2">
             {publishedJobs.map(job => (
               <a
@@ -245,11 +473,10 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ propertyId, property })
               <button
                 key={timeframe}
                 onClick={() => setSelectedTimeframe(timeframe)}
-                className={`px-4 py-2 rounded-xl font-medium transition-all duration-200 ${
-                  selectedTimeframe === timeframe
+                className={`px-4 py-2 rounded-xl font-medium transition-all duration-200 ${selectedTimeframe === timeframe
                     ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg'
                     : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                }`}
+                  }`}
               >
                 {timeframe === '7d' ? '7 Tage' : timeframe === '30d' ? '30 Tage' : '90 Tage'}
               </button>
@@ -352,7 +579,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ propertyId, property })
           </div>
           <h3 className="text-lg font-bold text-gray-900 dark:text-white">Performance Trend</h3>
         </div>
-        
+
         <div className="h-64 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800 rounded-xl flex items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600">
           <div className="text-center">
             <BarChart3 className="h-12 w-12 text-gray-400 mx-auto mb-3" />
@@ -373,7 +600,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ propertyId, property })
           className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-2xl rounded-2xl shadow-xl border border-white/30 dark:border-gray-700/50 p-6"
         >
           <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-6">Portal-spezifische Metriken</h3>
-          
+
           <div className="space-y-4">
             {publishedJobs.map((job) => (
               <div
@@ -405,7 +632,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ propertyId, property })
                     </a>
                   )}
                 </div>
-                
+
                 <div className="grid grid-cols-3 gap-4">
                   <div className="text-center">
                     <div className="text-lg font-bold text-gray-900 dark:text-white">

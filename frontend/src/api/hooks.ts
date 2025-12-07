@@ -9,44 +9,44 @@ import type {
   // Auth Types
   LoginRequest, LoginResponse, RegisterRequest, RegisterResponse,
   RefreshTokenRequest, TokenRefreshResponse, UserResponse, TenantUserInfo,
-  
+
   // Property Types
   PropertyResponse, CreatePropertyRequest, UpdatePropertyRequest,
-  
+
   // Document Types
   DocumentResponse, DocumentFolderResponse, CreateFolderRequest,
   UploadMetadataRequest, UpdateDocumentRequest, DocumentAnalyticsResponse,
-  
+
   // Task Types
   TaskResponse, CreateTaskRequest, UpdateTaskRequest,
-  
+
   // Contact Types
   ContactResponse, CreateContactRequest, UpdateContactRequest,
-  
+
   // Analytics Types
   DashboardAnalyticsResponse, PropertyAnalyticsResponse,
   ContactAnalyticsResponse, TaskAnalyticsResponse,
-  
+
   // Communications Types
   ConversationResponse, CreateConversationRequest, SendMessageRequest,
   UpdateMessageRequest, MarkAsReadRequest,
-  
+
   // Social Types
   SocialAccountResponse, SocialPostResponse, CreatePostRequest,
   UpdatePostRequest, SocialAnalyticsResponse,
-  
+
   // Finance Types
   FinancingCalculationRequest, FinancingCalculationResponse,
   InvestmentAnalysisRequest, InvestmentAnalysisResponse,
   BankComparisonRequest, BankComparisonResponse,
   FinancingScenario, CreateScenarioRequest, UpdateScenarioRequest,
-  
+
   // Plans Types
   PlanResponse,
-  
+
   // Reset Password Types
   ResetPasswordRequest,
-  
+
   // Common Types
   PaginatedResponse
 } from './types.gen';
@@ -58,14 +58,14 @@ export const queryKeys = {
     me: ['auth', 'me'] as const,
     tenant: ['auth', 'tenant'] as const,
   },
-  
+
   // Properties
   properties: {
     all: ['properties'] as const,
     list: (params?: any) => ['properties', 'list', params] as const,
     detail: (id: string) => ['properties', 'detail', id] as const,
   },
-  
+
   // Documents
   documents: {
     all: ['documents'] as const,
@@ -74,21 +74,21 @@ export const queryKeys = {
     folders: ['documents', 'folders'] as const,
     analytics: ['documents', 'analytics'] as const,
   },
-  
+
   // Tasks
   tasks: {
     all: ['tasks'] as const,
     list: (params?: any) => ['tasks', 'list', params] as const,
     detail: (id: string) => ['tasks', 'detail', id] as const,
   },
-  
+
   // Contacts
   contacts: {
     all: ['contacts'] as const,
     list: (params?: any) => ['contacts', 'list', params] as const,
     detail: (id: string) => ['contacts', 'detail', id] as const,
   },
-  
+
   // Analytics
   analytics: {
     dashboard: ['analytics', 'dashboard'] as const,
@@ -96,14 +96,14 @@ export const queryKeys = {
     contacts: ['analytics', 'contacts'] as const,
     tasks: ['analytics', 'tasks'] as const,
   },
-  
+
   // Communications
   communications: {
     conversations: ['communications', 'conversations'] as const,
     conversation: (id: string) => ['communications', 'conversation', id] as const,
     messages: (conversationId: string) => ['communications', 'messages', conversationId] as const,
   },
-  
+
   // Social
   social: {
     accounts: ['social', 'accounts'] as const,
@@ -111,8 +111,16 @@ export const queryKeys = {
     post: (id: string) => ['social', 'post', id] as const,
     analytics: ['social', 'analytics'] as const,
     queue: ['social', 'queue'] as const,
+    platforms: ['social', 'platforms'] as const,
+    rateLimits: ['social', 'rate-limits'] as const,
+    dashboard: ['social', 'dashboard'] as const,
   },
-  
+
+  // Property Auto-Publish
+  autoPublish: {
+    settings: (propertyId: string) => ['auto-publish', 'settings', propertyId] as const,
+  },
+
   // Finance
   finance: {
     scenarios: ['finance', 'scenarios'] as const,
@@ -126,13 +134,13 @@ export const queryKeys = {
 // Auth Hooks
 export const useLogin = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation<LoginResponse, Error, LoginRequest>({
     mutationFn: async (data) => {
       console.log('🔐 useLogin: Starting login request...');
       const response = await apiClient.post<LoginResponse>('/api/v1/auth/login', data);
       console.log('✅ useLogin: Login response received:', response);
-      
+
       // Tokens werden NICHT hier gespeichert - das macht der AuthContext
       // Hier nur die Response zurückgeben
       return response;
@@ -151,11 +159,11 @@ export const useLogin = () => {
 
 export const useRegister = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation<RegisterResponse, Error, RegisterRequest>({
     mutationFn: async (data) => {
       const response = await apiClient.post<RegisterResponse>('/api/v1/auth/register', data);
-      
+
       // Store tokens and tenant info
       if (response.access_token) {
         localStorage.setItem('auth_token', response.access_token);
@@ -164,11 +172,11 @@ export const useRegister = () => {
         localStorage.setItem('refreshToken', response.refresh_token);
         localStorage.setItem('tenantId', response.tenant.id);
         localStorage.setItem('tenantSlug', response.tenant.slug);
-        
+
         // Set in API client
         apiClient.setAuthToken(response.access_token, response.tenant.id);
       }
-      
+
       return response;
     },
     onSuccess: (data) => {
@@ -181,11 +189,11 @@ export const useRegister = () => {
 
 export const useLogout = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation<void, Error, void>({
     mutationFn: async () => {
       await apiClient.post('/api/v1/auth/logout');
-      
+
       // Clear all tokens
       localStorage.removeItem('auth_token');
       localStorage.removeItem('tenant_id');
@@ -193,7 +201,7 @@ export const useLogout = () => {
       localStorage.removeItem('refreshToken');
       localStorage.removeItem('tenantId');
       localStorage.removeItem('tenantSlug');
-      
+
       // Clear API client
       apiClient.clearAuth();
     },
@@ -208,18 +216,18 @@ export const useRefreshToken = () => {
   return useMutation<TokenRefreshResponse, Error, RefreshTokenRequest>({
     mutationFn: async (data) => {
       const response = await apiClient.post<TokenRefreshResponse>('/api/v1/auth/refresh', data);
-      
+
       // Update tokens
       if (response.access_token) {
         localStorage.setItem('auth_token', response.access_token);
         localStorage.setItem('authToken', response.access_token);
-        
+
         if (response.tenant) {
           localStorage.setItem('tenant_id', response.tenant.id);
           localStorage.setItem('tenantId', response.tenant.id);
           localStorage.setItem('tenantSlug', response.tenant.slug);
         }
-        
+
         // Set in API client
         const tenantId = localStorage.getItem('tenantId');
         if (tenantId) {
@@ -228,7 +236,7 @@ export const useRefreshToken = () => {
           apiClient.setAuthToken(response.access_token);
         }
       }
-      
+
       return response;
     },
   });
@@ -236,7 +244,7 @@ export const useRefreshToken = () => {
 
 export const useAuth = () => {
   const queryClient = useQueryClient();
-  
+
   const loginMutation = useMutation<LoginResponse, Error, LoginRequest>({
     mutationFn: async (data) => {
       const response = await apiClient.post<LoginResponse>('/api/v1/auth/login', data);
@@ -248,7 +256,7 @@ export const useAuth = () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.auth.tenant });
     },
   });
-  
+
   const registerMutation = useMutation<RegisterResponse, Error, RegisterRequest>({
     mutationFn: async (data) => {
       const response = await apiClient.post<RegisterResponse>('/api/v1/auth/register', data);
@@ -260,7 +268,7 @@ export const useAuth = () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.auth.tenant });
     },
   });
-  
+
   const logoutMutation = useMutation<void, Error, void>({
     mutationFn: async () => {
       await apiClient.post('/api/v1/auth/logout');
@@ -270,7 +278,7 @@ export const useAuth = () => {
       queryClient.clear();
     },
   });
-  
+
   return {
     login: loginMutation,
     register: registerMutation,
@@ -329,7 +337,7 @@ export const useProperty = (id: string) => {
 
 export const useCreateProperty = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation<PropertyResponse, Error, CreatePropertyRequest>({
     mutationFn: async (data) => {
       return apiClient.post<PropertyResponse>('/api/v1/properties', data);
@@ -342,7 +350,7 @@ export const useCreateProperty = () => {
 
 export const useUpdateProperty = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation<PropertyResponse, Error, { id: string; data: UpdatePropertyRequest }>({
     mutationFn: async ({ id, data }) => {
       return apiClient.put<PropertyResponse>(`/api/v1/properties/${id}`, data);
@@ -356,7 +364,7 @@ export const useUpdateProperty = () => {
 
 export const useDeleteProperty = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation<void, Error, string>({
     mutationFn: async (id) => {
       await apiClient.delete(`/api/v1/properties/${id}`);
@@ -394,7 +402,7 @@ export const useDocumentAnalytics = () => {
 
 export const useUploadDocument = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation<DocumentResponse, Error, { file: File; metadata: UploadMetadataRequest }>({
     mutationFn: async ({ file, metadata }) => {
       return apiClient.uploadFile<DocumentResponse>('/api/v1/documents/upload', file, metadata);
@@ -408,7 +416,7 @@ export const useUploadDocument = () => {
 
 export const useCreateFolder = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation<DocumentFolderResponse, Error, CreateFolderRequest>({
     mutationFn: async (data) => {
       return apiClient.post<DocumentFolderResponse>('/api/v1/documents/folders', data);
@@ -430,7 +438,7 @@ export const useTasks = (params?: any) => {
 
 export const useCreateTask = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation<TaskResponse, Error, CreateTaskRequest>({
     mutationFn: async (data) => {
       return apiClient.post<TaskResponse>('/api/v1/tasks', data);
@@ -443,7 +451,7 @@ export const useCreateTask = () => {
 
 export const useUpdateTask = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation<TaskResponse, Error, { id: string; data: UpdateTaskRequest }>({
     mutationFn: async ({ id, data }) => {
       return apiClient.put<TaskResponse>(`/api/v1/tasks/${id}`, data);
@@ -475,7 +483,7 @@ export const useContact = (id: string) => {
 
 export const useCreateContact = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation<ContactResponse, Error, CreateContactRequest>({
     mutationFn: async (data) => {
       return apiClient.post<ContactResponse>('/api/v1/contacts', data);
@@ -488,7 +496,7 @@ export const useCreateContact = () => {
 
 export const useUpdateContact = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation<ContactResponse, Error, { id: string; data: UpdateContactRequest }>({
     mutationFn: async ({ id, data }) => {
       return apiClient.put<ContactResponse>(`/api/v1/contacts/${id}`, data);
@@ -552,7 +560,7 @@ export const useConversations = (params?: any) => {
 
 export const useCreateConversation = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation<ConversationResponse, Error, CreateConversationRequest>({
     mutationFn: async (data) => {
       return apiClient.post<ConversationResponse>('/api/v1/communications/conversations', data);
@@ -565,7 +573,7 @@ export const useCreateConversation = () => {
 
 export const useSendMessage = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation<any, Error, SendMessageRequest>({
     mutationFn: async (data) => {
       return apiClient.post(`/api/v1/communications/conversations/${data.conversation_id}/messages`, data);
@@ -598,7 +606,7 @@ export const useSocialPosts = (params?: any) => {
 
 export const useCreateSocialPost = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation<SocialPostResponse, Error, CreatePostRequest>({
     mutationFn: async (data) => {
       return apiClient.post<SocialPostResponse>('/api/v1/social/posts', data);
@@ -609,13 +617,242 @@ export const useCreateSocialPost = () => {
   });
 };
 
-export const useSocialAnalytics = (startDate?: string, endDate?: string, platform?: string) => {
+export const useSocialAnalytics = (period?: string, platform?: string) => {
   return useQuery<SocialAnalyticsResponse>({
-    queryKey: [...queryKeys.social.analytics, startDate, endDate, platform],
+    queryKey: [...queryKeys.social.analytics, period, platform],
     queryFn: () => apiClient.get<SocialAnalyticsResponse>('/api/v1/social/analytics', {
-      params: { start_date: startDate, end_date: endDate, platform }
+      params: { period, platform }
     }),
     staleTime: 10 * 60 * 1000, // 10 minutes
+  });
+};
+
+// ============================================================================
+// SocialHub Dashboard Stats Hook
+// ============================================================================
+
+interface DashboardStats {
+  connected_accounts: number;
+  published_posts: number;
+  scheduled_posts: number;
+  pending_posts: number;
+  total_reach: number;
+  engagement_rate: number;
+  reach_change: number;
+  posts_change: number;
+  engagement_change: number;
+}
+
+interface RecentActivityItem {
+  type: 'post_published' | 'post_scheduled' | 'account_connected';
+  title: string;
+  description: string;
+  time: string;
+  platform?: string;
+}
+
+interface DashboardResponse {
+  stats: DashboardStats;
+  recent_activities: RecentActivityItem[];
+}
+
+/**
+ * Hook to get SocialHub dashboard statistics
+ */
+export const useSocialHubDashboard = () => {
+  return useQuery<DashboardResponse>({
+    queryKey: queryKeys.social.dashboard,
+    queryFn: () => apiClient.get<DashboardResponse>('/api/v1/social/dashboard'),
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    refetchInterval: 5 * 60 * 1000, // Refresh every 5 minutes
+  });
+};
+
+// ============================================================================
+// OAuth Hooks
+// ============================================================================
+
+interface OAuthInitResponse {
+  authorization_url: string;
+  state: string;
+  platform: string;
+}
+
+interface OAuthCallbackRequest {
+  code: string;
+  state: string;
+}
+
+interface OAuthCallbackResponse {
+  success: boolean;
+  account_id: string;
+  platform: string;
+  account_name: string;
+  message: string;
+}
+
+interface OAuthPlatform {
+  platform: string;
+  display_name: string;
+  is_configured: boolean;
+  scopes: string[];
+  category: 'social_media' | 'real_estate';
+}
+
+interface OAuthPlatformsResponse {
+  platforms: OAuthPlatform[];
+  configured_count: number;
+  total_count: number;
+}
+
+interface RateLimitStatus {
+  platform: string;
+  hourly_limit: number;
+  daily_limit: number;
+  hourly_used: number;
+  daily_used: number;
+  is_limited: boolean;
+  available_tokens: number;
+}
+
+/**
+ * Hook to initiate OAuth flow for a platform
+ */
+export const useInitOAuth = () => {
+  return useMutation<OAuthInitResponse, Error, { platform: string; accountLabel?: string }>({
+    mutationFn: async ({ platform, accountLabel }) => {
+      const params: Record<string, string> = {};
+      if (accountLabel) params.account_label = accountLabel;
+
+      return apiClient.get<OAuthInitResponse>(`/api/v1/social/oauth/${platform}/init`, { params });
+    },
+  });
+};
+
+/**
+ * Hook to process OAuth callback
+ */
+export const useOAuthCallback = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation<OAuthCallbackResponse, Error, OAuthCallbackRequest>({
+    mutationFn: async (data) => {
+      return apiClient.post<OAuthCallbackResponse>('/api/v1/social/oauth/callback', data);
+    },
+    onSuccess: () => {
+      // Invalidate social accounts to refresh the list
+      queryClient.invalidateQueries({ queryKey: queryKeys.social.accounts });
+    },
+  });
+};
+
+/**
+ * Hook to get available OAuth platforms
+ */
+export const useOAuthPlatforms = () => {
+  return useQuery<OAuthPlatformsResponse>({
+    queryKey: queryKeys.social.platforms,
+    queryFn: () => apiClient.get<OAuthPlatformsResponse>('/api/v1/social/oauth/platforms'),
+    staleTime: 30 * 60 * 1000, // 30 minutes
+  });
+};
+
+/**
+ * Hook to get rate limit status
+ */
+export const useRateLimitStatus = (platform?: string) => {
+  return useQuery<RateLimitStatus[]>({
+    queryKey: [...queryKeys.social.rateLimits, platform],
+    queryFn: () => apiClient.get<RateLimitStatus[]>('/api/v1/social/rate-limits', {
+      params: platform ? { platform } : {}
+    }),
+    staleTime: 60 * 1000, // 1 minute
+  });
+};
+
+/**
+ * Hook to disconnect a social account
+ */
+export const useDisconnectSocialAccount = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation<void, Error, string>({
+    mutationFn: async (accountId) => {
+      await apiClient.delete(`/api/v1/social/accounts/${accountId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.social.accounts });
+    },
+  });
+};
+
+// ============================================================================
+// Property Auto-Publish Hooks
+// ============================================================================
+
+interface AutoPublishSettings {
+  property_id?: string;
+  auto_publish_enabled: boolean;
+  auto_publish_portals: string[];
+  last_auto_publish?: string | null;
+}
+
+interface UpdateAutoPublishRequest {
+  auto_publish_enabled?: boolean;
+  auto_publish_portals?: string[];
+}
+
+interface PushPropertyResponse {
+  success: boolean;
+  message: string;
+  jobs_created: number;
+  portals: string[];
+}
+
+/**
+ * Hook to get auto-publish settings for a property
+ */
+export const useAutoPublishSettings = (propertyId: string) => {
+  return useQuery<AutoPublishSettings>({
+    queryKey: queryKeys.autoPublish.settings(propertyId),
+    queryFn: () => apiClient.get<AutoPublishSettings>(`/api/v1/publishing/properties/${propertyId}/auto-publish`),
+    enabled: !!propertyId,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+};
+
+/**
+ * Hook to update auto-publish settings for a property
+ */
+export const useUpdateAutoPublishSettings = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation<AutoPublishSettings, Error, { propertyId: string; data: UpdateAutoPublishRequest }>({
+    mutationFn: async ({ propertyId, data }) => {
+      return apiClient.put<AutoPublishSettings>(`/api/v1/publishing/properties/${propertyId}/auto-publish`, data);
+    },
+    onSuccess: (_, { propertyId }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.autoPublish.settings(propertyId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.properties.detail(propertyId) });
+    },
+  });
+};
+
+/**
+ * Hook to push property to portals immediately
+ */
+export const usePushPropertyToPortals = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation<PushPropertyResponse, Error, { propertyId: string; portals?: string[] }>({
+    mutationFn: async ({ propertyId, portals }) => {
+      return apiClient.post<PushPropertyResponse>(`/api/v1/publishing/properties/${propertyId}/push-now`, {
+        portals: portals || ['immoscout24']
+      });
+    },
+    onSuccess: (_, { propertyId }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.autoPublish.settings(propertyId) });
+    },
   });
 };
 
@@ -654,7 +891,7 @@ export const useFinancingScenarios = (params?: any) => {
 
 export const useCreateFinancingScenario = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation<FinancingScenario, Error, CreateScenarioRequest>({
     mutationFn: async (data) => {
       return apiClient.post<FinancingScenario>('/api/v1/finance/scenarios', data);
@@ -667,7 +904,7 @@ export const useCreateFinancingScenario = () => {
 
 export const useUpdateFinancingScenario = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation<FinancingScenario, Error, { id: string; data: UpdateScenarioRequest }>({
     mutationFn: async ({ id, data }) => {
       return apiClient.put<FinancingScenario>(`/api/v1/finance/scenarios/${id}`, data);
@@ -707,5 +944,54 @@ export const useDeleteContact = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.contacts.list() });
     },
+  });
+};
+
+// ============================================================================
+// SocialHub Scheduler & Queue Hooks
+// ============================================================================
+
+interface ScheduledPost {
+  id: string;
+  content: string;
+  platforms: string[];
+  scheduled_at: string;
+  status: 'scheduled' | 'published' | 'failed';
+  media_urls?: string[];
+  created_at: string;
+}
+
+interface QueueItem {
+  id: string;
+  content: string;
+  platforms: string[];
+  scheduled_at: string;
+  status: 'queued' | 'processing' | 'published' | 'failed';
+  priority?: 'high' | 'medium' | 'low';
+  retry_count: number;
+  error?: string;
+  created_at: string;
+}
+
+/**
+ * Hook to get scheduled posts
+ */
+export const useScheduledPosts = () => {
+  return useQuery<ScheduledPost[]>({
+    queryKey: [...queryKeys.social.posts, 'scheduled'],
+    queryFn: () => apiClient.get<ScheduledPost[]>('/api/v1/social/posts/scheduled'),
+    staleTime: 2 * 60 * 1000, // 2 minutes
+  });
+};
+
+/**
+ * Hook to get post queue
+ */
+export const usePostQueue = () => {
+  return useQuery<QueueItem[]>({
+    queryKey: [...queryKeys.social.posts, 'queue'],
+    queryFn: () => apiClient.get<QueueItem[]>('/api/v1/social/posts/queue'),
+    staleTime: 30 * 1000, // 30 seconds - queue updates frequently
+    refetchInterval: 60 * 1000, // Refresh every minute
   });
 };

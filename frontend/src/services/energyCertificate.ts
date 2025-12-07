@@ -46,7 +46,7 @@ export class EnergyCertificateService {
       const response = await apiClient.get<EnergyCertificateData>(
         `/api/v1/properties/${propertyId}/energy-data`
       );
-      return response.data;
+      return response;
     } catch (error: any) {
       console.error('Error fetching energy data:', error);
       throw new Error(error.response?.data?.detail || 'Fehler beim Laden der Energiedaten');
@@ -65,7 +65,7 @@ export class EnergyCertificateService {
         `/api/v1/properties/${propertyId}/energy-data`,
         data
       );
-      return response.data;
+      return response;
     } catch (error: any) {
       console.error('Error updating energy data:', error);
       throw new Error(error.response?.data?.detail || 'Fehler beim Speichern der Energiedaten');
@@ -89,7 +89,7 @@ export class EnergyCertificateService {
           ...request
         }
       );
-      return response.data;
+      return response;
     } catch (error: any) {
       console.error('Error generating PDF:', error);
       throw new Error(error.response?.data?.detail || 'Fehler beim Generieren des PDFs');
@@ -107,7 +107,7 @@ export class EnergyCertificateService {
           responseType: 'blob'
         }
       );
-      return response.data as Blob;
+      return response as unknown as Blob;
     } catch (error: any) {
       console.error('Error downloading PDF:', error);
       throw new Error(error.response?.data?.detail || 'Fehler beim Herunterladen des PDFs');
@@ -120,18 +120,18 @@ export class EnergyCertificateService {
   static async downloadPDFFile(propertyId: string, filename?: string): Promise<void> {
     try {
       const blob = await this.downloadPDF(propertyId);
-      
+
       // Create download link
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       link.download = filename || `Energieausweis_${propertyId}_${new Date().toISOString().split('T')[0]}.pdf`;
-      
+
       // Trigger download
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      
+
       // Clean up
       window.URL.revokeObjectURL(url);
     } catch (error: any) {

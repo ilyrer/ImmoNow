@@ -5,8 +5,8 @@ import { useProperty, usePropertyMetrics, propertyKeys, useUpdateProperty } from
 import { useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { UpdatePropertyPayload } from '../../types/property';
-import { 
-  ArrowLeft, Edit2, Save, X, MapPin, Euro, Home, Calendar, 
+import {
+  ArrowLeft, Edit2, Save, X, MapPin, Euro, Home, Calendar,
   TrendingUp, Eye, MessageSquare, Users, Clock, Tag, Star,
   Building2, Ruler, Bed, Bath, Car, Zap, Flame, Download,
   FileText, Share2, Settings, ChevronLeft, ChevronRight
@@ -29,7 +29,7 @@ interface Property {
   price: number;
   location: string;
   type: 'house' | 'apartment' | 'commercial';
-  status: 'available' | 'sold' | 'reserved' | 'akquise' | 'vorbereitung';
+  status: 'aktiv' | 'verkauft' | 'reserviert' | 'akquise' | 'vorbereitung' | 'zurückgezogen';
   features: {
     bedrooms: string;
     bathrooms: string;
@@ -99,7 +99,7 @@ const PropertyDetail: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  
+
   // ✅ Backend-Integration: Echte Property-Daten + Metrics
   const { data: apiProperty, isLoading } = useProperty(id || '');
   const { data: metrics, isLoading: metricsLoading } = usePropertyMetrics(id || '');
@@ -129,7 +129,7 @@ const PropertyDetail: React.FC = () => {
   // Map API property to UI property
   useEffect(() => {
     if (!apiProperty) return;
-    
+
     const p = apiProperty as any;
     const mapped: Property = {
       id: p.id || '',
@@ -137,8 +137,8 @@ const PropertyDetail: React.FC = () => {
       description: p.description || p.beschreibung || '',
       price: p.price || p.kaufpreis || 0,
       location: p.location || `${p.plz || ''} ${p.ort || ''}`.trim(),
-      type: p.property_type === 'apartment' || p.objektart === 'Wohnung' ? 'apartment' : 
-            p.property_type === 'house' || p.objektart === 'Haus' ? 'house' : 'commercial',
+      type: p.property_type === 'apartment' || p.objektart === 'Wohnung' ? 'apartment' :
+        p.property_type === 'house' || p.objektart === 'Haus' ? 'house' : 'commercial',
       status: mapStatus(p.status),
       features: {
         bedrooms: (p.rooms || p.anzahl_zimmer)?.toString() || '0',
@@ -202,28 +202,30 @@ const PropertyDetail: React.FC = () => {
     setProperty(mapped);
   }, [apiProperty, metrics]); // ✅ Re-run when metrics change
 
-  // Helper: Map API status to UI status
+  // Helper: Map API status to UI status (now uses backend values directly)
   const mapStatus = (status?: string): Property['status'] => {
     switch (status) {
-      case 'aktiv': return 'available';
-      case 'verkauft': return 'sold';
-      case 'reserviert': return 'reserved';
+      case 'aktiv': return 'aktiv';
+      case 'verkauft': return 'verkauft';
+      case 'reserviert': return 'reserviert';
       case 'vorbereitung': return 'vorbereitung';
       case 'akquise': return 'akquise';
-      default: return 'available';
+      case 'zurückgezogen': return 'zurückgezogen';
+      default: return 'vorbereitung';
     }
   };
 
-  // Helper: Get status styling
+  // Helper: Get status styling (using backend status values)
   const getStatusStyle = (status: string) => {
     const styles = {
-      available: 'bg-gradient-to-r from-emerald-500 to-green-500 text-white',
-      sold: 'bg-gradient-to-r from-gray-500 to-slate-500 text-white',
-      reserved: 'bg-gradient-to-r from-amber-500 to-orange-500 text-white',
+      aktiv: 'bg-gradient-to-r from-emerald-500 to-green-500 text-white',
+      verkauft: 'bg-gradient-to-r from-gray-500 to-slate-500 text-white',
+      reserviert: 'bg-gradient-to-r from-amber-500 to-orange-500 text-white',
       akquise: 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white',
       vorbereitung: 'bg-gradient-to-r from-purple-500 to-pink-500 text-white',
+      zurückgezogen: 'bg-gradient-to-r from-red-500 to-rose-500 text-white',
     };
-    return styles[status as keyof typeof styles] || styles.available;
+    return styles[status as keyof typeof styles] || styles.vorbereitung;
   };
 
   // Handle Edit Mode
@@ -239,29 +241,29 @@ const PropertyDetail: React.FC = () => {
 
   const handleSave = async () => {
     if (!editingProperty) return;
-    
+
     setIsSaving(true);
     try {
       // Map UI structure to API structure
       const apiStatus = mapStatusToApi(editingProperty.status);
-      const apiType = editingProperty.type === 'apartment' ? 'apartment' : 
-                      editingProperty.type === 'house' ? 'house' : 'commercial';
-      
+      const apiType = editingProperty.type === 'apartment' ? 'apartment' :
+        editingProperty.type === 'house' ? 'house' : 'commercial';
+
       // Sammle alle Werte aus editingProperty
-      const bedroomsValue = editingProperty.features?.bedrooms 
-        ? Number(editingProperty.features.bedrooms) 
+      const bedroomsValue = editingProperty.features?.bedrooms
+        ? Number(editingProperty.features.bedrooms)
         : undefined;
-      const bathroomsValue = editingProperty.features?.bathrooms 
-        ? Number(editingProperty.features.bathrooms) 
+      const bathroomsValue = editingProperty.features?.bathrooms
+        ? Number(editingProperty.features.bathrooms)
         : undefined;
       const energyClassValue = editingProperty.energyClass?.efficiency || undefined;
       const heatingTypeValue = editingProperty.features?.heatingType || undefined;
-      const yearBuiltValue = editingProperty.buildYear 
-        ? Number(editingProperty.buildYear) 
+      const yearBuiltValue = editingProperty.buildYear
+        ? Number(editingProperty.buildYear)
         : undefined;
       const livingAreaValue = editingProperty.areas?.living || editingProperty.features?.area || undefined;
       const floorsValue = editingProperty.features?.floor ? Number(editingProperty.features.floor) : undefined;
-      
+
       // Build API payload - flache Felder für Property Model
       const payload: any = {
         title: editingProperty.title,
@@ -338,19 +340,19 @@ const PropertyDetail: React.FC = () => {
       if (editingProperty.additionalInfo) {
         payload.additional_info = editingProperty.additionalInfo;
       }
-      
+
       // Führe Update aus
       await updateMutation.mutateAsync({
         id: editingProperty.id,
         payload: payload as UpdatePropertyPayload,
       });
-      
+
       // Warte kurz, damit die Query-Invalidierung wirkt
       await new Promise(resolve => setTimeout(resolve, 100));
-      
+
       // Refetch die Property-Daten um sicherzustellen, dass wir die neuesten Daten haben
       await queryClient.refetchQueries({ queryKey: propertyKeys.detail(editingProperty.id) });
-      
+
       setIsEditing(false);
       setEditingProperty(null);
       toast.success('Immobilie erfolgreich aktualisiert!');
@@ -362,31 +364,25 @@ const PropertyDetail: React.FC = () => {
     }
   };
 
-  // Helper: Map UI status to API status
+  // Helper: Map UI status to API status (now direct mapping - same values)
   const mapStatusToApi = (status: Property['status']): string => {
-    switch (status) {
-      case 'available': return 'aktiv';
-      case 'sold': return 'verkauft';
-      case 'reserved': return 'reserviert';
-      case 'vorbereitung': return 'vorbereitung';
-      case 'akquise': return 'akquise';
-      default: return 'aktiv';
-    }
+    // Status values are now the same as backend
+    return status || 'vorbereitung';
   };
 
   // Update editing property helper
   const updateEditingProperty = (field: string, value: any) => {
     if (!editingProperty) return;
-    
+
     const fields = field.split('.');
     const updated = { ...editingProperty };
     let current: any = updated;
-    
+
     for (let i = 0; i < fields.length - 1; i++) {
       current[fields[i]] = { ...current[fields[i]] };
       current = current[fields[i]];
     }
-    
+
     current[fields[fields.length - 1]] = value;
     setEditingProperty(updated);
   };
@@ -394,20 +390,20 @@ const PropertyDetail: React.FC = () => {
   // Image Navigation
   const handlePrevImage = () => {
     if (!property) return;
-    setSelectedImageIndex((prev) => 
+    setSelectedImageIndex((prev) =>
       prev === 0 ? property.images.length - 1 : prev - 1
     );
   };
 
   const handleNextImage = () => {
     if (!property) return;
-    setSelectedImageIndex((prev) => 
+    setSelectedImageIndex((prev) =>
       prev === property.images.length - 1 ? 0 : prev + 1
     );
   };
 
   // ✅ Performance Chart Data vom Backend
-  const performanceData: Array<{ date: string; views: number; inquiries: number; visits: number }> = 
+  const performanceData: Array<{ date: string; views: number; inquiries: number; visits: number }> =
     metrics?.chartData?.map(item => ({
       date: new Date(item.date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }),
       views: item.views,
@@ -433,7 +429,7 @@ const PropertyDetail: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/20 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       {/* Header */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-700 sticky top-0 z-50"
@@ -448,7 +444,7 @@ const PropertyDetail: React.FC = () => {
                 <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
                 <span>Zurück</span>
               </button>
-              
+
               <div>
                 <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
                   {property.title}
@@ -461,13 +457,29 @@ const PropertyDetail: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-3">
-              <span className={`px-4 py-2 rounded-lg font-semibold ${getStatusStyle(property.status)}`}>
-                {property.status === 'available' && 'Verfügbar'}
-                {property.status === 'sold' && 'Verkauft'}
-                {property.status === 'reserved' && 'Reserviert'}
-                {property.status === 'akquise' && 'Akquise'}
-                {property.status === 'vorbereitung' && 'Vorbereitung'}
-              </span>
+              {isEditing ? (
+                <select
+                  value={editingProperty?.status || property.status}
+                  onChange={(e) => updateEditingProperty('status', e.target.value)}
+                  className="px-4 py-2 rounded-lg font-semibold bg-white dark:bg-gray-700 border-2 border-blue-500 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                >
+                  <option value="akquise">Akquise</option>
+                  <option value="vorbereitung">Vorbereitung</option>
+                  <option value="aktiv">Aktiv</option>
+                  <option value="reserviert">Reserviert</option>
+                  <option value="verkauft">Verkauft</option>
+                  <option value="zurückgezogen">Zurückgezogen</option>
+                </select>
+              ) : (
+                <span className={`px-4 py-2 rounded-lg font-semibold ${getStatusStyle(property.status)}`}>
+                  {property.status === 'aktiv' && 'Aktiv'}
+                  {property.status === 'verkauft' && 'Verkauft'}
+                  {property.status === 'reserviert' && 'Reserviert'}
+                  {property.status === 'akquise' && 'Akquise'}
+                  {property.status === 'vorbereitung' && 'Vorbereitung'}
+                  {property.status === 'zurückgezogen' && 'Zurückgezogen'}
+                </span>
+              )}
 
               {isEditing ? (
                 <>
@@ -521,7 +533,7 @@ const PropertyDetail: React.FC = () => {
                       alt={property.title}
                       className="w-full h-full object-cover"
                     />
-                    
+
                     {/* Navigation Arrows */}
                     {property.images.length > 1 && (
                       <>
@@ -559,11 +571,10 @@ const PropertyDetail: React.FC = () => {
                     <button
                       key={idx}
                       onClick={() => setSelectedImageIndex(idx)}
-                      className={`flex-shrink-0 w-24 h-24 rounded-xl overflow-hidden border-2 transition-all ${
-                        idx === selectedImageIndex
+                      className={`flex-shrink-0 w-24 h-24 rounded-xl overflow-hidden border-2 transition-all ${idx === selectedImageIndex
                           ? 'border-blue-500 ring-2 ring-blue-500/30 scale-105'
                           : 'border-transparent hover:border-gray-300 dark:hover:border-gray-600 hover:scale-105'
-                      }`}
+                        }`}
                     >
                       <img src={img} alt="" className="w-full h-full object-cover" />
                     </button>
@@ -576,7 +587,7 @@ const PropertyDetail: React.FC = () => {
             <div className="relative bg-white/70 dark:bg-gray-800/70 backdrop-blur-md rounded-3xl p-4 border border-gray-200 dark:border-gray-700 shadow-lg">
               <div className="absolute left-0 top-0 bottom-0 w-16 bg-gradient-to-r from-white/95 dark:from-gray-800/95 to-transparent pointer-events-none z-10 rounded-l-3xl"></div>
               <div className="absolute right-0 top-0 bottom-0 w-16 bg-gradient-to-l from-white/95 dark:from-gray-800/95 to-transparent pointer-events-none z-10 rounded-r-3xl"></div>
-              
+
               <div className="flex gap-4 overflow-x-auto pb-1 px-3 scrollbar-hide scroll-smooth">
                 {tabs.map((tab) => {
                   const Icon = tab.icon;
@@ -584,11 +595,10 @@ const PropertyDetail: React.FC = () => {
                     <button
                       key={tab.id}
                       onClick={() => setActiveTab(tab.id)}
-                      className={`flex-shrink-0 flex items-center gap-3 px-8 py-4 rounded-2xl font-medium transition-all duration-300 ${
-                        activeTab === tab.id
+                      className={`flex-shrink-0 flex items-center gap-3 px-8 py-4 rounded-2xl font-medium transition-all duration-300 ${activeTab === tab.id
                           ? 'bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 text-white shadow-xl shadow-blue-500/40 scale-105'
                           : 'bg-white/90 dark:bg-gray-700/50 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600/50 hover:shadow-lg hover:scale-102'
-                      }`}
+                        }`}
                     >
                       <Icon className={`w-5 h-5 ${activeTab === tab.id ? 'animate-pulse' : ''}`} />
                       <span className="whitespace-nowrap text-base font-semibold">{tab.label}</span>
@@ -949,7 +959,7 @@ const PropertyDetail: React.FC = () => {
 
                 {/* Location Tab */}
                 {activeTab === 'location' && (
-                  <LocationTab 
+                  <LocationTab
                     property={property}
                     isEditing={isEditing}
                     onEdit={() => setIsEditing(true)}
@@ -999,7 +1009,7 @@ const PropertyDetail: React.FC = () => {
                 <Euro className="w-6 h-6 text-blue-500" />
                 Finanzen
               </h3>
-              
+
               <div className="space-y-4">
                 <div className="p-6 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl border border-blue-200 dark:border-blue-700">
                   <div className="text-sm text-gray-500 dark:text-gray-400 mb-2">Kaufpreis</div>
@@ -1045,7 +1055,7 @@ const PropertyDetail: React.FC = () => {
               <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
                 Ansprechpartner
               </h3>
-              
+
               <div className="space-y-4">
                 <div className="p-4 bg-gray-50/50 dark:bg-gray-700/30 rounded-xl">
                   <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Name</div>
@@ -1080,7 +1090,7 @@ const PropertyDetail: React.FC = () => {
               <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
                 Aktionen
               </h3>
-              
+
               <div className="space-y-3">
                 <button
                   onClick={() => setActiveTab('expose')}

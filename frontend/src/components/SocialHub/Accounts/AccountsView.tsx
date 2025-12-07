@@ -1,491 +1,599 @@
 /**
- * SocialHub Accounts View (Simplified)
- * Verwaltung von Social Media Konten mit OAuth-Simulation
+ * SocialHub Accounts View - Live OAuth Integration
+ * Verbindet Social Media Konten über echte OAuth2 Flows
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent } from '../../common/Card';
-import { SimpleSocialAccount, SocialPlatform, Profile, PLATFORM_INFO } from './types';
-// TODO: Implement real accounts API
+import {
+  Link2,
+  Unlink,
+  Plus,
+  ExternalLink,
+  Loader2,
+  RefreshCw,
+  Building2,
+  Users,
+  ArrowLeft,
+  Shield,
+  Clock
+} from 'lucide-react';
+import {
+  useSocialAccounts,
+  useInitOAuth,
+  useDisconnectSocialAccount,
+  useOAuthPlatforms,
+  useRateLimitStatus
+} from '../../../api/hooks';
+import toast from 'react-hot-toast';
 
 interface AccountsViewProps {
   onBack: () => void;
 }
 
+// Platform configuration
+const PLATFORM_CONFIG: Record<string, {
+  name: string;
+  icon: string;
+  color: string;
+  bgColor: string;
+  description: string;
+  category: 'social' | 'portal';
+}> = {
+  instagram: {
+    name: 'Instagram',
+    icon: 'ri-instagram-line',
+    color: 'text-pink-600',
+    bgColor: 'bg-gradient-to-br from-purple-600 via-pink-600 to-orange-500',
+    description: 'Bilder, Reels und Stories veröffentlichen',
+    category: 'social',
+  },
+  facebook: {
+    name: 'Facebook',
+    icon: 'ri-facebook-fill',
+    color: 'text-blue-600',
+    bgColor: 'bg-blue-600',
+    description: 'Posts und Updates auf Facebook Pages',
+    category: 'social',
+  },
+  linkedin: {
+    name: 'LinkedIn',
+    icon: 'ri-linkedin-fill',
+    color: 'text-blue-700',
+    bgColor: 'bg-blue-700',
+    description: 'Professionelle Updates und Artikel',
+    category: 'social',
+  },
+  youtube: {
+    name: 'YouTube',
+    icon: 'ri-youtube-fill',
+    color: 'text-red-600',
+    bgColor: 'bg-red-600',
+    description: 'Videos hochladen und verwalten',
+    category: 'social',
+  },
+  tiktok: {
+    name: 'TikTok',
+    icon: 'ri-tiktok-fill',
+    color: 'text-gray-900',
+    bgColor: 'bg-gradient-to-br from-cyan-400 via-pink-500 to-blue-600',
+    description: 'Kurzvideos (Analytics only)',
+    category: 'social',
+  },
+  twitter: {
+    name: 'X (Twitter)',
+    icon: 'ri-twitter-x-fill',
+    color: 'text-gray-900',
+    bgColor: 'bg-gray-900',
+    description: 'Tweets und Updates',
+    category: 'social',
+  },
+  immoscout24: {
+    name: 'ImmoScout24',
+    icon: 'ri-home-4-fill',
+    color: 'text-orange-600',
+    bgColor: 'bg-gradient-to-br from-orange-500 to-red-600',
+    description: 'Immobilien auf ImmoScout24 veröffentlichen',
+    category: 'portal',
+  },
+  immowelt: {
+    name: 'Immowelt',
+    icon: 'ri-building-2-fill',
+    color: 'text-blue-600',
+    bgColor: 'bg-gradient-to-br from-blue-500 to-indigo-600',
+    description: 'Immobilien auf Immowelt veröffentlichen',
+    category: 'portal',
+  },
+};
+
 const AccountsView: React.FC<AccountsViewProps> = ({ onBack }) => {
-  const [accounts, setAccounts] = useState<SimpleSocialAccount[]>([]);
-  const [loading, setLoading] = useState<string | null>(null);
-  const [showOAuthModal, setShowOAuthModal] = useState(false);
-  const [selectedPlatform, setSelectedPlatform] = useState<SocialPlatform | null>(null);
-  const [availableProfiles, setAvailableProfiles] = useState<Profile[]>([]);
-  const [selectedProfile, setSelectedProfile] = useState<string>('');
-  const [showAddAccountModal, setShowAddAccountModal] = useState(false);
+  const [showConnectModal, setShowConnectModal] = useState(false);
+  const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
+  const [accountLabel, setAccountLabel] = useState('');
 
-  // Load accounts on mount
-  useEffect(() => {
-    loadAccounts();
-  }, []);
+  // API Hooks
+  const { data: accounts, isLoading: accountsLoading, refetch: refetchAccounts } = useSocialAccounts();
+  const { data: platforms } = useOAuthPlatforms();
+  const { data: rateLimits } = useRateLimitStatus();
+  const initOAuthMutation = useInitOAuth();
+  const disconnectMutation = useDisconnectSocialAccount();
 
-  const loadAccounts = () => {
-    // TODO: Load from real API
-    setAccounts([]);
-  };
-
-  const handleConnectClick = (platform: SocialPlatform) => {
+  // Handle OAuth initiation
+  const handleConnect = async (platform: string) => {
     setSelectedPlatform(platform);
-    // TODO: Get profiles from real API
-    setAvailableProfiles([]);
-    setSelectedProfile('');
-    setShowOAuthModal(true);
-  };
 
-  const handleOAuthConfirm = async () => {
-    if (!selectedPlatform) return;
-    
-    setLoading(selectedPlatform);
-    setShowOAuthModal(false);
-    
     try {
-      // TODO: Implement real OAuth connection
-      const updatedAccount: SimpleSocialAccount = { 
-        id: '1', 
-        platform: selectedPlatform, 
-        connected: true, 
-        profiles: [],
-        displayName: `${selectedPlatform} Account`
-      };
-      setAccounts(prev => prev.map(acc => 
-        acc.platform === selectedPlatform ? updatedAccount : acc
-      ));
-    } catch (error) {
-      console.error('Connection failed:', error);
-    } finally {
-      setLoading(null);
+      const result = await initOAuthMutation.mutateAsync({
+        platform,
+        accountLabel: accountLabel || undefined
+      });
+
+      // Redirect to OAuth URL
+      window.location.href = result.authorization_url;
+    } catch (error: any) {
+      toast.error(error.response?.data?.detail || `Fehler beim Verbinden mit ${platform}`);
       setSelectedPlatform(null);
     }
   };
 
-  const handleDisconnect = async (account: SimpleSocialAccount) => {
-    if (!window.confirm(`Möchten Sie ${PLATFORM_INFO[account.platform].name} wirklich trennen?`)) {
+  // Handle account disconnection
+  const handleDisconnect = async (accountId: string, accountName: string) => {
+    if (!window.confirm(`Möchten Sie "${accountName}" wirklich trennen?`)) {
       return;
     }
-    
-    setLoading(account.platform);
-    
+
     try {
-      // TODO: Implement real disconnect
-      const updatedAccount = { ...account, isConnected: false };
-      setAccounts(prev => prev.map(acc => 
-        acc.id === account.id ? updatedAccount : acc
-      ));
-    } catch (error) {
-      console.error('Disconnect failed:', error);
-    } finally {
-      setLoading(null);
+      await disconnectMutation.mutateAsync(accountId);
+      toast.success('Account erfolgreich getrennt');
+      refetchAccounts();
+    } catch (error: any) {
+      toast.error(error.response?.data?.detail || 'Fehler beim Trennen');
     }
   };
 
-  const handleProfileChange = async (account: SimpleSocialAccount, profileName: string) => {
-    setLoading(account.platform);
-    
-    try {
-      // TODO: Implement real profile update
-      const updatedAccount = { ...account, defaultProfile: profileName };
-      setAccounts(prev => prev.map(acc => 
-        acc.id === account.id ? updatedAccount : acc
-      ));
-    } catch (error) {
-      console.error('Profile update failed:', error);
-    } finally {
-      setLoading(null);
-    }
-  };
+  // Filter accounts by category
+  const socialAccounts = accounts?.filter(acc =>
+    PLATFORM_CONFIG[acc.platform]?.category === 'social'
+  ) || [];
+  const portalAccounts = accounts?.filter(acc =>
+    PLATFORM_CONFIG[acc.platform]?.category === 'portal'
+  ) || [];
 
-  const connectedCount = accounts.filter(acc => acc.connected).length;
+  // Get available platforms
+  const availablePlatforms = platforms?.platforms?.filter(p => p.is_configured) || [];
+
+  const connectedCount = accounts?.filter(acc => acc.is_active).length || 0;
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex items-center justify-between"
+      >
         <div className="flex items-center space-x-4">
           <button
             onClick={onBack}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors"
           >
-            <i className="ri-arrow-left-line text-xl text-gray-600 dark:text-gray-400"></i>
+            <ArrowLeft className="w-6 h-6 text-gray-600 dark:text-gray-400" />
           </button>
           <div>
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-              Social Media Konten
+              Verknüpfte Konten
             </h2>
             <p className="text-gray-600 dark:text-gray-400 mt-1">
-              Verbinden Sie Ihre Social Media Accounts
+              Verwalten Sie Ihre Social Media und Portal-Verbindungen
             </p>
           </div>
         </div>
+
         <div className="flex items-center gap-4">
+          <button
+            onClick={() => refetchAccounts()}
+            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors"
+            title="Aktualisieren"
+          >
+            <RefreshCw className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+          </button>
+
           <div className="text-right">
             <p className="text-sm text-gray-600 dark:text-gray-400">Verbunden</p>
             <p className="text-2xl font-bold text-gray-900 dark:text-white">
-              {connectedCount} / {accounts.length}
+              {connectedCount}
             </p>
           </div>
+
           <button
-            onClick={() => setShowAddAccountModal(true)}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-2 shadow-lg"
+            onClick={() => setShowConnectModal(true)}
+            className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-xl transition-all flex items-center gap-2 shadow-lg hover:shadow-xl"
           >
-            <i className="ri-add-line text-lg"></i>
-            <span className="font-medium">Neues Konto</span>
+            <Plus className="w-5 h-5" />
+            <span className="font-medium">Verbinden</span>
           </button>
         </div>
-      </div>
+      </motion.div>
 
-      {/* Platform Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {accounts.map((account) => {
-          const platformInfo = PLATFORM_INFO[account.platform];
-          const isLoading = loading === account.platform;
-          const profiles: any[] = []; // TODO: Get from real API
-
-          return (
-            <Card key={account.id} className="hover:shadow-lg transition-shadow">
-              <CardContent className="p-6">
-                {/* Platform Header */}
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center space-x-3">
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${platformInfo.bgColor}`}>
-                      <i className={`${platformInfo.icon} text-2xl ${platformInfo.color}`}></i>
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900 dark:text-white">
-                        {platformInfo.name}
-                      </h3>
-                      {account.connected && account.displayName && (
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                          {account.displayName}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {/* Status Badge */}
-                  <span className={`px-3 py-1 text-xs font-medium rounded-full ${
-                    account.connected 
-                      ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-                      : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
-                  }`}>
-                    {account.connected ? (
-                      <><i className="ri-check-line mr-1"></i>Verbunden</>
-                    ) : (
-                      <>Nicht verbunden</>
-                    )}
-                  </span>
-                </div>
-
-                {/* Connected State */}
-                {account.connected ? (
-                  <div className="space-y-4">
-                    {/* Default Profile Selector */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Standard-Seite/Profil
-                      </label>
-                      <select
-                        value={account.defaultProfileName || ''}
-                        onChange={(e) => handleProfileChange(account, e.target.value)}
-                        disabled={isLoading}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {profiles.map((profile: any) => (
-                          <option key={profile.id} value={profile.name}>
-                            {profile.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Disconnect Button */}
-                    <button
-                      onClick={() => handleDisconnect(account)}
-                      disabled={isLoading}
-                      className="w-full px-4 py-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                    >
-                      {isLoading ? (
-                        <>
-                          <i className="ri-loader-4-line animate-spin mr-2"></i>
-                          Wird getrennt...
-                        </>
-                      ) : (
-                        <>
-                          <i className="ri-link-unlink-m mr-2"></i>
-                          Trennen
-                        </>
-                      )}
-                    </button>
-                  </div>
-                ) : (
-                  /* Disconnected State */
-                  <div className="space-y-4">
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Verbinden Sie Ihr {platformInfo.name}-Konto, um Beiträge zu veröffentlichen.
-                    </p>
-                    <button
-                      onClick={() => handleConnectClick(account.platform)}
-                      disabled={isLoading}
-                      className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                    >
-                      {isLoading ? (
-                        <>
-                          <i className="ri-loader-4-line animate-spin mr-2"></i>
-                          Wird verbunden...
-                        </>
-                      ) : (
-                        <>
-                          <i className="ri-links-line mr-2"></i>
-                          Verbinden
-                        </>
-                      )}
-                    </button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-
-      {/* Enhanced OAuth Simulation Modal - Compact */}
-      {showOAuthModal && selectedPlatform && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden max-h-[85vh] flex flex-col">
-            {/* Header with Platform Branding - Compact */}
-            <div className={`${PLATFORM_INFO[selectedPlatform].bgColor} p-4 text-center relative overflow-hidden flex-shrink-0`}>
-              <div className="absolute inset-0 opacity-10">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-white rounded-full -mr-16 -mt-16"></div>
-                <div className="absolute bottom-0 left-0 w-24 h-24 bg-white rounded-full -ml-12 -mb-12"></div>
-              </div>
-              <div className="relative">
-                <div className="w-12 h-12 mx-auto mb-2 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-lg">
-                  <i className={`${PLATFORM_INFO[selectedPlatform].icon} text-3xl ${PLATFORM_INFO[selectedPlatform].color}`}></i>
-                </div>
-                <h3 className="text-lg font-bold text-white mb-1">
-                  Mit {PLATFORM_INFO[selectedPlatform].name} verbinden
-                </h3>
-                <p className="text-white/90 text-xs">
-                  Autorisieren Sie Immonow CIM den Zugriff auf Ihr Konto
-                </p>
-              </div>
-            </div>
-
-            {/* Content - Scrollable */}
-            <div className="p-4 overflow-y-auto flex-1">
-              {/* Permissions Section - Compact */}
-              <div className="mb-4">
-                <h4 className="text-xs font-semibold text-gray-900 dark:text-white mb-2">
-                  Diese Anwendung möchte:
-                </h4>
-                <div className="space-y-1.5">
-                  {[
-                    { icon: 'ri-file-text-line', text: 'Beiträge in Ihrem Namen erstellen und veröffentlichen' },
-                    { icon: 'ri-image-line', text: 'Medien auf Ihr Konto hochladen' },
-                    { icon: 'ri-calendar-line', text: 'Geplante Beiträge verwalten' },
-                    { icon: 'ri-bar-chart-line', text: 'Performance-Daten und Insights abrufen' },
-                  ].map((permission, idx) => (
-                    <div key={idx} className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                      <div className="w-6 h-6 flex-shrink-0 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
-                        <i className={`${permission.icon} text-xs text-blue-600 dark:text-blue-400`}></i>
-                      </div>
-                      <p className="text-xs text-gray-700 dark:text-gray-300 leading-tight">
-                        {permission.text}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Profile Selection - Compact */}
-              <div className="mb-4">
-                <label className="block text-xs font-semibold text-gray-900 dark:text-white mb-2">
-                  <i className="ri-user-line mr-1"></i>
-                  Wählen Sie Ihr Profil/Ihre Seite:
-                </label>
-                <div className="space-y-2">
-                  {availableProfiles.map(profile => (
-                    <button
-                      key={profile.id}
-                      onClick={() => setSelectedProfile(profile.name)}
-                      className={`w-full p-2.5 border-2 rounded-lg text-left transition-all ${
-                        selectedProfile === profile.name
-                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                          : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 bg-white dark:bg-gray-800'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${
-                            selectedProfile === profile.name
-                              ? PLATFORM_INFO[selectedPlatform].bgColor
-                              : 'bg-gray-100 dark:bg-gray-700'
-                          }`}>
-                            <i className={`${PLATFORM_INFO[selectedPlatform].icon} text-base ${
-                              selectedProfile === profile.name
-                                ? 'text-white'
-                                : 'text-gray-400'
-                            }`}></i>
-                          </div>
-                          <div>
-                            <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                              {profile.name}
-                            </p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">
-                              {profile.type === 'page' ? 'Seite' : profile.type === 'channel' ? 'Kanal' : 'Profil'}
-                            </p>
-                          </div>
-                        </div>
-                        {selectedProfile === profile.name && (
-                          <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
-                            <i className="ri-check-line text-white text-xs"></i>
-                          </div>
-                        )}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Info Box - Compact */}
-              <div className="mb-4 p-2.5 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                <div className="flex items-start gap-2">
-                  <div className="w-5 h-5 flex-shrink-0 bg-blue-100 dark:bg-blue-800/50 rounded-lg flex items-center justify-center">
-                    <i className="ri-information-line text-xs text-blue-600 dark:text-blue-400"></i>
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-blue-900 dark:text-blue-300 mb-0.5">
-                      Demo-Modus
-                    </p>
-                    <p className="text-xs text-blue-800 dark:text-blue-400 leading-tight">
-                      Dies ist eine simulierte OAuth-Authentifizierung. In der Produktionsumgebung werden Sie zur offiziellen {PLATFORM_INFO[selectedPlatform].name}-Anmeldeseite weitergeleitet.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="flex gap-2">
-                <button
-                  onClick={() => {
-                    setShowOAuthModal(false);
-                    setSelectedPlatform(null);
-                  }}
-                  className="flex-1 px-4 py-2.5 border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm font-semibold rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
-                >
-                  Abbrechen
-                </button>
-                <button
-                  onClick={handleOAuthConfirm}
-                  className={`flex-1 px-4 py-2.5 text-sm font-semibold rounded-lg transition-all text-white shadow-lg ${PLATFORM_INFO[selectedPlatform].bgColor} hover:opacity-90 hover:shadow-xl`}
-                >
-                  <i className="ri-shield-check-line mr-1"></i>
-                  Autorisieren
-                </button>
-              </div>
-            </div>
-          </div>
+      {/* Loading State */}
+      {accountsLoading && (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
         </div>
       )}
 
-      {/* Add New Account Modal */}
-      {showAddAccountModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden">
-            {/* Header */}
-            <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 p-8 text-center relative overflow-hidden">
-              <div className="absolute inset-0 opacity-10">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-white rounded-full -mr-32 -mt-32"></div>
-                <div className="absolute bottom-0 left-0 w-48 h-48 bg-white rounded-full -ml-24 -mb-24"></div>
-              </div>
-              <div className="relative">
-                <div className="w-20 h-20 mx-auto mb-4 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center shadow-lg">
-                  <i className="ri-add-circle-line text-5xl text-white"></i>
-                </div>
-                <h3 className="text-2xl font-bold text-white mb-2">
-                  Neues Social Media Konto hinzufügen
-                </h3>
-                <p className="text-white/90 text-sm">
-                  Wählen Sie eine Plattform, um loszulegen
-                </p>
-              </div>
-            </div>
+      {/* Social Media Accounts Section */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+      >
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+          <Users className="w-5 h-5 text-purple-600" />
+          Social Media
+        </h3>
 
-            {/* Content */}
-            <div className="p-8">
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
-                {accounts.filter(acc => !acc.connected).map((account) => {
-                  const platformInfo = PLATFORM_INFO[account.platform];
-                  return (
-                    <button
-                      key={account.id}
-                      onClick={() => {
-                        setShowAddAccountModal(false);
-                        handleConnectClick(account.platform);
-                      }}
-                      className="group relative bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 border-2 border-gray-200 dark:border-gray-600 hover:border-blue-500 dark:hover:border-blue-500 rounded-2xl p-6 transition-all hover:scale-105 hover:shadow-xl"
-                    >
-                      <div className={`w-16 h-16 mx-auto mb-3 rounded-xl flex items-center justify-center ${platformInfo.bgColor} shadow-lg group-hover:scale-110 transition-transform`}>
-                        <i className={`${platformInfo.icon} text-3xl ${platformInfo.color}`}></i>
-                      </div>
-                      <p className="font-semibold text-gray-900 dark:text-white text-center">
-                        {platformInfo.name}
-                      </p>
-                    </button>
-                  );
-                })}
-              </div>
+        {socialAccounts.length === 0 ? (
+          <Card className="bg-gray-50 dark:bg-gray-800/50">
+            <CardContent className="py-8 text-center">
+              <p className="text-gray-500 dark:text-gray-400">
+                Noch keine Social Media Konten verbunden.
+              </p>
+              <button
+                onClick={() => setShowConnectModal(true)}
+                className="mt-4 text-blue-600 hover:text-blue-700 font-medium"
+              >
+                Jetzt verbinden →
+              </button>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {socialAccounts.map((account) => {
+              const config = PLATFORM_CONFIG[account.platform];
+              if (!config) return null;
 
-              {/* Already Connected Section */}
-              {accounts.some(acc => acc.connected) && (
-                <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
-                  <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-                    <i className="ri-check-line text-green-600 dark:text-green-400"></i>
-                    Bereits verbunden
-                  </h4>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                    {accounts.filter(acc => acc.connected).map((account) => {
-                      const platformInfo = PLATFORM_INFO[account.platform];
-                      return (
-                        <div
-                          key={account.id}
-                          className="relative bg-gray-50 dark:bg-gray-700/50 border-2 border-gray-200 dark:border-gray-700 rounded-2xl p-6 opacity-60"
-                        >
-                          <div className={`w-16 h-16 mx-auto mb-3 rounded-xl flex items-center justify-center ${platformInfo.bgColor} opacity-50`}>
-                            <i className={`${platformInfo.icon} text-3xl ${platformInfo.color}`}></i>
+              const rateLimit = rateLimits?.find(r => r.platform === account.platform);
+
+              return (
+                <motion.div
+                  key={account.id}
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  whileHover={{ y: -4 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <Card className="overflow-hidden hover:shadow-xl transition-shadow">
+                    <div className={`${config.bgColor} p-4`}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                            <i className={`${config.icon} text-2xl text-white`}></i>
                           </div>
-                          <p className="font-semibold text-gray-900 dark:text-white text-center">
-                            {platformInfo.name}
-                          </p>
-                          <div className="absolute top-2 right-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
-                            <i className="ri-check-line text-white text-xs"></i>
+                          <div className="text-white">
+                            <h4 className="font-semibold">{config.name}</h4>
+                            <p className="text-sm text-white/80">{account.account_name}</p>
                           </div>
                         </div>
-                      );
-                    })}
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${account.is_active
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-red-100 text-red-800'
+                          }`}>
+                          {account.is_active ? 'Aktiv' : 'Inaktiv'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <CardContent className="p-4 space-y-4">
+                      {/* Account Info */}
+                      <div className="grid grid-cols-3 gap-4 text-center">
+                        <div>
+                          <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                            {account.follower_count?.toLocaleString() || '-'}
+                          </p>
+                          <p className="text-xs text-gray-500">Follower</p>
+                        </div>
+                        <div>
+                          <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                            {account.post_count?.toLocaleString() || '-'}
+                          </p>
+                          <p className="text-xs text-gray-500">Posts</p>
+                        </div>
+                        <div>
+                          <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                            {account.following_count?.toLocaleString() || '-'}
+                          </p>
+                          <p className="text-xs text-gray-500">Following</p>
+                        </div>
+                      </div>
+
+                      {/* Rate Limit Status */}
+                      {rateLimit && (
+                        <div className={`p-2 rounded-lg text-xs ${rateLimit.is_limited
+                            ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400'
+                            : 'bg-gray-50 dark:bg-gray-700/50 text-gray-600 dark:text-gray-400'
+                          }`}>
+                          <div className="flex items-center gap-2">
+                            <Clock className="w-3 h-3" />
+                            <span>
+                              API: {rateLimit.hourly_used}/{rateLimit.hourly_limit} Requests/h
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Last Sync */}
+                      {account.last_sync && (
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          Letzte Sync: {new Date(account.last_sync).toLocaleString('de-DE')}
+                        </p>
+                      )}
+
+                      {/* Actions */}
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleDisconnect(account.id, account.account_name)}
+                          disabled={disconnectMutation.isPending}
+                          className="flex-1 px-3 py-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg text-sm font-medium hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                        >
+                          {disconnectMutation.isPending ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Unlink className="w-4 h-4" />
+                          )}
+                          Trennen
+                        </button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
+      </motion.div>
+
+      {/* Portal Accounts Section */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+      >
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+          <Building2 className="w-5 h-5 text-orange-600" />
+          Immobilien-Portale
+        </h3>
+
+        {portalAccounts.length === 0 ? (
+          <Card className="bg-gray-50 dark:bg-gray-800/50">
+            <CardContent className="py-8 text-center">
+              <p className="text-gray-500 dark:text-gray-400">
+                Noch keine Portal-Verbindungen eingerichtet.
+              </p>
+              <button
+                onClick={() => setShowConnectModal(true)}
+                className="mt-4 text-blue-600 hover:text-blue-700 font-medium"
+              >
+                Portal verbinden →
+              </button>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {portalAccounts.map((account) => {
+              const config = PLATFORM_CONFIG[account.platform];
+              if (!config) return null;
+
+              return (
+                <motion.div
+                  key={account.id}
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  whileHover={{ y: -4 }}
+                >
+                  <Card className="overflow-hidden hover:shadow-xl transition-shadow">
+                    <div className={`${config.bgColor} p-4`}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                            <i className={`${config.icon} text-2xl text-white`}></i>
+                          </div>
+                          <div className="text-white">
+                            <h4 className="font-semibold">{config.name}</h4>
+                            <p className="text-sm text-white/80">{account.account_name}</p>
+                          </div>
+                        </div>
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${account.is_active
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-red-100 text-red-800'
+                          }`}>
+                          {account.is_active ? 'Aktiv' : 'Inaktiv'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <CardContent className="p-4 space-y-4">
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        {config.description}
+                      </p>
+
+                      {/* Actions */}
+                      <button
+                        onClick={() => handleDisconnect(account.id, account.account_name)}
+                        disabled={disconnectMutation.isPending}
+                        className="w-full px-3 py-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg text-sm font-medium hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                      >
+                        {disconnectMutation.isPending ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Unlink className="w-4 h-4" />
+                        )}
+                        Trennen
+                      </button>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
+      </motion.div>
+
+      {/* Connect Account Modal */}
+      <AnimatePresence>
+        {showConnectModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            onClick={() => setShowConnectModal(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 p-6 text-center">
+                <div className="w-16 h-16 mx-auto mb-4 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center">
+                  <Link2 className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-xl font-bold text-white mb-1">
+                  Konto verbinden
+                </h3>
+                <p className="text-white/80 text-sm">
+                  Wählen Sie eine Plattform aus
+                </p>
+              </div>
+
+              {/* Content */}
+              <div className="p-6 max-h-[60vh] overflow-y-auto">
+                {/* Account Label Input */}
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Account-Bezeichnung (optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={accountLabel}
+                    onChange={(e) => setAccountLabel(e.target.value)}
+                    placeholder="z.B. Firmenaccount, Privat..."
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Hilft bei mehreren Konten pro Plattform
+                  </p>
+                </div>
+
+                {/* Social Media Platforms */}
+                <div className="mb-6">
+                  <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                    <Users className="w-4 h-4" />
+                    Social Media
+                  </h4>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {availablePlatforms
+                      .filter(p => PLATFORM_CONFIG[p.platform]?.category === 'social')
+                      .map((platform) => {
+                        const config = PLATFORM_CONFIG[platform.platform];
+                        if (!config) return null;
+
+                        const isConnecting = initOAuthMutation.isPending && selectedPlatform === platform.platform;
+
+                        return (
+                          <button
+                            key={platform.platform}
+                            onClick={() => handleConnect(platform.platform)}
+                            disabled={initOAuthMutation.isPending}
+                            className="group p-4 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 border-2 border-gray-200 dark:border-gray-600 hover:border-blue-500 rounded-xl transition-all disabled:opacity-50"
+                          >
+                            <div className={`w-12 h-12 mx-auto mb-2 ${config.bgColor} rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform`}>
+                              {isConnecting ? (
+                                <Loader2 className="w-6 h-6 text-white animate-spin" />
+                              ) : (
+                                <i className={`${config.icon} text-2xl text-white`}></i>
+                              )}
+                            </div>
+                            <p className="text-sm font-medium text-gray-900 dark:text-white text-center">
+                              {config.name}
+                            </p>
+                          </button>
+                        );
+                      })}
                   </div>
                 </div>
-              )}
 
-              {/* Close Button */}
-              <div className="mt-6">
+                {/* Portal Platforms */}
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                    <Building2 className="w-4 h-4" />
+                    Immobilien-Portale
+                  </h4>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {availablePlatforms
+                      .filter(p => PLATFORM_CONFIG[p.platform]?.category === 'portal')
+                      .map((platform) => {
+                        const config = PLATFORM_CONFIG[platform.platform];
+                        if (!config) return null;
+
+                        const isConnecting = initOAuthMutation.isPending && selectedPlatform === platform.platform;
+
+                        return (
+                          <button
+                            key={platform.platform}
+                            onClick={() => handleConnect(platform.platform)}
+                            disabled={initOAuthMutation.isPending}
+                            className="group p-4 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 border-2 border-gray-200 dark:border-gray-600 hover:border-blue-500 rounded-xl transition-all disabled:opacity-50"
+                          >
+                            <div className={`w-12 h-12 mx-auto mb-2 ${config.bgColor} rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform`}>
+                              {isConnecting ? (
+                                <Loader2 className="w-6 h-6 text-white animate-spin" />
+                              ) : (
+                                <i className={`${config.icon} text-2xl text-white`}></i>
+                              )}
+                            </div>
+                            <p className="text-sm font-medium text-gray-900 dark:text-white text-center">
+                              {config.name}
+                            </p>
+                          </button>
+                        );
+                      })}
+                  </div>
+                </div>
+
+                {/* Security Note */}
+                <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
+                  <div className="flex items-start gap-3">
+                    <Shield className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-blue-900 dark:text-blue-300">
+                        Sichere Verbindung
+                      </p>
+                      <p className="text-xs text-blue-800 dark:text-blue-400 mt-1">
+                        Ihre Zugangsdaten werden verschlüsselt gespeichert. Sie können die Verbindung jederzeit trennen.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
                 <button
-                  onClick={() => setShowAddAccountModal(false)}
-                  className="w-full px-6 py-3 border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-semibold rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
+                  onClick={() => setShowConnectModal(false)}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium"
                 >
                   Schließen
                 </button>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

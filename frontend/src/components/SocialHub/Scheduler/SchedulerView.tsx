@@ -1,26 +1,48 @@
 /**
- * SocialHub Scheduler Component
- * Kalenderansicht für geplante Posts
+ * SocialHub Scheduler Component - Premium Design
+ * Kalenderansicht für geplante Posts mit Apple-Style Glassmorphism
  */
 
 import React, { useState } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '../../common/Card';
-// TODO: Implement real scheduler API
+import { motion, AnimatePresence } from 'framer-motion';
 import {
-  SchedulerEvent,
-  PLATFORM_ICONS,
-  POST_STATUS_COLORS,
-  POST_STATUS_LABELS,
-} from '../Types';
+  ArrowLeft,
+  Calendar,
+  Clock,
+  Plus,
+  CheckCircle2,
+  AlertCircle,
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  Edit3,
+  Trash2,
+  CalendarDays,
+  CalendarRange,
+  CalendarClock,
+  Sparkles,
+  Loader2
+} from 'lucide-react';
+import { useScheduledPosts } from '../../../api/hooks';
 
 interface SchedulerViewProps {
   onBack: () => void;
 }
 
+const PLATFORM_CONFIG: Record<string, { icon: string; bgGradient: string }> = {
+  instagram: { icon: 'ri-instagram-line', bgGradient: 'from-purple-600 via-pink-600 to-orange-500' },
+  facebook: { icon: 'ri-facebook-fill', bgGradient: 'from-blue-600 to-blue-700' },
+  linkedin: { icon: 'ri-linkedin-fill', bgGradient: 'from-blue-700 to-blue-800' },
+  twitter: { icon: 'ri-twitter-x-fill', bgGradient: 'from-gray-800 to-gray-900' },
+  youtube: { icon: 'ri-youtube-fill', bgGradient: 'from-red-600 to-red-700' },
+};
+
 const SchedulerView: React.FC<SchedulerViewProps> = ({ onBack }) => {
-  const [events] = useState<SchedulerEvent[]>([]); // TODO: Load from real API
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('week');
+
+  const { data: scheduledPosts, isLoading } = useScheduledPosts();
+  const events = scheduledPosts || [];
 
   const formatDate = (dateString: string): string => {
     return new Date(dateString).toLocaleDateString('de-DE', {
@@ -37,258 +59,306 @@ const SchedulerView: React.FC<SchedulerViewProps> = ({ onBack }) => {
     });
   };
 
-  const formatDateTime = (dateString: string): string => {
-    return new Date(dateString).toLocaleDateString('de-DE', {
-      day: '2-digit',
-      month: 'short',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
   // Group events by date
   const groupedEvents = events.reduce((acc, event) => {
-    const date = formatDate(event.scheduledTime);
+    const date = formatDate(event.scheduled_at);
     if (!acc[date]) acc[date] = [];
     acc[date].push(event);
     return acc;
-  }, {} as Record<string, SchedulerEvent[]>);
+  }, {} as Record<string, typeof events>);
+
+  const stats = [
+    {
+      label: 'Geplante Beiträge',
+      value: events.filter(e => e.status === 'scheduled').length,
+      icon: Calendar,
+      gradient: 'from-blue-500 to-cyan-500',
+      bgGlow: 'bg-blue-500/20',
+    },
+    {
+      label: 'Heute geplant',
+      value: events.filter(e => formatDate(e.scheduled_at) === formatDate(new Date().toISOString())).length,
+      icon: Clock,
+      gradient: 'from-emerald-500 to-teal-500',
+      bgGlow: 'bg-emerald-500/20',
+    },
+    {
+      label: 'Veröffentlicht',
+      value: events.filter(e => e.status === 'published').length,
+      icon: CheckCircle2,
+      gradient: 'from-purple-500 to-violet-500',
+      bgGlow: 'bg-purple-500/20',
+    },
+    {
+      label: 'Fehlgeschlagen',
+      value: events.filter(e => e.status === 'failed').length,
+      icon: AlertCircle,
+      gradient: 'from-red-500 to-rose-500',
+      bgGlow: 'bg-red-500/20',
+    },
+  ];
+
+  const viewModes = [
+    { id: 'day', label: 'Tag', icon: CalendarDays },
+    { id: 'week', label: 'Woche', icon: CalendarRange },
+    { id: 'month', label: 'Monat', icon: CalendarClock },
+  ];
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <button
-            onClick={onBack}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-          >
-            <i className="ri-arrow-left-line text-xl text-gray-600 dark:text-gray-400"></i>
-          </button>
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-              Beitragsplaner
-            </h2>
-            <p className="text-gray-600 dark:text-gray-400 mt-1">
-              Verwalten Sie Ihre geplanten Social Media Beiträge
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center space-x-3">
-          <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
-            {(['day', 'week', 'month'] as const).map((mode) => (
-              <button
-                key={mode}
-                onClick={() => setViewMode(mode)}
-                className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                  viewMode === mode
-                    ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                }`}
+    <div className="space-y-8">
+      {/* Premium Header */}
+      <div className="relative">
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-pink-500/10 rounded-[32px] blur-3xl -z-10"></div>
+
+        <div className="relative bg-white/10 dark:bg-[#1C1C1E]/40 backdrop-blur-xl rounded-[32px] p-8 border border-white/20 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.12)]">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-5">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={onBack}
+                className="w-12 h-12 bg-white/20 dark:bg-white/10 backdrop-blur-sm rounded-2xl flex items-center justify-center border border-white/30 dark:border-white/10 hover:bg-white/30 dark:hover:bg-white/20 transition-all shadow-lg"
               >
-                {mode === 'day' && 'Tag'}
-                {mode === 'week' && 'Woche'}
-                {mode === 'month' && 'Monat'}
-              </button>
-            ))}
+                <ArrowLeft className="w-5 h-5 text-[#1C1C1E] dark:text-white" />
+              </motion.button>
+              <div>
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 dark:from-blue-400 dark:via-purple-400 dark:to-pink-400 bg-clip-text text-transparent">
+                  Beitragsplaner
+                </h1>
+                <p className="text-[#3A3A3C] dark:text-gray-400 mt-1">
+                  Verwalten Sie Ihre geplanten Social Media Beiträge
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              {/* View Mode Toggle */}
+              <div className="flex items-center bg-white/10 dark:bg-[#1C1C1E]/40 backdrop-blur-sm rounded-2xl p-1.5 border border-white/20 dark:border-white/10">
+                {viewModes.map((mode) => {
+                  const Icon = mode.icon;
+                  return (
+                    <motion.button
+                      key={mode.id}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => setViewMode(mode.id as typeof viewMode)}
+                      className={`px-4 py-2 rounded-xl text-sm font-medium transition-all flex items-center gap-2 ${viewMode === mode.id
+                          ? 'bg-white/20 dark:bg-white/10 text-[#1C1C1E] dark:text-white shadow-md'
+                          : 'text-[#3A3A3C] dark:text-gray-400 hover:text-[#1C1C1E] dark:hover:text-white'
+                        }`}
+                    >
+                      <Icon className="w-4 h-4" />
+                      {mode.label}
+                    </motion.button>
+                  );
+                })}
+              </div>
+
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white rounded-xl flex items-center gap-2 font-medium shadow-lg shadow-blue-500/25 transition-all"
+              >
+                <Plus className="w-5 h-5" />
+                Neuer Beitrag
+              </motion.button>
+            </div>
           </div>
-          <button className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center">
-            <i className="ri-add-line mr-2"></i>
-            Neuer Beitrag
-          </button>
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Geplante Beiträge</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                  {events.filter(e => e.status === 'scheduled').length}
-                </p>
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {stats.map((stat, index) => {
+          const Icon = stat.icon;
+          return (
+            <motion.div
+              key={stat.label}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1 }}
+              className="relative group"
+            >
+              <div className={`absolute inset-0 ${stat.bgGlow} rounded-[24px] blur-2xl opacity-50 group-hover:opacity-70 transition-opacity`}></div>
+              <div className="relative bg-white/10 dark:bg-[#1C1C1E]/30 backdrop-blur-xl rounded-[24px] p-6 border border-white/20 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.12)]">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-[#3A3A3C] dark:text-gray-400 mb-1">{stat.label}</p>
+                    <p className="text-3xl font-bold text-[#1C1C1E] dark:text-white">{stat.value}</p>
+                  </div>
+                  <div className={`w-14 h-14 bg-gradient-to-br ${stat.gradient} rounded-2xl flex items-center justify-center shadow-lg`}>
+                    <Icon className="w-7 h-7 text-white" />
+                  </div>
+                </div>
               </div>
-              <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
-                <i className="ri-calendar-line text-xl text-blue-600 dark:text-blue-400"></i>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Heute geplant</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                  {events.filter(e => formatDate(e.scheduledTime) === formatDate(new Date().toISOString())).length}
-                </p>
-              </div>
-              <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
-                <i className="ri-time-line text-xl text-green-600 dark:text-green-400"></i>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Veröffentlicht</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                  {events.filter(e => e.status === 'posted').length}
-                </p>
-              </div>
-              <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center">
-                <i className="ri-checkbox-circle-line text-xl text-purple-600 dark:text-purple-400"></i>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Fehlgeschlagen</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                  {events.filter(e => e.status === 'failed').length}
-                </p>
-              </div>
-              <div className="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-lg flex items-center justify-center">
-                <i className="ri-error-warning-line text-xl text-red-600 dark:text-red-400"></i>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </motion.div>
+          );
+        })}
       </div>
 
-      {/* Calendar/Timeline View */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Zeitplan</CardTitle>
-            <div className="flex items-center space-x-2">
-              <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
-                <i className="ri-arrow-left-s-line text-gray-600 dark:text-gray-400"></i>
-              </button>
-              <button className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-                {selectedDate.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })}
-              </button>
-              <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
-                <i className="ri-arrow-right-s-line text-gray-600 dark:text-gray-400"></i>
-              </button>
+      {/* Calendar Timeline */}
+      <div className="bg-white/10 dark:bg-[#1C1C1E]/30 backdrop-blur-xl rounded-[32px] p-8 border border-white/20 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.12)]">
+        {/* Calendar Header */}
+        <div className="flex items-center justify-between mb-8">
+          <h2 className="text-2xl font-bold text-[#1C1C1E] dark:text-white flex items-center gap-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center">
+              <Calendar className="w-5 h-5 text-white" />
             </div>
+            Zeitplan
+          </h2>
+
+          <div className="flex items-center gap-3">
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="w-10 h-10 bg-white/10 dark:bg-white/5 rounded-xl flex items-center justify-center border border-white/20 dark:border-white/10 hover:bg-white/20 transition-all"
+            >
+              <ChevronLeft className="w-5 h-5 text-[#1C1C1E] dark:text-white" />
+            </motion.button>
+            <span className="px-4 py-2 bg-white/10 dark:bg-white/5 rounded-xl text-[#1C1C1E] dark:text-white font-medium border border-white/20 dark:border-white/10">
+              {selectedDate.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })}
+            </span>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="w-10 h-10 bg-white/10 dark:bg-white/5 rounded-xl flex items-center justify-center border border-white/20 dark:border-white/10 hover:bg-white/20 transition-all"
+            >
+              <ChevronRight className="w-5 h-5 text-[#1C1C1E] dark:text-white" />
+            </motion.button>
           </div>
-        </CardHeader>
-        <CardContent>
-          {/* Timeline View */}
-          <div className="space-y-6">
+        </div>
+
+        {/* Timeline */}
+        {isLoading ? (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="w-10 h-10 text-purple-500 animate-spin" />
+          </div>
+        ) : Object.keys(groupedEvents).length > 0 ? (
+          <div className="space-y-8">
             {Object.entries(groupedEvents).map(([date, dateEvents]) => (
               <div key={date}>
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3 flex items-center">
-                  <i className="ri-calendar-2-line mr-2"></i>
-                  {date}
-                </h3>
-                <div className="space-y-3 ml-6 border-l-2 border-gray-200 dark:border-gray-700 pl-4">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg flex items-center justify-center">
+                    <CalendarDays className="w-4 h-4 text-white" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-[#1C1C1E] dark:text-white">{date}</h3>
+                </div>
+
+                <div className="space-y-4 ml-4 border-l-2 border-purple-500/30 pl-6">
                   {dateEvents
-                    .sort((a, b) => new Date(a.scheduledTime).getTime() - new Date(b.scheduledTime).getTime())
-                    .map((event) => (
-                      <div
+                    .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())
+                    .map((event, idx) => (
+                      <motion.div
                         key={event.id}
-                        className="group relative bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:shadow-md transition-shadow"
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: idx * 0.1 }}
+                        className="group relative"
                       >
-                        {/* Time Badge */}
-                        <div className="absolute -left-[28px] top-4 w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
-                          <i className="ri-time-line text-white text-xs"></i>
-                        </div>
+                        {/* Timeline dot */}
+                        <div className="absolute -left-[30px] top-6 w-4 h-4 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full border-4 border-white/10 dark:border-[#1C1C1E]"></div>
 
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            {/* Time */}
-                            <div className="flex items-center space-x-2 mb-2">
-                              <span className="text-sm font-medium text-blue-600 dark:text-blue-400">
-                                {formatTime(event.scheduledTime)}
-                              </span>
-                              <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                                event.status === 'scheduled'
-                                  ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
-                                  : event.status === 'posted'
-                                  ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-                                  : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
-                              }`}>
-                                {event.status === 'scheduled' && 'Geplant'}
-                                {event.status === 'posted' && 'Veröffentlicht'}
-                                {event.status === 'failed' && 'Fehlgeschlagen'}
-                              </span>
+                        <div className="bg-white/10 dark:bg-[#1C1C1E]/40 backdrop-blur-sm rounded-2xl p-5 border border-white/20 dark:border-white/10 hover:border-purple-500/30 transition-all">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1">
+                              {/* Time & Status */}
+                              <div className="flex items-center gap-3 mb-3">
+                                <span className="text-sm font-semibold text-purple-600 dark:text-purple-400 flex items-center gap-1">
+                                  <Clock className="w-4 h-4" />
+                                  {formatTime(event.scheduled_at)}
+                                </span>
+                                <span className={`px-3 py-1 text-xs font-medium rounded-full ${event.status === 'scheduled'
+                                    ? 'bg-blue-500/20 text-blue-600 dark:text-blue-400'
+                                    : event.status === 'published'
+                                      ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                                      : 'bg-red-500/20 text-red-600 dark:text-red-400'
+                                  }`}>
+                                  {event.status === 'scheduled' && 'Geplant'}
+                                  {event.status === 'published' && 'Veröffentlicht'}
+                                  {event.status === 'failed' && 'Fehlgeschlagen'}
+                                </span>
+                              </div>
+
+                              {/* Content */}
+                              <p className="text-[#1C1C1E] dark:text-white font-medium mb-3 line-clamp-2">
+                                {event.content}
+                              </p>
+
+                              {/* Platforms */}
+                              <div className="flex items-center gap-2">
+                                {event.platforms.map((platform) => {
+                                  const config = PLATFORM_CONFIG[platform];
+                                  return (
+                                    <div
+                                      key={platform}
+                                      className={`w-8 h-8 bg-gradient-to-br ${config?.bgGradient || 'from-gray-500 to-gray-600'} rounded-lg flex items-center justify-center shadow-md`}
+                                      title={platform}
+                                    >
+                                      <i className={`${config?.icon || 'ri-global-line'} text-white text-sm`}></i>
+                                    </div>
+                                  );
+                                })}
+                              </div>
                             </div>
 
-                            {/* Content */}
-                            <p className="text-gray-900 dark:text-white font-medium mb-2 line-clamp-2">
-                              {event.post.content.text}
-                            </p>
-
-                            {/* Platforms */}
-                            <div className="flex items-center space-x-2 mb-2">
-                              {event.platforms.map((platform) => (
-                                <div
-                                  key={platform}
-                                  className="w-6 h-6 rounded flex items-center justify-center bg-gray-100 dark:bg-gray-700"
-                                  title={platform}
-                                >
-                                  <i className={`${PLATFORM_ICONS[platform]} text-sm text-gray-600 dark:text-gray-400`}></i>
-                                </div>
-                              ))}
-                            </div>
-
-                            {/* Meta */}
-                            <div className="text-xs text-gray-500 dark:text-gray-400">
-                              Erstellt von {event.createdBy}
+                            {/* Actions */}
+                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <motion.button
+                                whileHover={{ scale: 1.1 }}
+                                whileTap={{ scale: 0.9 }}
+                                className="w-10 h-10 bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded-xl flex items-center justify-center hover:bg-blue-500/30 transition-all"
+                              >
+                                <Edit3 className="w-4 h-4" />
+                              </motion.button>
+                              <motion.button
+                                whileHover={{ scale: 1.1 }}
+                                whileTap={{ scale: 0.9 }}
+                                className="w-10 h-10 bg-white/10 text-[#3A3A3C] dark:text-gray-400 rounded-xl flex items-center justify-center hover:bg-white/20 transition-all"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </motion.button>
+                              <motion.button
+                                whileHover={{ scale: 1.1 }}
+                                whileTap={{ scale: 0.9 }}
+                                className="w-10 h-10 bg-red-500/20 text-red-600 dark:text-red-400 rounded-xl flex items-center justify-center hover:bg-red-500/30 transition-all"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </motion.button>
                             </div>
                           </div>
-
-                          {/* Actions */}
-                          <div className="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button className="p-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors">
-                              <i className="ri-edit-line"></i>
-                            </button>
-                            <button className="p-2 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
-                              <i className="ri-eye-line"></i>
-                            </button>
-                            <button className="p-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors">
-                              <i className="ri-delete-bin-line"></i>
-                            </button>
-                          </div>
                         </div>
-                      </div>
+                      </motion.div>
                     ))}
                 </div>
               </div>
             ))}
-
-            {Object.keys(groupedEvents).length === 0 && (
-              <div className="text-center py-12">
-                <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center">
-                  <i className="ri-calendar-line text-2xl text-gray-400 dark:text-gray-500"></i>
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                  Keine geplanten Beiträge
-                </h3>
-                <p className="text-gray-600 dark:text-gray-400 mb-4">
-                  Erstellen Sie Ihren ersten geplanten Beitrag
-                </p>
-                <button className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
-                  <i className="ri-add-line mr-2"></i>
-                  Beitrag planen
-                </button>
-              </div>
-            )}
           </div>
-        </CardContent>
-      </Card>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="text-center py-16"
+          >
+            <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-3xl flex items-center justify-center">
+              <Calendar className="w-12 h-12 text-purple-500" />
+            </div>
+            <h3 className="text-2xl font-bold text-[#1C1C1E] dark:text-white mb-3">
+              Keine geplanten Beiträge
+            </h3>
+            <p className="text-[#3A3A3C] dark:text-gray-400 mb-6 max-w-md mx-auto">
+              Erstellen Sie Ihren ersten geplanten Beitrag und organisieren Sie Ihre Social Media Strategie
+            </p>
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white rounded-2xl font-medium shadow-lg shadow-purple-500/25 transition-all flex items-center gap-2 mx-auto"
+            >
+              <Sparkles className="w-5 h-5" />
+              Beitrag planen
+            </motion.button>
+          </motion.div>
+        )}
+      </div>
     </div>
   );
 };
