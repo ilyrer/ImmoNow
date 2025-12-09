@@ -77,6 +77,26 @@ export const usePropertyMetrics = (
 };
 
 /**
+ * Hook für Metrics-Sync von Portalen
+ */
+export const useSyncPropertyMetrics = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => propertiesService.syncMetrics(id),
+    onSuccess: (data, id) => {
+      // Invalidate metrics cache after sync
+      queryClient.invalidateQueries({ queryKey: propertyKeys.metrics(id) });
+      toast.success('Metriken erfolgreich synchronisiert!');
+    },
+    onError: (error) => {
+      console.error('Error syncing metrics:', error);
+      toast.error('Fehler beim Synchronisieren der Metriken');
+    },
+  });
+};
+
+/**
  * Hook für Property Media
  */
 export const usePropertyMedia = (
@@ -113,7 +133,7 @@ export const usePropertyAnalytics = (
  */
 export const useCreateProperty = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: (payload: CreatePropertyPayload) => propertiesService.createProperty(payload),
     onSuccess: (data) => {
@@ -133,7 +153,7 @@ export const useCreateProperty = () => {
  */
 export const useUpdateProperty = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation<
     PropertyResponse, // Return type
     Error, // Error type
@@ -142,14 +162,14 @@ export const useUpdateProperty = () => {
     mutationFn: async ({ id, payload }) => {
       return await propertiesService.updateProperty(id, payload);
     },
-    
+
     onSuccess: (data, { id }) => {
       if (data) {
         queryClient.setQueryData(propertyKeys.detail(id), data);
       }
       queryClient.invalidateQueries({ queryKey: propertyKeys.lists() });
     },
-    
+
     onError: (error: any) => {
       const message = error?.response?.data?.detail || 'Fehler beim Aktualisieren der Immobilie';
       toast.error(message);
@@ -162,19 +182,19 @@ export const useUpdateProperty = () => {
  */
 export const useDeleteProperty = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: (id: string) => propertiesService.deleteProperty(id),
-    
+
     // Optimistic Update
     onMutate: async (id) => {
       await queryClient.cancelQueries({ queryKey: propertyKeys.lists() });
-      
+
       // Remove from all lists
       const previousLists = queryClient.getQueriesData<PropertyListResponse>({
         queryKey: propertyKeys.lists(),
       });
-      
+
       previousLists.forEach(([queryKey, data]) => {
         if (data) {
           queryClient.setQueryData<PropertyListResponse>(queryKey, {
@@ -184,15 +204,15 @@ export const useDeleteProperty = () => {
           });
         }
       });
-      
+
       return { previousLists };
     },
-    
+
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: propertyKeys.all });
       toast.success('Immobilie erfolgreich gelöscht!');
     },
-    
+
     onError: (error: any, id, context) => {
       // Rollback
       if (context?.previousLists) {
@@ -211,17 +231,17 @@ export const useDeleteProperty = () => {
  */
 export const useUploadPropertyMedia = (propertyId: string) => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: ({ files, onProgress }: { files: File[]; onProgress?: (progress: number) => void }) =>
       propertiesService.uploadMedia(propertyId, files, { onProgress }),
-    
+
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: propertyKeys.media(propertyId) });
       queryClient.invalidateQueries({ queryKey: propertyKeys.detail(propertyId) });
       toast.success('Medien erfolgreich hochgeladen!');
     },
-    
+
     onError: (error: any) => {
       const message = error?.response?.data?.detail || 'Fehler beim Hochladen der Medien';
       toast.error(message);
@@ -234,16 +254,16 @@ export const useUploadPropertyMedia = (propertyId: string) => {
  */
 export const useDeletePropertyMedia = (propertyId: string) => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: (mediaId: string) => propertiesService.deleteMedia(propertyId, mediaId),
-    
+
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: propertyKeys.media(propertyId) });
       queryClient.invalidateQueries({ queryKey: propertyKeys.detail(propertyId) });
       toast.success('Medium erfolgreich gelöscht!');
     },
-    
+
     onError: (error: any) => {
       const message = error?.response?.data?.detail || 'Fehler beim Löschen des Mediums';
       toast.error(message);
@@ -256,16 +276,16 @@ export const useDeletePropertyMedia = (propertyId: string) => {
  */
 export const useSetPrimaryMedia = (propertyId: string) => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: (mediaId: string) => propertiesService.setPrimaryMedia(propertyId, mediaId),
-    
+
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: propertyKeys.media(propertyId) });
       queryClient.invalidateQueries({ queryKey: propertyKeys.detail(propertyId) });
       toast.success('Hauptbild erfolgreich gesetzt!');
     },
-    
+
     onError: (error: any) => {
       const message = error?.response?.data?.detail || 'Fehler beim Setzen des Hauptbildes';
       toast.error(message);
@@ -278,11 +298,11 @@ export const useSetPrimaryMedia = (propertyId: string) => {
  */
 export const useTogglePropertyFavorite = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: ({ id, isFavorite }: { id: string; isFavorite: boolean }) =>
       propertiesService.toggleFavorite(id, isFavorite),
-    
+
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: propertyKeys.detail(id) });
     },
@@ -294,16 +314,16 @@ export const useTogglePropertyFavorite = () => {
  */
 export const useBulkPropertyAction = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: ({ action, propertyIds }: { action: 'delete' | 'archive' | 'publish'; propertyIds: string[] }) =>
       propertiesService.bulkAction(action, propertyIds),
-    
+
     onSuccess: (_, { action, propertyIds }) => {
       queryClient.invalidateQueries({ queryKey: propertyKeys.all });
       toast.success(`${propertyIds.length} Immobilien erfolgreich ${action === 'delete' ? 'gelöscht' : action === 'archive' ? 'archiviert' : 'veröffentlicht'}!`);
     },
-    
+
     onError: (error: any) => {
       const message = error?.response?.data?.detail || 'Fehler bei der Bulk-Aktion';
       toast.error(message);
@@ -316,7 +336,7 @@ export const useBulkPropertyAction = () => {
  */
 export const usePrefetchProperty = () => {
   const queryClient = useQueryClient();
-  
+
   return (id: string) => {
     queryClient.prefetchQuery({
       queryKey: propertyKeys.detail(id),

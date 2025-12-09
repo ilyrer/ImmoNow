@@ -55,7 +55,7 @@ class PropertiesService {
   async listProperties(params: PropertyListParams): Promise<PropertyListResponse> {
     try {
       const response = await apiClient.get<any>(this.baseUrl, { params });
-      
+
       // Handle both array and paginated response
       if (Array.isArray(response)) {
         return {
@@ -68,13 +68,13 @@ class PropertiesService {
           hasPrev: false,
         };
       }
-      
+
       // Paginated response
       const total = response.total || response.items?.length || 0;
       const page = response.page || params.page || 1;
       const size = response.size || params.size || 20;
       const pages = Math.ceil(total / size);
-      
+
       return {
         items: response.items || response.data || response,
         total,
@@ -138,7 +138,7 @@ class PropertiesService {
       const daysOnMarket = Math.ceil(
         (new Date().getTime() - new Date(property.created_at).getTime()) / (1000 * 60 * 60 * 24)
       );
-      
+
       return {
         views: 0,
         inquiries: 0,
@@ -150,6 +150,13 @@ class PropertiesService {
         chartData: [],
       };
     }
+  }
+
+  /**
+   * POST /api/v1/properties/{id}/metrics/sync - Metriken von Portalen synchronisieren
+   */
+  async syncMetrics(id: string): Promise<{ success: boolean; total_views: number; total_inquiries: number; synced_at: string }> {
+    return await apiClient.post(`${this.baseUrl}/${id}/metrics/sync`, {});
   }
 
   /**
@@ -188,7 +195,7 @@ class PropertiesService {
     options?: { onProgress?: (progress: number) => void }
   ): Promise<PropertyMedia[]> {
     const uploadedMedia: PropertyMedia[] = [];
-    
+
     for (const file of files) {
       try {
         const media = await apiClient.uploadFile<PropertyMedia>(
@@ -202,7 +209,7 @@ class PropertiesService {
         console.error('Error uploading file:', file.name, error);
       }
     }
-    
+
     return uploadedMedia;
   }
 

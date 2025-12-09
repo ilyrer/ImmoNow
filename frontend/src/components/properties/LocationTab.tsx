@@ -7,7 +7,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { MapPin, Navigation, ExternalLink, Edit2, Save, X, Car, Train, Plane, ShoppingCart, GraduationCap, TreePine } from 'lucide-react';
+import { MapPin, Navigation, ExternalLink, Edit2, Save, X, Car, Train, Plane, ShoppingCart, GraduationCap, TreePine, Building2 } from 'lucide-react';
 import GoogleMapEmbed from '../maps/GoogleMapEmbed';
 import { useGoogleMaps } from '../../hooks/useGoogleMaps';
 
@@ -58,7 +58,7 @@ const LocationTab: React.FC<LocationTabProps> = ({
       // In real implementation, this would call an API with the property address
       // For now, we'll use mock data based on the city
       const city = property.address.city.toLowerCase();
-      
+
       const mockAdvantages = {
         transport: [
           { icon: Train, text: "Öffentliche Verkehrsmittel in der Nähe", distance: "2 min" },
@@ -238,10 +238,19 @@ const LocationTab: React.FC<LocationTabProps> = ({
             <div className="text-lg font-medium text-gray-900 dark:text-white">
               {getFullAddress()}
             </div>
-            <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
-              <span>📍 {property.address.street} {property.address.house_number}</span>
-              <span>🏢 {property.address.zip_code} {property.address.city}</span>
-              <span>🌍 {property.address.country}</span>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+              <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+                <MapPin className="h-4 w-4 text-blue-500" />
+                <span>{property.address.street} {property.address.house_number}</span>
+              </div>
+              <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+                <Building2 className="h-4 w-4 text-blue-500" />
+                <span>{property.address.zip_code} {property.address.city}</span>
+              </div>
+              <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+                <Navigation className="h-4 w-4 text-blue-500" />
+                <span>{property.address.country}</span>
+              </div>
             </div>
           </div>
         )}
@@ -252,7 +261,7 @@ const LocationTab: React.FC<LocationTabProps> = ({
         <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">
           Standortvorteile
         </h4>
-        
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Verkehrsanbindung */}
           <div>

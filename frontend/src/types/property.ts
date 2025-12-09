@@ -49,6 +49,19 @@ export interface PropertyMetrics {
   averageViewDuration: number;
   conversionRate: number;
   chartData: PropertyMetricsChart[];
+  portalBreakdown?: {
+    immoscout24: {
+      views: number;
+      inquiries: number;
+      favorites: number;
+    };
+    immowelt: {
+      views: number;
+      inquiries: number;
+      favorites: number;
+    };
+  };
+  lastSyncedAt?: string | null;
 }
 
 export interface PropertyMetricsChart {

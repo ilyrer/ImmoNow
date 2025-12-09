@@ -1,6 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import apiClient from '../../../../lib/api/client';
 
+interface PropertyMetrics {
+  views: number;
+  inquiries: number;
+  visits: number;
+  favorites: number;
+  daysOnMarket: number;
+  conversionRate: number;
+  averageViewDuration: number;
+}
+
 interface PropertyPerformance {
   id: number;
   title: string;
@@ -10,6 +20,8 @@ interface PropertyPerformance {
   inquiries: number;
   status: string;
   type?: string;
+  daysOnMarket?: number;
+  conversionRate?: number;
 }
 
 interface PropertyAnalytics {
@@ -25,6 +37,7 @@ const PropertyPerformanceWidget: React.FC = () => {
   const [analytics, setAnalytics] = useState<PropertyAnalytics | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
   useEffect(() => {
     const fetchData = async () => {
@@ -32,45 +45,86 @@ const PropertyPerformanceWidget: React.FC = () => {
         setIsLoading(true);
         setError(null);
 
-        // Fetch property analytics and properties in parallel
-        const [analyticsRes, propertiesRes] = await Promise.all([
-          apiClient.get('/api/v1/analytics/properties'),
-          apiClient.get('/api/v1/properties?page=1&size=10')
-        ]);
-
-        console.log('📊 Property Analytics:', analyticsRes);
+        // Fetch properties list
+        const propertiesRes = await apiClient.get('/api/v1/properties?page=1&size=10');
         console.log('🏠 Properties List:', propertiesRes);
 
-        // No .data wrapper - direct response
-        const analyticsData = analyticsRes as any;
         const propertiesData = (propertiesRes as any)?.items || (propertiesRes as any)?.properties || [];
 
-        // Use first 3 properties from real data
-        const topProperties: PropertyPerformance[] = propertiesData.slice(0, 3).map((prop: any) => ({
-          id: prop.id,
-          title: prop.title || 'Immobilie',
-          location: prop.location || 'Unbekannt',
-          price: prop.price || 0,
-          views: Math.floor(Math.random() * 250), // TODO: Add views tracking
-          inquiries: Math.floor(Math.random() * 20), // TODO: Add inquiries tracking
-          status: prop.status || 'active',
-          type: prop.property_type
-        }));
+        if (propertiesData.length === 0) {
+          setProperties([]);
+          setAnalytics({
+            total_properties: 0,
+            avg_views: 0,
+            avg_inquiries: 0,
+            conversion_rate: 0,
+            top_performing: []
+          });
+          return;
+        }
 
-        console.log('✅ Top Properties:', topProperties);
-
-        setProperties(topProperties);
-        setAnalytics({
-          total_properties: analyticsData.total_properties || 0,
-          avg_views: 197, // TODO: Calculate from real data
-          avg_inquiries: 13, // TODO: Calculate from real data
-          conversion_rate: analyticsData.conversion_rate || 0,
-          top_performing: topProperties
+        // Fetch metrics for each property (max 5 for performance)
+        const propertiesToFetch = propertiesData.slice(0, 5);
+        const metricsPromises = propertiesToFetch.map(async (prop: any) => {
+          try {
+            const metrics = await apiClient.get(`/api/v1/properties/${prop.id}/metrics`) as PropertyMetrics;
+            return {
+              id: prop.id,
+              title: prop.title || 'Immobilie',
+              location: prop.location || prop.city || 'Unbekannt',
+              price: prop.price || 0,
+              views: metrics.views || 0,
+              inquiries: metrics.inquiries || 0,
+              status: prop.status || 'active',
+              type: prop.property_type,
+              daysOnMarket: metrics.daysOnMarket || 0,
+              conversionRate: metrics.conversionRate || 0
+            };
+          } catch (err) {
+            console.warn(`Failed to fetch metrics for property ${prop.id}:`, err);
+            return {
+              id: prop.id,
+              title: prop.title || 'Immobilie',
+              location: prop.location || prop.city || 'Unbekannt',
+              price: prop.price || 0,
+              views: 0,
+              inquiries: 0,
+              status: prop.status || 'active',
+              type: prop.property_type,
+              daysOnMarket: 0,
+              conversionRate: 0
+            };
+          }
         });
+
+        const propertiesWithMetrics = await Promise.all(metricsPromises);
+
+        // Sort by views (highest first) and take top 3
+        const sortedProperties = propertiesWithMetrics
+          .sort((a, b) => (b.views + b.inquiries * 5) - (a.views + a.inquiries * 5))
+          .slice(0, 3);
+
+        console.log('✅ Top Properties with Live Metrics:', sortedProperties);
+
+        // Calculate averages from actual data
+        const totalViews = propertiesWithMetrics.reduce((sum, p) => sum + p.views, 0);
+        const totalInquiries = propertiesWithMetrics.reduce((sum, p) => sum + p.inquiries, 0);
+        const avgConversion = propertiesWithMetrics.length > 0
+          ? propertiesWithMetrics.reduce((sum, p) => sum + (p.conversionRate || 0), 0) / propertiesWithMetrics.length
+          : 0;
+
+        setProperties(sortedProperties);
+        setAnalytics({
+          total_properties: propertiesData.length,
+          avg_views: propertiesWithMetrics.length > 0 ? Math.round(totalViews / propertiesWithMetrics.length) : 0,
+          avg_inquiries: propertiesWithMetrics.length > 0 ? Math.round(totalInquiries / propertiesWithMetrics.length) : 0,
+          conversion_rate: avgConversion,
+          top_performing: sortedProperties
+        });
+        setLastUpdated(new Date());
       } catch (err) {
         console.error('❌ Error fetching property performance:', err);
-        
-        // Check if it's an authentication error
+
         if (err instanceof Error && (err.message.includes('401') || err.message.includes('Invalid token') || err.message.includes('Unauthorized'))) {
           setError('Session abgelaufen - Bitte neu anmelden');
         } else {
@@ -84,8 +138,8 @@ const PropertyPerformanceWidget: React.FC = () => {
 
     fetchData();
 
-    // Auto-refresh every 5 minutes
-    const interval = setInterval(fetchData, 5 * 60 * 1000);
+    // Auto-refresh every 2 minutes for live data
+    const interval = setInterval(fetchData, 2 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
 
@@ -177,7 +231,7 @@ const PropertyPerformanceWidget: React.FC = () => {
                   <div className="w-16 h-12 bg-gray-200 dark:bg-gray-600 rounded-lg flex items-center justify-center flex-shrink-0">
                     <i className="ri-home-4-line text-gray-500 dark:text-gray-400"></i>
                   </div>
-                  
+
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between mb-2">
                       <div>
@@ -188,7 +242,7 @@ const PropertyPerformanceWidget: React.FC = () => {
                           {property.location}
                         </p>
                       </div>
-                      
+
                       <span className={`
                         px-2 py-1 rounded-full text-xs font-medium
                         bg-${getStatusColor(property.status)}-100 
@@ -199,12 +253,12 @@ const PropertyPerformanceWidget: React.FC = () => {
                         {getStatusText(property.status)}
                       </span>
                     </div>
-                    
+
                     <div className="flex items-center justify-between text-xs">
                       <span className="font-semibold text-gray-900 dark:text-white">
                         {formatPrice(property.price)}
                       </span>
-                      
+
                       <div className="flex items-center space-x-3 text-gray-500 dark:text-gray-400">
                         <div className="flex items-center space-x-1">
                           <i className="ri-eye-line"></i>
@@ -231,11 +285,11 @@ const PropertyPerformanceWidget: React.FC = () => {
                 {analytics?.avg_views || 0} Aufrufe • {analytics?.avg_inquiries || 0} Anfragen
               </div>
             </div>
-            
+
             <div className="flex items-center mt-2">
               <div className="flex-1 bg-blue-200 dark:bg-blue-800 rounded-full h-2 mr-2">
-                <div 
-                  className="bg-blue-600 dark:bg-blue-400 h-2 rounded-full" 
+                <div
+                  className="bg-blue-600 dark:bg-blue-400 h-2 rounded-full"
                   style={{ width: `${Math.min((analytics?.conversion_rate || 0) * 10, 100)}%` }}
                 ></div>
               </div>
@@ -264,7 +318,7 @@ const PropertyPerformanceWidget: React.FC = () => {
             <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
             <span>Live-Daten</span>
           </div>
-          <span>Aktualisiert: {new Date().toLocaleTimeString('de-DE')}</span>
+          <span>Aktualisiert: {lastUpdated.toLocaleTimeString('de-DE')}</span>
         </div>
       </div>
     </div>

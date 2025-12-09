@@ -113,17 +113,17 @@ const PropertyDetail: React.FC = () => {
   const [editingProperty, setEditingProperty] = useState<Property | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Tab Configuration
+  // Tab Configuration - Professional & Compact
   const tabs = [
     { id: 'overview', label: 'Übersicht', icon: Home },
     { id: 'details', label: 'Details', icon: FileText },
-    { id: 'features', label: 'Ausstattung', icon: Star },
-    { id: 'media', label: 'Medien', icon: FileText },
-    { id: 'energy', label: 'Energieeffizienz', icon: Zap },
+    { id: 'features', label: 'Ausstattung', icon: Settings },
     { id: 'location', label: 'Lage', icon: MapPin },
-    { id: 'expose', label: 'Exposé', icon: FileText },
-    { id: 'publish', label: 'Veröffentlichen', icon: Share2 },
-    { id: 'performance', label: 'Performance', icon: TrendingUp },
+    { id: 'energy', label: 'Energie', icon: Zap },
+    { id: 'media', label: 'Medien', icon: Building2 },
+    { id: 'expose', label: 'Exposé', icon: Download },
+    { id: 'publish', label: 'Portale', icon: Share2 },
+    { id: 'performance', label: 'Analytics', icon: TrendingUp },
   ];
 
   // Map API property to UI property
@@ -432,9 +432,9 @@ const PropertyDetail: React.FC = () => {
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-700 sticky top-0 z-50"
+        className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-50 shadow-sm"
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div className="max-w-[2000px] mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <button
@@ -515,10 +515,10 @@ const PropertyDetail: React.FC = () => {
       </motion.div>
 
       {/* Main Content */}
-      <div className="max-w-[1600px] mx-auto px-6 sm:px-8 lg:px-12 py-12">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+      <div className="max-w-[2000px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
           {/* Left Column: Image Gallery & Tabs */}
-          <div className="lg:col-span-2 space-y-8">
+          <div className="xl:col-span-3 space-y-6">
             {/* Image Gallery */}
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
@@ -572,8 +572,8 @@ const PropertyDetail: React.FC = () => {
                       key={idx}
                       onClick={() => setSelectedImageIndex(idx)}
                       className={`flex-shrink-0 w-24 h-24 rounded-xl overflow-hidden border-2 transition-all ${idx === selectedImageIndex
-                          ? 'border-blue-500 ring-2 ring-blue-500/30 scale-105'
-                          : 'border-transparent hover:border-gray-300 dark:hover:border-gray-600 hover:scale-105'
+                        ? 'border-blue-500 ring-2 ring-blue-500/30 scale-105'
+                        : 'border-transparent hover:border-gray-300 dark:hover:border-gray-600 hover:scale-105'
                         }`}
                     >
                       <img src={img} alt="" className="w-full h-full object-cover" />
@@ -583,25 +583,22 @@ const PropertyDetail: React.FC = () => {
               )}
             </motion.div>
 
-            {/* Tab Navigation */}
-            <div className="relative bg-white/70 dark:bg-gray-800/70 backdrop-blur-md rounded-3xl p-4 border border-gray-200 dark:border-gray-700 shadow-lg">
-              <div className="absolute left-0 top-0 bottom-0 w-16 bg-gradient-to-r from-white/95 dark:from-gray-800/95 to-transparent pointer-events-none z-10 rounded-l-3xl"></div>
-              <div className="absolute right-0 top-0 bottom-0 w-16 bg-gradient-to-l from-white/95 dark:from-gray-800/95 to-transparent pointer-events-none z-10 rounded-r-3xl"></div>
-
-              <div className="flex gap-4 overflow-x-auto pb-1 px-3 scrollbar-hide scroll-smooth">
+            {/* Tab Navigation - Professional & Compact */}
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
+              <div className="flex items-center gap-1 p-2">
                 {tabs.map((tab) => {
                   const Icon = tab.icon;
                   return (
                     <button
                       key={tab.id}
                       onClick={() => setActiveTab(tab.id)}
-                      className={`flex-shrink-0 flex items-center gap-3 px-8 py-4 rounded-2xl font-medium transition-all duration-300 ${activeTab === tab.id
-                          ? 'bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 text-white shadow-xl shadow-blue-500/40 scale-105'
-                          : 'bg-white/90 dark:bg-gray-700/50 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600/50 hover:shadow-lg hover:scale-102'
+                      className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg font-medium transition-all duration-200 ${activeTab === tab.id
+                          ? 'bg-blue-600 text-white shadow-md'
+                          : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'
                         }`}
                     >
-                      <Icon className={`w-5 h-5 ${activeTab === tab.id ? 'animate-pulse' : ''}`} />
-                      <span className="whitespace-nowrap text-base font-semibold">{tab.label}</span>
+                      <Icon className="w-4 h-4" />
+                      <span className="text-sm font-semibold hidden sm:inline">{tab.label}</span>
                     </button>
                   );
                 })}
@@ -616,7 +613,7 @@ const PropertyDetail: React.FC = () => {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.2 }}
-                className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700 p-8"
+                className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6"
               >
                 {/* Overview Tab */}
                 {activeTab === 'overview' && (

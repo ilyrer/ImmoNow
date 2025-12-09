@@ -12,6 +12,7 @@ import { CheckCircle, XCircle, Loader2, ExternalLink } from 'lucide-react';
 import { useMutation } from '@tanstack/react-query';
 import { apiClient } from '../api/config';
 import toast from 'react-hot-toast';
+import PortalLogo from '../components/common/PortalLogo';
 
 interface OAuthCallbackResponse {
     success: boolean;
@@ -146,7 +147,10 @@ const OAuthCallbackPage: React.FC = () => {
                         </h2>
                         <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
                             <div className="flex items-center justify-center gap-3 mb-2">
-                                <span className="text-2xl">{getPlatformIcon(accountInfo.platform)}</span>
+                                <PortalLogo
+                                    portal={accountInfo.platform.toLowerCase() as any}
+                                    size="md"
+                                />
                                 <span className="font-semibold text-gray-900 dark:text-white">
                                     {getPlatformName(accountInfo.platform)}
                                 </span>

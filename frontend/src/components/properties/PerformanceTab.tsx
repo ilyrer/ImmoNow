@@ -61,13 +61,13 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ propertyId, property })
   const pushNow = usePushPropertyToPortals();
 
   const [autoPublishEnabled, setAutoPublishEnabled] = useState(false);
-  const [selectedPortals, setSelectedPortals] = useState<string[]>(['immoscout24', 'immowelt']);
+  const [selectedPortals, setSelectedPortals] = useState<string[]>([]);
 
   // Sync local state with server data
   useEffect(() => {
     if (autoPublishSettings) {
       setAutoPublishEnabled(autoPublishSettings.auto_publish_enabled || false);
-      setSelectedPortals(autoPublishSettings.auto_publish_portals || ['immoscout24', 'immowelt']);
+      setSelectedPortals(autoPublishSettings.auto_publish_portals || []);
     }
   }, [autoPublishSettings]);
 
@@ -361,8 +361,8 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ propertyId, property })
                   whileTap={{ scale: 0.98 }}
                   onClick={() => handlePortalToggle(portal.id)}
                   className={`relative p-4 rounded-xl border-2 transition-all duration-200 ${isSelected
-                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
-                      : 'border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-800/50 hover:border-gray-300 dark:hover:border-gray-600'
+                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                    : 'border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-800/50 hover:border-gray-300 dark:hover:border-gray-600'
                     }`}
                 >
                   <div className="flex flex-col items-center gap-2">
@@ -474,8 +474,8 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ propertyId, property })
                 key={timeframe}
                 onClick={() => setSelectedTimeframe(timeframe)}
                 className={`px-4 py-2 rounded-xl font-medium transition-all duration-200 ${selectedTimeframe === timeframe
-                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg'
-                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                   }`}
               >
                 {timeframe === '7d' ? '7 Tage' : timeframe === '30d' ? '30 Tage' : '90 Tage'}
