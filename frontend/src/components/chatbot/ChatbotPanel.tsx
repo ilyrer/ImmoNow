@@ -40,57 +40,57 @@ interface ChatMessage {
 }
 
 const CONTEXT_CONFIG: Record<BotContext, { label: string; icon: any; description: string; color: string }> = {
-  properties: { 
-    label: 'Immobilien', 
-    icon: Home, 
+  properties: {
+    label: 'Immobilien',
+    icon: Home,
     description: 'Objekte verwalten, Exposés erstellen, Bewertungen',
     color: 'from-emerald-500 to-teal-600'
   },
-  contacts: { 
-    label: 'Kontakte', 
-    icon: Users, 
+  contacts: {
+    label: 'Kontakte',
+    icon: Users,
     description: 'Kunden, Interessenten und Partner verwalten',
     color: 'from-blue-500 to-indigo-600'
   },
-  kanban: { 
-    label: 'Aufgaben', 
-    icon: Briefcase, 
+  kanban: {
+    label: 'Aufgaben',
+    icon: Briefcase,
     description: 'To-Dos, Workflows und Projekte organisieren',
     color: 'from-purple-500 to-pink-600'
   },
-  investor: { 
-    label: 'Investoren', 
-    icon: TrendingUp, 
+  investor: {
+    label: 'Investoren',
+    icon: TrendingUp,
     description: 'Kapitalanleger und Portfolios managen',
     color: 'from-orange-500 to-red-600'
   },
-  social: { 
-    label: 'Social Media', 
-    icon: Share2, 
+  social: {
+    label: 'Social Media',
+    icon: Share2,
     description: 'Posts planen, Analytics und Community',
     color: 'from-cyan-500 to-blue-600'
   },
-  comms: { 
-    label: 'Kommunikation', 
-    icon: MessageCircle, 
+  comms: {
+    label: 'Kommunikation',
+    icon: MessageCircle,
     description: 'E-Mails, Nachrichten und Benachrichtigungen',
     color: 'from-green-500 to-emerald-600'
   },
-  finance: { 
-    label: 'Finanzen', 
-    icon: CreditCard, 
+  finance: {
+    label: 'Finanzen',
+    icon: CreditCard,
     description: 'Rechnungen, Cashflow und Finanzplanung',
     color: 'from-yellow-500 to-orange-600'
   },
-  documents: { 
-    label: 'Dokumente', 
-    icon: FileText, 
+  documents: {
+    label: 'Dokumente',
+    icon: FileText,
     description: 'Verträge, PDFs und Dateiverwaltung',
     color: 'from-gray-500 to-slate-600'
   },
-  general: { 
-    label: 'Allgemein', 
-    icon: Sparkles, 
+  general: {
+    label: 'Allgemein',
+    icon: Sparkles,
     description: 'Allgemeine Fragen und Unterstützung',
     color: 'from-indigo-500 to-purple-600'
   },
@@ -134,8 +134,8 @@ const ChatbotPanel: React.FC<ChatbotPanelProps> = ({ isOpen, onClose }) => {
   const filteredContexts = (Object.keys(CONTEXT_CONFIG) as BotContext[]).filter(ctx => {
     const config = CONTEXT_CONFIG[ctx];
     const query = searchQuery.toLowerCase();
-    return config.label.toLowerCase().includes(query) || 
-           config.description.toLowerCase().includes(query);
+    return config.label.toLowerCase().includes(query) ||
+      config.description.toLowerCase().includes(query);
   });
 
   const currentConversation = messages.length > 0 ? { id: '1', messages } : null;
@@ -349,12 +349,12 @@ const ChatbotPanel: React.FC<ChatbotPanelProps> = ({ isOpen, onClose }) => {
                   >
                     {/* Modal Content */}
                     <motion.div
-                    initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                    onClick={(e) => e.stopPropagation()}
-                    className="w-full max-w-5xl bg-white/95 dark:bg-gray-900/95 backdrop-blur-2xl rounded-3xl shadow-2xl border border-white/20 dark:border-gray-700/30 overflow-hidden"
-                  >
+                      initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                      onClick={(e) => e.stopPropagation()}
+                      className="w-full max-w-5xl bg-white/95 dark:bg-gray-900/95 backdrop-blur-2xl rounded-3xl shadow-2xl border border-white/20 dark:border-gray-700/30 overflow-hidden"
+                    >
                       {/* Modal Header */}
                       <div className="px-8 pt-8 pb-6">
                         <div className="flex items-center justify-between mb-6">
@@ -418,11 +418,10 @@ const ChatbotPanel: React.FC<ChatbotPanelProps> = ({ isOpen, onClose }) => {
                                     setShowContextMenu(false);
                                     setSearchQuery('');
                                   }}
-                                  className={`group relative p-5 rounded-2xl transition-all text-left overflow-hidden ${
-                                    isActive
+                                  className={`group relative p-5 rounded-2xl transition-all text-left overflow-hidden ${isActive
                                       ? 'bg-gradient-to-br ' + CONTEXT_CONFIG[ctx].color + ' text-white shadow-2xl ring-2 ring-white/20'
                                       : 'bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 shadow-md hover:shadow-xl'
-                                  }`}
+                                    }`}
                                 >
                                   {/* Background Gradient Effect */}
                                   {isActive && (
@@ -432,26 +431,23 @@ const ChatbotPanel: React.FC<ChatbotPanelProps> = ({ isOpen, onClose }) => {
                                   <div className="relative z-10">
                                     {/* Icon */}
                                     <div
-                                      className={`w-12 h-12 rounded-xl flex items-center justify-center mb-3 ${
-                                        isActive
+                                      className={`w-12 h-12 rounded-xl flex items-center justify-center mb-3 ${isActive
                                           ? 'bg-white/20 backdrop-blur-sm'
                                           : 'bg-gradient-to-br ' + CONTEXT_CONFIG[ctx].color
-                                      }`}
+                                        }`}
                                     >
                                       <Icon className="w-6 h-6 text-white" />
                                     </div>
 
                                     {/* Title */}
-                                    <h4 className={`text-base font-bold mb-1 ${
-                                      isActive ? 'text-white' : 'text-gray-900 dark:text-white'
-                                    }`}>
+                                    <h4 className={`text-base font-bold mb-1 ${isActive ? 'text-white' : 'text-gray-900 dark:text-white'
+                                      }`}>
                                       {CONTEXT_CONFIG[ctx].label}
                                     </h4>
 
                                     {/* Description */}
-                                    <p className={`text-xs leading-relaxed ${
-                                      isActive ? 'text-white/80' : 'text-gray-600 dark:text-gray-400'
-                                    }`}>
+                                    <p className={`text-xs leading-relaxed ${isActive ? 'text-white/80' : 'text-gray-600 dark:text-gray-400'
+                                      }`}>
                                       {CONTEXT_CONFIG[ctx].description}
                                     </p>
 
