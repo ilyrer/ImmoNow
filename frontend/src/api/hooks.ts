@@ -102,6 +102,9 @@ export const queryKeys = {
     conversations: ['communications', 'conversations'] as const,
     conversation: (id: string) => ['communications', 'conversation', id] as const,
     messages: (conversationId: string) => ['communications', 'messages', conversationId] as const,
+    channels: ['communications', 'channels'] as const,
+    channelMessages: (channelId: string, params?: any) => ['communications', 'channels', channelId, params] as const,
+    search: (query: string) => ['communications', 'search', query] as const,
   },
 
   // Social
@@ -508,6 +511,55 @@ export const useUpdateContact = () => {
   });
 };
 
+export const useDeleteContact = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation<void, Error, string>({
+    mutationFn: async (id) => {
+      return apiClient.delete(`/api/v1/contacts/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.contacts.all });
+    },
+  });
+};
+
+// Lead Score & AI Insights Hooks
+export const useLeadScore = (contactId: string) => {
+  return useQuery<any>({
+    queryKey: ['contacts', 'lead-score', contactId],
+    queryFn: () => apiClient.get(`/api/v1/contacts/${contactId}/lead-score`),
+    staleTime: 5 * 60 * 1000, // 5 minutes - score calculation is resource-intensive
+    enabled: !!contactId,
+  });
+};
+
+export const useAiInsights = (contactId: string) => {
+  return useQuery<any>({
+    queryKey: ['contacts', 'ai-insights', contactId],
+    queryFn: () => apiClient.get(`/api/v1/contacts/${contactId}/ai-insights`),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    enabled: !!contactId,
+  });
+};
+
+export const useNextAction = (contactId: string, goal?: string) => {
+  return useQuery<any>({
+    queryKey: ['contacts', 'next-action', contactId, goal],
+    queryFn: () => apiClient.post(`/api/v1/contacts/${contactId}/next-action`, { goal }),
+    staleTime: 1 * 60 * 1000, // 1 minute - recommendations should be fresh
+    enabled: !!contactId,
+  });
+};
+
+export const useComposeEmail = () => {
+  return useMutation<any, Error, { contactId: string; goal: string }>({
+    mutationFn: async ({ contactId, goal }) => {
+      return apiClient.post(`/api/v1/contacts/${contactId}/compose-email`, { goal });
+    },
+  });
+};
+
 // Analytics Hooks
 export const useDashboardAnalytics = (startDate?: string, endDate?: string) => {
   return useQuery<DashboardAnalyticsResponse>({
@@ -549,39 +601,202 @@ export const useTaskAnalytics = (startDate?: string, endDate?: string) => {
   });
 };
 
-// Communications Hooks
-export const useConversations = (params?: any) => {
-  return useQuery<PaginatedResponse<ConversationResponse>>({
-    queryKey: [...queryKeys.communications.conversations, params],
-    queryFn: () => apiClient.get<PaginatedResponse<ConversationResponse>>('/api/v1/communications/conversations', { params }),
-    staleTime: 1 * 60 * 1000, // 1 minute
+// Communications Hooks (Channels/Messages)
+export type ChannelMember = { user_id: string; role: string; joined_at: string };
+export type Channel = {
+  id: string;
+  name: string;
+  topic?: string | null;
+  team_id?: string | null;
+  is_private: boolean;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  members: ChannelMember[];
+};
+
+export type Attachment = {
+  id: string;
+  file_url: string;
+  file_name: string;
+  file_type?: string | null;
+  file_size?: number | null;
+  created_at: string;
+};
+
+export type ResourceLink = {
+  id: string;
+  resource_type: 'contact' | 'property';
+  resource_id: string;
+  label?: string | null;
+  created_at: string;
+};
+
+export type Reaction = { id: string; emoji: string; user_id: string; created_at: string };
+
+export type ChannelMessage = {
+  id: string;
+  channel_id: string;
+  user_id: string;
+  content: string;
+  parent_id?: string | null;
+  has_attachments: boolean;
+  is_deleted: boolean;
+  edited_at?: string | null;
+  created_at: string;
+  updated_at: string;
+  attachments: Attachment[];
+  reactions: Reaction[];
+  resource_links: ResourceLink[];
+};
+
+export const useChannels = (params?: any) => {
+  return useQuery<Channel[]>({
+    queryKey: [...queryKeys.communications.channels, params],
+    queryFn: () => apiClient.get<Channel[]>('/api/v1/communications/channels', { params }),
+    staleTime: 1 * 60 * 1000,
   });
 };
 
-export const useCreateConversation = () => {
+export const useCreateChannel = () => {
   const queryClient = useQueryClient();
-
-  return useMutation<ConversationResponse, Error, CreateConversationRequest>({
-    mutationFn: async (data) => {
-      return apiClient.post<ConversationResponse>('/api/v1/communications/conversations', data);
-    },
+  return useMutation<Channel, Error, { name: string; topic?: string; team_id?: string; is_private?: boolean; member_ids?: string[] }>({
+    mutationFn: async (data) => apiClient.post<Channel>('/api/v1/communications/channels', data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.communications.conversations });
+      queryClient.invalidateQueries({ queryKey: queryKeys.communications.channels });
     },
   });
 };
 
-export const useSendMessage = () => {
+export const useUpdateChannel = () => {
   const queryClient = useQueryClient();
+  return useMutation<Channel, Error, { id: string; data: { name?: string; topic?: string; is_private?: boolean } }>({
+    mutationFn: async ({ id, data }) => apiClient.patch<Channel>(`/api/v1/communications/channels/${id}`, data),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.communications.channels });
+      queryClient.invalidateQueries({ queryKey: queryKeys.communications.channelMessages(id) });
+    },
+  });
+};
 
-  return useMutation<any, Error, SendMessageRequest>({
-    mutationFn: async (data) => {
-      return apiClient.post(`/api/v1/communications/conversations/${data.conversation_id}/messages`, data);
+export const useDeleteChannel = () => {
+  const queryClient = useQueryClient();
+  return useMutation<void, Error, string>({
+    mutationFn: async (id) => apiClient.delete(`/api/v1/communications/channels/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.communications.channels });
     },
-    onSuccess: (_, { conversation_id }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.communications.messages(conversation_id) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.communications.conversations });
+  });
+};
+
+export const useAddChannelMember = () => {
+  const queryClient = useQueryClient();
+  return useMutation<any, Error, { channel_id: string; user_id: string; role?: string }>({
+    mutationFn: async ({ channel_id, user_id, role = 'member' }) =>
+      apiClient.post(`/api/v1/communications/channels/${channel_id}/members`, { user_id, role }),
+    onSuccess: (_, { channel_id }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.communications.channels });
     },
+  });
+};
+
+export const useUpdateChannelMember = () => {
+  const queryClient = useQueryClient();
+  return useMutation<any, Error, { channel_id: string; member_user_id: string; role: string }>({
+    mutationFn: async ({ channel_id, member_user_id, role }) =>
+      apiClient.patch(`/api/v1/communications/channels/${channel_id}/members/${member_user_id}`, { role }),
+    onSuccess: (_, { channel_id }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.communications.channels });
+    },
+  });
+};
+
+export const useRemoveChannelMember = () => {
+  const queryClient = useQueryClient();
+  return useMutation<any, Error, { channel_id: string; member_user_id: string }>({
+    mutationFn: async ({ channel_id, member_user_id }) =>
+      apiClient.delete(`/api/v1/communications/channels/${channel_id}/members/${member_user_id}`),
+    onSuccess: (_, { channel_id }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.communications.channels });
+    },
+  });
+};
+
+export const useChannelMessages = (channelId: string, params?: any) => {
+  return useQuery<PaginatedResponse<ChannelMessage>>({
+    queryKey: queryKeys.communications.channelMessages(channelId, params),
+    queryFn: () =>
+      apiClient.get<PaginatedResponse<ChannelMessage>>(`/api/v1/communications/channels/${channelId}/messages`, {
+        params,
+      }),
+    enabled: !!channelId,
+    staleTime: 30 * 1000,
+  });
+};
+
+export const useSendChannelMessage = () => {
+  const queryClient = useQueryClient();
+  return useMutation<
+    ChannelMessage,
+    Error,
+    { channel_id: string; content: string; parent_id?: string; attachments?: any[]; resource_links?: any[] }
+  >({
+    mutationFn: async ({ channel_id, ...rest }) =>
+      apiClient.post<ChannelMessage>(`/api/v1/communications/channels/${channel_id}/messages`, rest),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.communications.channelMessages(variables.channel_id) });
+    },
+  });
+};
+
+export const useEditChannelMessage = () => {
+  const queryClient = useQueryClient();
+  return useMutation<ChannelMessage, Error, { message_id: string; content: string; channel_id: string }>({
+    mutationFn: async ({ message_id, content }) => apiClient.patch<ChannelMessage>(`/api/v1/communications/messages/${message_id}`, { content }),
+    onSuccess: (_, { channel_id }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.communications.channelMessages(channel_id) });
+    },
+  });
+};
+
+export const useDeleteChannelMessage = () => {
+  const queryClient = useQueryClient();
+  return useMutation<void, Error, { message_id: string; channel_id: string }>({
+    mutationFn: async ({ message_id }) => apiClient.delete(`/api/v1/communications/messages/${message_id}`),
+    onSuccess: (_, { channel_id }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.communications.channelMessages(channel_id) });
+    },
+  });
+};
+
+export const useAddReaction = () => {
+  const queryClient = useQueryClient();
+  return useMutation<ChannelMessage, Error, { message_id: string; emoji: string; channel_id: string }>({
+    mutationFn: async ({ message_id, emoji }) =>
+      apiClient.post<ChannelMessage>(`/api/v1/communications/messages/${message_id}/reactions`, { emoji }),
+    onSuccess: (_, { channel_id }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.communications.channelMessages(channel_id) });
+    },
+  });
+};
+
+export const useRemoveReaction = () => {
+  const queryClient = useQueryClient();
+  return useMutation<void, Error, { message_id: string; emoji: string; channel_id: string }>({
+    mutationFn: async ({ message_id, emoji }) =>
+      apiClient.delete(`/api/v1/communications/messages/${message_id}/reactions`, { params: { emoji } }),
+    onSuccess: (_, { channel_id }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.communications.channelMessages(channel_id) });
+    },
+  });
+};
+
+export const useSearchMessages = (query: string) => {
+  return useQuery<any>({
+    queryKey: queryKeys.communications.search(query),
+    queryFn: () => apiClient.get(`/api/v1/communications/search`, { params: { q: query } }),
+    enabled: !!query,
+    staleTime: 30 * 1000,
   });
 };
 
@@ -930,19 +1145,6 @@ export const useResetPassword = () => {
   return useMutation<void, Error, ResetPasswordRequest>({
     mutationFn: async (data) => {
       await apiClient.post('/api/v1/auth/reset-password', data);
-    },
-  });
-};
-
-// Delete Contact Hook
-export const useDeleteContact = () => {
-  const queryClient = useQueryClient();
-  return useMutation<void, Error, string>({
-    mutationFn: async (id) => {
-      await apiClient.delete(`/api/v1/contacts/${id}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.contacts.list() });
     },
   });
 };

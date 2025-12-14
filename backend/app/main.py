@@ -104,11 +104,42 @@ from app.api.v1.router import api_router
 logger = logging.getLogger(__name__)
 
 
+def validate_ai_configuration():
+    """Validate AI/LLM configuration on startup"""
+    ai_provider = os.getenv("AI_PROVIDER", "openrouter")
+    
+    if ai_provider == "openrouter":
+        api_key = os.getenv("OPENROUTER_API_KEY")
+        if not api_key:
+            logger.warning("⚠️  OPENROUTER_API_KEY not set - AI features will use fallback")
+        else:
+            logger.info(f"✅ AI Provider: {ai_provider} (configured)")
+    elif ai_provider == "openai":
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            logger.warning("⚠️  OPENAI_API_KEY not set - AI features will use fallback")
+        else:
+            logger.info(f"✅ AI Provider: {ai_provider} (configured)")
+    elif ai_provider == "azure":
+        api_key = os.getenv("AZURE_OPENAI_API_KEY")
+        endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+        if not api_key or not endpoint:
+            logger.warning("⚠️  Azure OpenAI not fully configured - AI features will use fallback")
+        else:
+            logger.info(f"✅ AI Provider: {ai_provider} (configured)")
+    else:
+        logger.warning(f"⚠️  Unknown AI provider: {ai_provider}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan events"""
     # Startup
     logger.info("Starting CIM Backend API")
+    
+    # Validate AI configuration
+    validate_ai_configuration()
+    
     yield
     # Shutdown
     logger.info("Shutting down CIM Backend API")

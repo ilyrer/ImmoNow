@@ -9,11 +9,13 @@ export type TaskPriority = 'critical' | 'highest' | 'high' | 'medium' | 'low' | 
 export type TaskStatus = 
   | 'backlog' 
   | 'todo' 
-  | 'inProgress' 
+  | 'in_progress' 
+  | 'inProgress' // legacy camelCase
   | 'review' 
   | 'done' 
   | 'blocked'
-  | 'onHold'
+  | 'on_hold'
+  | 'onHold' // legacy camelCase
   | 'cancelled';
 export type PropertyType = 'apartment' | 'house' | 'commercial' | 'land';
 export type FinancingStatus = 'pending' | 'approved' | 'rejected' | 'not_required';

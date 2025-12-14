@@ -17,6 +17,17 @@ const getTokenExpiration = (token: string): number | null => {
   }
 };
 
+// Utility to get user ID from JWT token
+export const getUserIdFromToken = (token: string | null): string | null => {
+  if (!token) return null;
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload.user_id || payload.sub || null;
+  } catch {
+    return null;
+  }
+};
+
 // Check if token is expired or about to expire (within 5 minutes)
 const isTokenExpired = (token: string, bufferMinutes: number = 5): boolean => {
   const exp = getTokenExpiration(token);

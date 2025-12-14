@@ -17,6 +17,20 @@ from .tenant import Tenant
 from .user import User, TenantUser, UserManager
 from .notification import Notification, NotificationPreference
 from .billing import BillingAccount, StripeWebhookEvent
+from .location import LocationMarketData
+from .document_activity import DocumentActivity, DocumentComment
+from .investor import (
+    InvestorPortfolio,
+    Investment,
+    InvestmentExpense,
+    InvestmentIncome,
+    PerformanceSnapshot,
+    InvestorReport,
+    MarketplacePackage,
+    PackageReservation,
+    InvestmentType,
+    InvestmentStatus,
+)
 
 # Export all models
 __all__ = [
@@ -28,6 +42,9 @@ __all__ = [
     "DocumentFolder",
     "Document",
     "DocumentVersion",
+    "DocumentActivity",
+    "DocumentComment",
+    "LocationMarketData",
     "SocialAccount",
     "SocialPost",
     "Permission",
@@ -36,6 +53,12 @@ __all__ = [
     "Task",
     "TaskLabel",
     "TaskComment",
+    "TaskSubtask",
+    "TaskAttachment",
+    "TaskActivity",
+    "Project",
+    "Board",
+    "BoardStatus",
     "Property",
     "Address",
     "ContactPerson",
@@ -55,6 +78,23 @@ __all__ = [
     "NotificationPreference",
     "BillingAccount",
     "StripeWebhookEvent",
+    "Team",
+    "Channel",
+    "ChannelMembership",
+    "Message",
+    "Reaction",
+    "Attachment",
+    "ResourceLink",
+    "InvestorPortfolio",
+    "Investment",
+    "InvestmentExpense",
+    "InvestmentIncome",
+    "PerformanceSnapshot",
+    "InvestorReport",
+    "MarketplacePackage",
+    "PackageReservation",
+    "InvestmentType",
+    "InvestmentStatus",
 ]
 
 
@@ -432,39 +472,120 @@ class TaskPriority(models.TextChoices):
 
 
 class TaskStatus(models.TextChoices):
+    BACKLOG = "backlog", "Backlog"
     TODO = "todo", "To Do"
     IN_PROGRESS = "in_progress", "In Progress"
     REVIEW = "review", "Review"
     DONE = "done", "Done"
     BLOCKED = "blocked", "Blocked"
+    ON_HOLD = "on_hold", "On Hold"
+    CANCELLED = "cancelled", "Cancelled"
+
+
+class Project(models.Model):
+    """Projekt innerhalb eines Tenants (Workspace)."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        Tenant, on_delete=models.CASCADE, related_name="projects"
+    )
+    name = models.CharField(max_length=200)
+    description = models.TextField(blank=True, null=True)
+    color = models.CharField(max_length=7, default="#0A84FF")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "projects"
+        unique_together = ["tenant", "name"]
+        indexes = [
+            models.Index(fields=["tenant", "name"]),
+        ]
+
+    def __str__(self):
+        return self.name
+
+
+class Board(models.Model):
+    """Board pro Projekt/Team mit konfigurierbaren Status/WIP."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name="boards")
+    project = models.ForeignKey(
+        Project, on_delete=models.CASCADE, related_name="boards", blank=True, null=True
+    )
+    name = models.CharField(max_length=200)
+    description = models.TextField(blank=True, null=True)
+    team = models.CharField(max_length=100, blank=True, null=True)
+    wip_limit = models.IntegerField(
+        blank=True, null=True, validators=[MinValueValidator(1), MaxValueValidator(500)]
+    )
+    created_by = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="created_boards"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "boards"
+        indexes = [
+            models.Index(fields=["tenant", "project"]),
+            models.Index(fields=["tenant", "name"]),
+        ]
+        unique_together = ["tenant", "name"]
+
+    def __str__(self):
+        return self.name
+
+
+class BoardStatus(models.Model):
+    """Konfigurierter Status pro Board (inkl. Reihenfolge/WIP/Transition)."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    board = models.ForeignKey(Board, on_delete=models.CASCADE, related_name="statuses")
+    key = models.CharField(max_length=50)  # z.B. todo, in_progress
+    title = models.CharField(max_length=100)
+    color = models.CharField(max_length=7, default="#8E8E93")
+    order = models.IntegerField(default=0)
+    wip_limit = models.IntegerField(
+        blank=True, null=True, validators=[MinValueValidator(1), MaxValueValidator(500)]
+    )
+    is_terminal = models.BooleanField(default=False)
+    allow_from = models.JSONField(default=list, blank=True)  # erlaubte Vorgänger
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "board_statuses"
+        unique_together = ["board", "key"]
+        indexes = [
+            models.Index(fields=["board", "order"]),
+            models.Index(fields=["board", "key"]),
+        ]
+
+    def __str__(self):
+        return f"{self.board.name}:{self.title}"
 
 
 class Task(models.Model):
     """Task model"""
 
-    PRIORITY_CHOICES = [
-        ("low", "Low"),
-        ("medium", "Medium"),
-        ("high", "High"),
-        ("urgent", "Urgent"),
-    ]
-
-    STATUS_CHOICES = [
-        ("todo", "To Do"),
-        ("in_progress", "In Progress"),
-        ("review", "Review"),
-        ("done", "Done"),
-        ("blocked", "Blocked"),
-    ]
-
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name="tasks")
+    project = models.ForeignKey(
+        Project, on_delete=models.CASCADE, related_name="tasks", blank=True, null=True
+    )
+    board = models.ForeignKey(
+        Board, on_delete=models.CASCADE, related_name="tasks", blank=True, null=True
+    )
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True, null=True)
     priority = models.CharField(
-        max_length=20, choices=PRIORITY_CHOICES, default="medium"
+        max_length=20, choices=TaskPriority.choices, default=TaskPriority.MEDIUM
     )
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="todo")
+    status = models.CharField(
+        max_length=30, choices=TaskStatus.choices, default=TaskStatus.TODO
+    )
     assignee = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name="assigned_tasks"
     )
@@ -480,8 +601,17 @@ class Task(models.Model):
         blank=True, null=True, validators=[MinValueValidator(0)]
     )
     tags = models.JSONField(default=list, blank=True)
+    labels = models.ManyToManyField("TaskLabel", related_name="tasks", blank=True)
     property_id = models.UUIDField(blank=True, null=True)
     financing_status = models.CharField(max_length=50, blank=True, null=True)
+    story_points = models.IntegerField(
+        blank=True, null=True, validators=[MinValueValidator(0), MaxValueValidator(200)]
+    )
+    ai_score = models.FloatField(blank=True, null=True)
+    impact_score = models.FloatField(blank=True, null=True)
+    effort_score = models.FloatField(blank=True, null=True)
+    complexity = models.CharField(max_length=50, blank=True, null=True)
+    dependencies = models.JSONField(default=list, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     created_by = models.ForeignKey(
@@ -495,6 +625,8 @@ class Task(models.Model):
             models.Index(fields=["tenant", "status"]),
             models.Index(fields=["tenant", "priority"]),
             models.Index(fields=["tenant", "assignee"]),
+            models.Index(fields=["tenant", "project"]),
+            models.Index(fields=["tenant", "board"]),
             models.Index(fields=["tenant", "due_date"]),
             models.Index(fields=["tenant", "created_at"]),
         ]
@@ -542,6 +674,79 @@ class TaskComment(models.Model):
 
     def __str__(self):
         return f"Comment by {self.author.get_full_name()} on {self.task.title}"
+
+
+class TaskSubtask(models.Model):
+    """Subtasks/Checklisten für Tasks."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name="subtasks")
+    title = models.CharField(max_length=200)
+    completed = models.BooleanField(default=False)
+    order = models.IntegerField(default=0)
+    assignee = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="subtasks", blank=True, null=True
+    )
+    due_date = models.DateTimeField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        db_table = "task_subtasks"
+        indexes = [
+            models.Index(fields=["task", "order"]),
+            models.Index(fields=["task", "completed"]),
+        ]
+
+    def __str__(self):
+        return f"{self.title} ({'done' if self.completed else 'open'})"
+
+
+class TaskAttachment(models.Model):
+    """Anhänge zu Tasks."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name="attachments")
+    name = models.CharField(max_length=255)
+    url = models.CharField(max_length=500)
+    mime_type = models.CharField(max_length=100, blank=True, null=True)
+    size = models.IntegerField(blank=True, null=True)
+    uploaded_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "task_attachments"
+        indexes = [
+            models.Index(fields=["task"]),
+        ]
+
+    def __str__(self):
+        return self.name
+
+
+class TaskActivity(models.Model):
+    """Activity/Audit-Log auf Task-Ebene."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name="activities")
+    action = models.CharField(
+        max_length=50
+    )  # created, updated, moved, comment, ai_proposed
+    user = models.ForeignKey(User, on_delete=models.CASCADE, blank=True, null=True)
+    description = models.TextField(blank=True, null=True)
+    old_values = models.JSONField(default=dict, blank=True)
+    new_values = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "task_activities"
+        indexes = [
+            models.Index(fields=["task", "created_at"]),
+            models.Index(fields=["action"]),
+        ]
+
+    def __str__(self):
+        return f"{self.action} ({self.task_id})"
 
 
 # Property Models
@@ -876,7 +1081,24 @@ class Contact(models.Model):
 
     preferences = models.JSONField(default=dict, blank=True)
     lead_score = models.IntegerField(default=0)
+    lead_score_details = models.JSONField(
+        default=dict, blank=True, help_text="Detailed lead score breakdown and signals"
+    )
     last_contact = models.DateTimeField(blank=True, null=True)
+
+    # Additional information fields
+    additional_info = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Additional contact information like birth_date, source, etc.",
+    )
+    address = models.JSONField(
+        default=dict, blank=True, help_text="Contact address details"
+    )
+    notes = models.TextField(
+        blank=True, null=True, help_text="Internal notes about contact"
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -1282,3 +1504,212 @@ class PropertyMetricsSnapshot(models.Model):
 
     def __str__(self):
         return f"Metrics for {self.property.title} on {self.date}"
+
+
+# --- Communications Models ---
+
+
+class Team(models.Model):
+    """Team of users for communication context"""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name="teams")
+    name = models.CharField(max_length=120)
+    description = models.TextField(blank=True, null=True)
+    created_by = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="teams_created"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "teams"
+        unique_together = [["tenant", "name"]]
+        indexes = [
+            models.Index(fields=["tenant", "name"]),
+        ]
+
+    def __str__(self):
+        return self.name
+
+
+class Channel(models.Model):
+    """Channel within a team for messaging"""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        Tenant, on_delete=models.CASCADE, related_name="channels"
+    )
+    team = models.ForeignKey(
+        Team, on_delete=models.CASCADE, related_name="channels", null=True, blank=True
+    )
+    name = models.CharField(max_length=120)
+    topic = models.CharField(max_length=255, blank=True, null=True)
+    is_private = models.BooleanField(default=False)
+    created_by = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="channels_created"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "channels"
+        unique_together = [["tenant", "name", "team"]]
+        indexes = [
+            models.Index(fields=["tenant", "team"]),
+            models.Index(fields=["tenant", "is_private"]),
+        ]
+
+    def __str__(self):
+        return self.name
+
+
+class ChannelMembership(models.Model):
+    """Membership with role for channel"""
+
+    ROLE_CHOICES = [
+        ("owner", "Owner"),
+        ("member", "Member"),
+        ("guest", "Guest"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        Tenant, on_delete=models.CASCADE, related_name="channel_memberships"
+    )
+    channel = models.ForeignKey(
+        Channel, on_delete=models.CASCADE, related_name="memberships"
+    )
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="channel_memberships"
+    )
+    role = models.CharField(max_length=10, choices=ROLE_CHOICES, default="member")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "channel_memberships"
+        unique_together = [["channel", "user"]]
+        indexes = [
+            models.Index(fields=["tenant", "channel"]),
+            models.Index(fields=["tenant", "user"]),
+        ]
+
+    def __str__(self):
+        return f"{self.user.email} in {self.channel.name}"
+
+
+class Message(models.Model):
+    """Channel message (supports threads and soft delete)"""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        Tenant, on_delete=models.CASCADE, related_name="messages"
+    )
+    channel = models.ForeignKey(
+        Channel, on_delete=models.CASCADE, related_name="messages"
+    )
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="messages")
+    content = models.TextField()
+    parent = models.ForeignKey(
+        "self", on_delete=models.CASCADE, related_name="replies", null=True, blank=True
+    )
+    has_attachments = models.BooleanField(default=False)
+    is_deleted = models.BooleanField(default=False)
+    edited_at = models.DateTimeField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "messages"
+        indexes = [
+            models.Index(fields=["tenant", "channel"]),
+            models.Index(fields=["tenant", "parent"]),
+            models.Index(fields=["tenant", "created_at"]),
+        ]
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return f"Message by {self.user.email} in {self.channel.name}"
+
+
+class Reaction(models.Model):
+    """Emoji reactions for messages"""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        Tenant, on_delete=models.CASCADE, related_name="reactions"
+    )
+    message = models.ForeignKey(
+        Message, on_delete=models.CASCADE, related_name="reactions"
+    )
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="reactions")
+    emoji = models.CharField(max_length=32)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "reactions"
+        unique_together = [["message", "user", "emoji"]]
+        indexes = [
+            models.Index(fields=["tenant", "message"]),
+        ]
+
+    def __str__(self):
+        return f"{self.emoji} by {self.user.email}"
+
+
+class Attachment(models.Model):
+    """File attachment for messages"""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        Tenant, on_delete=models.CASCADE, related_name="attachments"
+    )
+    message = models.ForeignKey(
+        Message, on_delete=models.CASCADE, related_name="attachments"
+    )
+    file_url = models.URLField()
+    file_name = models.CharField(max_length=255)
+    file_type = models.CharField(max_length=100, blank=True, null=True)
+    file_size = models.IntegerField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "attachments"
+        indexes = [
+            models.Index(fields=["tenant", "message"]),
+        ]
+
+    def __str__(self):
+        return self.file_name
+
+
+class ResourceLink(models.Model):
+    """Reference to another resource (contact/property) from a message"""
+
+    RESOURCE_CHOICES = [
+        ("contact", "Contact"),
+        ("property", "Property"),
+        ("task", "Task"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        Tenant, on_delete=models.CASCADE, related_name="resource_links"
+    )
+    message = models.ForeignKey(
+        Message, on_delete=models.CASCADE, related_name="resource_links"
+    )
+    resource_type = models.CharField(max_length=20, choices=RESOURCE_CHOICES)
+    resource_id = models.UUIDField()
+    label = models.CharField(max_length=255, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "resource_links"
+        indexes = [
+            models.Index(fields=["tenant", "resource_type"]),
+            models.Index(fields=["resource_id"]),
+        ]
+
+    def __str__(self):
+        return f"{self.resource_type}:{self.resource_id}"

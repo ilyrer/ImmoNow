@@ -4,7 +4,6 @@ import { QueryProvider } from './providers/QueryProvider';
 import Layout from './components/Layout/Layout';
 import DashboardNew from './components/dashboard/DashboardNew';
 import RoleBasedDashboard from './components/dashboard/RoleBasedDashboard.tsx';
-import TeamStatusBoard from './components/dashboard/TeamStatusBoard';
 import ProjectStatusOverview from './components/dashboard/TeamStatusComponents/ProjectStatusOverview';
 import TasksBoard from './components/dashboard/Kanban/TasksBoard';
 import PropertiesPage from './components/properties/PropertiesPage.tsx';
@@ -32,6 +31,7 @@ import SettingsPage from './pages/SettingsPage.tsx';
 import AvmPage from './pages/AvmPage.tsx';
 import MatchingPage from './pages/MatchingPage.tsx';
 import SocialHubIndex from './components/SocialHub';
+import CommunicationsHub from './pages/communications/CommunicationsHub';
 import OAuthCallbackPage from './pages/OAuthCallback.tsx';
 import ProfilePage from './components/profile/ProfilePage.tsx';
 import AdminConsole from './components/admin/AdminConsole.tsx';
@@ -208,7 +208,6 @@ function AppContent() {
           <Route path="/" element={<RoleBasedDashboard />} />
           <Route path="/dashboard" element={<RoleBasedDashboard />} />
           <Route path="/dashboard-classic" element={<DashboardNew user={user} />} />
-          <Route path="/team-status" element={<TeamStatusBoard />} />
           <Route path="/project-status" element={<ProjectStatusOverview />} />
           <Route path="/tasks" element={<TasksBoard />} />
           <Route path="/kanban" element={<KanbanPage />} />
@@ -235,7 +234,7 @@ function AppContent() {
           <Route path="/social-hub" element={<SocialHubIndex />} />
           <Route path="/oauth/callback" element={<OAuthCallbackPage />} />
           <Route path="/reports" element={<RemovedFeatureRedirect />} />
-          <Route path="/communications" element={<RemovedFeatureRedirect />} />
+          <Route path="/communications" element={<CommunicationsHub />} />
           <Route path="/analytics" element={<RemovedFeatureRedirect />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

@@ -1,5 +1,16 @@
-import React, { useState, Suspense, useEffect } from 'react';
-import { useCurrentUser, useDashboardAnalytics, useProperties, useTasks, useAppointments, useEmployees, useContacts } from '../../hooks/useApi';
+import React, { useState, Suspense, useEffect, useMemo } from 'react';
+import {
+  useCurrentUser,
+  useDashboardAnalytics,
+  usePropertyAnalytics,
+  useContactAnalytics,
+  useTaskAnalytics,
+  useProperties,
+  useTasks,
+  useContacts
+} from '../../api/hooks';
+import { useAppointments } from '../../hooks/useAppointments';
+import { useEmployees } from '../../hooks/useTasks';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
 import WidgetManager from '../CIM/WidgetManager';
 import DashboardGrid from './DashboardGrid';
@@ -34,6 +45,10 @@ const PropertyPerformanceWidget = React.lazy(() => import('../CIM/widgets/analyt
 const RevenueChartWidget = React.lazy(() => import('../CIM/widgets/analytics/RevenueChartWidget'));
 const TaskProgressWidget = React.lazy(() => import('../CIM/widgets/tasks/TaskProgressWidget'));
 const WeatherMarketWidget = React.lazy(() => import('../CIM/widgets/external/WeatherMarketWidget'));
+const LiveContactsWidget = React.lazy(() => import('../CIM/widgets/analytics/LiveContactsWidget'));
+const OpsTodayWidget = React.lazy(() => import('../CIM/widgets/tasks/OpsTodayWidget'));
+const DocumentActivityWidget = React.lazy(() => import('../CIM/widgets/analytics/DocumentActivityWidget'));
+const PortfolioSnapshotWidget = React.lazy(() => import('../CIM/widgets/analytics/PortfolioSnapshotWidget'));
 
 interface DashboardWidget {
   id: string;
@@ -60,11 +75,7 @@ interface WidgetComponentProps {
 }
 
 const WidgetComponent: React.FC<WidgetComponentProps> = ({ widget, onRemove, onEdit }) => {
-  console.log('🎯 WidgetComponent rendering:', widget.type, widget.id);
-  
-  const renderWidgetContent = () => {
-    console.log('🔄 Rendering widget content for:', widget.type);
-    
+  const widgetContent = useMemo(() => {
     switch (widget.type) {
       case 'overview_stats':
         return (
@@ -122,6 +133,30 @@ const WidgetComponent: React.FC<WidgetComponentProps> = ({ widget, onRemove, onE
             <LeadConversionWidget />
           </Suspense>
         );
+      case 'live_contacts':
+        return (
+          <Suspense fallback={<div className="p-6 flex items-center justify-center h-full"><div className="animate-pulse text-gray-400">Laden…</div></div>}>
+            <LiveContactsWidget />
+          </Suspense>
+        );
+      case 'ops_today':
+        return (
+          <Suspense fallback={<div className="p-6 flex items-center justify-center h-full"><div className="animate-pulse text-gray-400">Laden…</div></div>}>
+            <OpsTodayWidget />
+          </Suspense>
+        );
+      case 'document_activity':
+        return (
+          <Suspense fallback={<div className="p-6 flex items-center justify-center h-full"><div className="animate-pulse text-gray-400">Laden…</div></div>}>
+            <DocumentActivityWidget />
+          </Suspense>
+        );
+      case 'portfolio_snapshot':
+        return (
+          <Suspense fallback={<div className="p-6 flex items-center justify-center h-full"><div className="animate-pulse text-gray-400">Laden…</div></div>}>
+            <PortfolioSnapshotWidget />
+          </Suspense>
+        );
       case 'property_performance':
         return (
           <Suspense fallback={<div className="p-6 flex items-center justify-center h-full"><div className="animate-pulse text-gray-400">Laden…</div></div>}>
@@ -147,13 +182,9 @@ const WidgetComponent: React.FC<WidgetComponentProps> = ({ widget, onRemove, onE
           </Suspense>
         );
       default:
-        console.error('❌ Unknown widget type:', widget.type);
         return <div className="p-6 flex items-center justify-center h-full text-gray-400">Widget nicht gefunden: {widget.type}</div>;
     }
-  };
-
-  const widgetContent = renderWidgetContent();
-  console.log('✅ Widget content rendered:', !!widgetContent);
+  }, [widget.type]);
 
   return (
     <>
@@ -161,6 +192,7 @@ const WidgetComponent: React.FC<WidgetComponentProps> = ({ widget, onRemove, onE
     </>
   );
 };
+const MemoizedWidgetComponent = React.memo(WidgetComponent);
 
 // Team Performance Widget
 const TeamPerformanceWidget: React.FC = () => {
@@ -219,11 +251,32 @@ const TeamPerformanceWidget: React.FC = () => {
 
 // Traffic & Revenue Chart Widget
 const TrafficRevenueChartWidget: React.FC = () => {
-  const { data: properties, isLoading: propertiesLoading } = useProperties();
-  const { data: tasks, isLoading: tasksLoading } = useTasks();
-  const { data: appointments, isLoading: appointmentsLoading } = useAppointments();
+  const { data: dashboardAnalytics, isLoading: analyticsLoading } = useDashboardAnalytics();
+  const { data: propertyAnalytics, isLoading: propertyAnalyticsLoading } = usePropertyAnalytics();
 
-  const isLoading = propertiesLoading || tasksLoading || appointmentsLoading;
+  const isLoading = analyticsLoading || propertyAnalyticsLoading;
+
+  const chartData = useMemo(() => {
+    const monthly = propertyAnalytics?.monthly_listings ?? [];
+    if (monthly.length > 0) {
+      return monthly.map((entry: any, idx: number) => ({
+        date: entry.month || entry.label || `M${idx + 1}`,
+        traffic: Number(entry.count ?? entry.value ?? 0),
+        revenue: Math.max(0, (dashboardAnalytics?.monthly_revenue ?? 0) / Math.max(1, monthly.length))
+      }));
+    }
+
+    const trend = dashboardAnalytics?.property_value_trend ?? [];
+    if (trend.length > 0) {
+      return trend.map((entry: any) => ({
+        date: entry.date || entry.label,
+        traffic: Number(entry.properties || entry.value || 0),
+        revenue: Number(entry.revenue || entry.amount || 0)
+      }));
+    }
+
+    return [];
+  }, [dashboardAnalytics, propertyAnalytics]);
 
   if (isLoading) {
     return (
@@ -238,36 +291,6 @@ const TrafficRevenueChartWidget: React.FC = () => {
       </div>
     );
   }
-
-  // Echte Daten für das Chart generieren basierend auf den letzten 30 Tagen
-  const generateChartData = () => {
-    const data = [];
-    const today = new Date();
-    
-    for (let i = 29; i >= 0; i--) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - i);
-      
-      // Zufällige aber realistische Werte basierend auf echten Daten
-      const baseProperties = properties?.length || 0;
-      const baseTasks = tasks?.tasks?.length || 0;
-      const baseAppointments = appointments?.length || 0;
-      
-      const propertiesCount = Math.floor(Math.random() * (baseProperties * 0.1)) + Math.floor(baseProperties * 0.05);
-      const tasksCount = Math.floor(Math.random() * (baseTasks * 0.2)) + Math.floor(baseTasks * 0.1);
-      const appointmentsCount = Math.floor(Math.random() * (baseAppointments * 0.3)) + Math.floor(baseAppointments * 0.1);
-      
-      data.push({
-        date: date.toLocaleDateString('de-DE', { month: 'short', day: 'numeric' }),
-        traffic: propertiesCount + appointmentsCount,
-        revenue: Math.floor((propertiesCount + tasksCount) * 1000 + Math.random() * 500)
-      });
-    }
-    
-    return data;
-  };
-
-  const chartData = generateChartData();
 
   return (
     <div className="p-6 h-full flex flex-col">
@@ -289,56 +312,62 @@ const TrafficRevenueChartWidget: React.FC = () => {
       </div>
       
       <div className="flex-1 min-h-0">
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={chartData}>
-            <defs>
-              <linearGradient id="trafficGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
-                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.05}/>
-              </linearGradient>
-              <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#14b8a6" stopOpacity={0.3}/>
-                <stop offset="95%" stopColor="#14b8a6" stopOpacity={0.05}/>
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.1)" />
-            <XAxis 
-              dataKey="date" 
-              className="text-xs fill-gray-500 dark:fill-gray-400"
-              tick={{ fontSize: 12 }}
-            />
-            <YAxis 
-              className="text-xs fill-gray-500 dark:fill-gray-400"
-              tick={{ fontSize: 12 }}
-              tickFormatter={(value) => `${(value/1000)}k`}
-            />
-            <Tooltip 
-              contentStyle={{
-                background: 'rgba(255, 255, 255, 0.1)',
-                backdropFilter: 'blur(20px)',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                borderRadius: '12px',
-                color: '#1f2937'
-              }}
-              formatter={(value: number) => [`${value.toLocaleString()}`, '']}
-              labelFormatter={(label) => `Date: ${label}`}
-            />
-            <Area 
-              type="monotone" 
-              dataKey="traffic" 
-              stroke="#3b82f6" 
-              fill="url(#trafficGradient)"
-              strokeWidth={2}
-            />
-            <Area 
-              type="monotone" 
-              dataKey="revenue" 
-              stroke="#14b8a6" 
-              fill="url(#revenueGradient)"
-              strokeWidth={2}
-            />
-          </AreaChart>
-        </ResponsiveContainer>
+        {chartData.length === 0 ? (
+          <div className="flex items-center justify-center h-full text-sm text-gray-500 dark:text-gray-400">
+            Keine Verlaufsdaten verfügbar
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={chartData}>
+              <defs>
+                <linearGradient id="trafficGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.05}/>
+                </linearGradient>
+                <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#14b8a6" stopOpacity={0.3}/>
+                  <stop offset="95%" stopColor="#14b8a6" stopOpacity={0.05}/>
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.1)" />
+              <XAxis 
+                dataKey="date" 
+                className="text-xs fill-gray-500 dark:fill-gray-400"
+                tick={{ fontSize: 12 }}
+              />
+              <YAxis 
+                className="text-xs fill-gray-500 dark:fill-gray-400"
+                tick={{ fontSize: 12 }}
+                tickFormatter={(value) => `${(value/1000)}k`}
+              />
+              <Tooltip 
+                contentStyle={{
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  backdropFilter: 'blur(20px)',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  borderRadius: '12px',
+                  color: '#1f2937'
+                }}
+                formatter={(value: number, name) => [`${Math.round(value).toLocaleString()}`, name === 'traffic' ? 'Traffic' : 'Revenue']}
+                labelFormatter={(label) => `Date: ${label}`}
+              />
+              <Area 
+                type="monotone" 
+                dataKey="traffic" 
+                stroke="#3b82f6" 
+                fill="url(#trafficGradient)"
+                strokeWidth={2}
+              />
+              <Area 
+                type="monotone" 
+                dataKey="revenue" 
+                stroke="#14b8a6" 
+                fill="url(#revenueGradient)"
+                strokeWidth={2}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        )}
       </div>
     </div>
   );
@@ -346,12 +375,14 @@ const TrafficRevenueChartWidget: React.FC = () => {
 
 // Conversion Funnel Widget
 const ConversionFunnelWidget: React.FC = () => {
-  const { data: contacts, isLoading: contactsLoading } = useContacts();
-  const { data: properties, isLoading: propertiesLoading } = useProperties();
-  const { data: tasks, isLoading: tasksLoading } = useTasks();
+  const { data: contactsData, isLoading: contactsLoading } = useContacts({ page: 1, size: 100 });
+  const { data: propertiesData, isLoading: propertiesLoading } = useProperties({ page: 1, size: 50 });
+  const { data: tasksData, isLoading: tasksLoading } = useTasks({ page: 1, size: 100 });
   const { data: appointments, isLoading: appointmentsLoading } = useAppointments();
+  const { data: contactAnalytics, isLoading: contactAnalyticsLoading } = useContactAnalytics();
+  const { data: taskAnalytics, isLoading: taskAnalyticsLoading } = useTaskAnalytics();
 
-  const isLoading = contactsLoading || propertiesLoading || tasksLoading || appointmentsLoading;
+  const isLoading = contactsLoading || propertiesLoading || tasksLoading || appointmentsLoading || contactAnalyticsLoading || taskAnalyticsLoading;
 
   if (isLoading) {
     return (
@@ -379,12 +410,15 @@ const ConversionFunnelWidget: React.FC = () => {
     );
   }
 
-  // Echte Daten für Conversion Funnel berechnen
-  const totalContacts = contacts?.length || 0;
-  const totalProperties = properties?.length || 0;
+  const contacts = contactsData?.items ?? [];
+  const properties = propertiesData?.items ?? [];
+  const tasks = tasksData?.items ?? [];
+
+  const totalContacts = contactAnalytics?.total_contacts ?? contactsData?.total ?? contacts.length;
+  const qualifiedContacts = contactAnalytics?.contacts_by_status?.qualified ?? Math.round(totalContacts * 0.6);
+  const totalProperties = propertiesData?.total ?? properties.length;
   const totalAppointments = appointments?.length || 0;
-  const completedTasks = tasks?.tasks?.filter(t => t.status === 'done').length || 0;
-  const totalTasks = tasks?.tasks?.length || 0;
+  const doneTasks = taskAnalytics?.tasks_by_status?.done ?? tasks.filter((t) => t.status === 'done').length;
 
   // Conversion Funnel basierend auf echten Daten
   const funnelData = [
@@ -396,7 +430,7 @@ const ConversionFunnelWidget: React.FC = () => {
     },
     { 
       stage: 'Qualifiziert', 
-      count: Math.floor(totalContacts * 0.7), 
+      count: qualifiedContacts, 
       color: '#10b981', 
       gradient: 'from-teal-500 to-teal-600' 
     },
@@ -414,7 +448,7 @@ const ConversionFunnelWidget: React.FC = () => {
     },
     { 
       stage: 'Verkauf', 
-      count: completedTasks, 
+      count: doneTasks, 
       color: '#8b5cf6', 
       gradient: 'from-purple-500 to-purple-600' 
     }
@@ -560,10 +594,37 @@ const PropertyMapWidget: React.FC = () => {
 // KPI Cards Widget - Revenue, Active Users, Conversion, Churn
 const KPICardsWidget: React.FC = () => {
   const { data: analytics, isLoading: analyticsLoading } = useDashboardAnalytics();
-  const { data: properties, isLoading: propertiesLoading } = useProperties();
-  const { data: tasks, isLoading: tasksLoading } = useTasks();
-  const { data: contacts, isLoading: contactsLoading } = useContacts();
-  const { data: employees, isLoading: employeesLoading } = useEmployees();
+  const { data: propertiesData, isLoading: propertiesLoading } = useProperties({ page: 1, size: 50 });
+  const { data: tasksData, isLoading: tasksLoading } = useTasks({ page: 1, size: 50 });
+  const { data: contactsData, isLoading: contactsLoading } = useContacts({ page: 1, size: 50 });
+  const { data: employeesData, isLoading: employeesLoading } = useEmployees();
+
+  const [goals, setGoals] = useState<{ revenue: number; properties: number; conversion: number; value: number }>({
+    revenue: 50000,
+    properties: 10,
+    conversion: 20,
+    value: 1_000_000
+  });
+
+  useEffect(() => {
+    const saved = localStorage.getItem('kpiGoals');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        setGoals((prev) => ({ ...prev, ...parsed }));
+      } catch (e) {
+        console.warn('KPI Goals konnten nicht geladen werden', e);
+      }
+    }
+  }, []);
+
+  const updateGoal = (key: keyof typeof goals, value: number) => {
+    setGoals((prev) => {
+      const next = { ...prev, [key]: value };
+      localStorage.setItem('kpiGoals', JSON.stringify(next));
+      return next;
+    });
+  };
 
   const isLoading = analyticsLoading || propertiesLoading || tasksLoading || contactsLoading || employeesLoading;
 
@@ -584,93 +645,128 @@ const KPICardsWidget: React.FC = () => {
     );
   }
 
-  // Echte Daten aus den verschiedenen Hooks berechnen
-  const totalProperties = properties?.length || 0;
-  const activeProperties = properties?.filter(p => p.status === 'aktiv').length || 0;
-  const totalContacts = contacts?.length || 0;
-  const totalEmployees = employees?.length || 0;
-  const activeEmployees = employees?.filter(e => e.status === 'active').length || 0;
-  const completedTasks = tasks?.tasks?.filter(t => t.status === 'done').length || 0;
-  const totalTasks = tasks?.tasks?.length || 0;
-  
-  // Umsatz aus Properties berechnen
-  const totalValue = properties?.reduce((sum, property) => sum + (property.price || 0), 0) || 0;
-  const monthlyRevenue = totalValue * 0.05; // 5% des Gesamtwerts als monatlicher Umsatz
-  
-  // Conversion Rate berechnen
-  const conversionRate = totalContacts > 0 ? (completedTasks / totalContacts) : 0;
+  const propertyItems = propertiesData?.items ?? [];
+  const contactItems = contactsData?.items ?? [];
+  const taskItems = tasksData?.items ?? [];
+  const employeeItems = employeesData ?? [];
+
+  const totalProperties = analytics?.total_properties ?? propertiesData?.total ?? propertyItems.length;
+  const activeProperties = analytics?.active_properties ?? propertyItems.filter((p) => (p.status || '').toLowerCase() === 'active').length;
+  const totalContacts = analytics?.total_contacts ?? contactsData?.total ?? contactItems.length;
+  const totalEmployees = employeeItems.length;
+  const completedTasks = analytics?.completed_tasks ?? taskItems.filter((t) => t.status === 'done').length;
+  const totalValue = propertyItems.reduce((sum, property) => sum + (property.price || 0), 0);
+  const monthlyRevenue = analytics?.monthly_revenue ?? totalValue * 0.05;
+  const conversionRate = analytics?.contact_conversion_rate ?? (totalContacts > 0 ? completedTasks / totalContacts : 0);
 
   const kpiData = [
-    { 
-      label: 'Revenue', 
-      value: `€${monthlyRevenue.toLocaleString('de-DE')}`, 
-      change: '+12.3%', 
+    {
+      key: 'revenue' as const,
+      label: 'Revenue',
+      rawValue: monthlyRevenue,
+      value: `€${Math.round(monthlyRevenue).toLocaleString('de-DE')}`,
+      change: analytics?.monthly_expenses ? `${Math.round((monthlyRevenue / Math.max(1, analytics.monthly_expenses)) * 10) / 10}x` : '+12%',
       trend: 'up',
       icon: 'ri-money-dollar-circle-line',
       color: 'from-blue-500 to-blue-600'
     },
-    { 
-      label: 'Active Properties', 
-      value: activeProperties.toString(), 
-      change: `+${Math.round((activeProperties / totalProperties) * 100)}%`, 
+    {
+      key: 'properties' as const,
+      label: 'Aktive Objekte',
+      rawValue: activeProperties,
+      value: activeProperties.toString(),
+      change: totalProperties ? `+${Math.round((activeProperties / totalProperties) * 100)}%` : '+0%',
       trend: 'up',
       icon: 'ri-home-line',
       color: 'from-green-500 to-green-600'
     },
-    { 
-      label: 'Conversion', 
-      value: `${(conversionRate * 100).toFixed(1)}%`, 
-      change: '+5%', 
+    {
+      key: 'conversion' as const,
+      label: 'Conversion',
+      rawValue: conversionRate * 100,
+      value: `${(conversionRate * 100).toFixed(1)}%`,
+      change: '+5%',
       trend: 'up',
       icon: 'ri-trending-up-line',
       color: 'from-purple-500 to-purple-600'
     },
-    { 
-      label: 'Total Value', 
-      value: `€${(totalValue / 1000000).toFixed(1)}M`, 
-      change: '-0.1%', 
-      trend: 'down',
-      icon: 'ri-trending-down-line',
-      color: 'from-red-500 to-red-600'
+    {
+      key: 'value' as const,
+      label: 'Total Value',
+      rawValue: totalValue,
+      value: `€${(totalValue / 1_000_000).toFixed(1)}M`,
+      change: totalEmployees ? `${totalEmployees} Mitarbeiter` : '-',
+      trend: 'up',
+      icon: 'ri-stack-line',
+      color: 'from-amber-500 to-amber-600'
     }
   ];
 
   return (
     <div className="grid grid-cols-4 gap-6 p-6">
-      {kpiData.map((kpi, index) => (
-        <div key={index} className="glass p-6 rounded-xl hover:shadow-ambient transition-all duration-300">
-          <div className="flex items-center justify-between mb-4">
-            <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${kpi.color} flex items-center justify-center`}>
-              <i className={`${kpi.icon} text-white text-lg`}></i>
+      {kpiData.map((kpi) => {
+        const goal = goals[kpi.key] || 0;
+        const progress = goal > 0 ? Math.min(100, (kpi.rawValue / goal) * 100) : 0;
+        return (
+          <div key={kpi.key} className="glass p-6 rounded-xl hover:shadow-ambient transition-all duration-300 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${kpi.color} flex items-center justify-center`}>
+                <i className={`${kpi.icon} text-white text-lg`}></i>
+              </div>
+              <div className={`flex items-center space-x-1 text-sm font-medium ${
+                kpi.trend === 'up' ? 'text-green-500' : 'text-red-500'
+              }`}>
+                <i className={`ri-arrow-${kpi.trend}-line`}></i>
+                <span>{kpi.change}</span>
+              </div>
             </div>
-            <div className={`flex items-center space-x-1 text-sm font-medium ${
-              kpi.trend === 'up' ? 'text-green-500' : 'text-red-500'
-            }`}>
-              <i className={`ri-arrow-${kpi.trend}-line`}></i>
-              <span>{kpi.change}</span>
+
+            <div>
+              <div className="text-3xl font-bold text-gray-900 dark:text-white leading-tight">
+                {kpi.value}
+              </div>
+              <div className="text-sm text-gray-500 dark:text-gray-400">
+                {kpi.label}
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                <span>Ziel</span>
+                <input
+                  type="number"
+                  value={goal}
+                  onChange={(e) => updateGoal(kpi.key, Number(e.target.value || 0))}
+                  className="w-24 px-2 py-1 bg-white/60 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700 rounded text-right text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+              <div className="w-full bg-gray-200/60 dark:bg-gray-700/60 rounded-full h-2">
+                <div
+                  className="h-2 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 transition-all duration-500"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+              <div className="text-xs text-gray-500 dark:text-gray-400 text-right">
+                {goal > 0 ? `${progress.toFixed(0)}% erreicht` : 'Ziel festlegen'}
+              </div>
             </div>
           </div>
-          
-          <div className="text-3xl font-bold text-gray-900 dark:text-white mb-1">
-            {kpi.value}
-          </div>
-          <div className="text-sm text-gray-500 dark:text-gray-400">
-            {kpi.label}
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 };
 
 // Performance Widget
 const PerformanceWidget: React.FC = () => {
-  const { data: properties, isLoading: propertiesLoading } = useProperties();
-  const { data: tasks, isLoading: tasksLoading } = useTasks();
+  const { data: propertiesData, isLoading: propertiesLoading } = useProperties({ page: 1, size: 50 });
+  const { data: taskAnalytics, isLoading: taskAnalyticsLoading } = useTaskAnalytics();
+  const { data: dashboardAnalytics, isLoading: analyticsLoading } = useDashboardAnalytics();
+  const { data: propertyAnalytics, isLoading: propertyAnalyticsLoading } = usePropertyAnalytics();
   const { data: employees, isLoading: employeesLoading } = useEmployees();
   const { data: appointments, isLoading: appointmentsLoading } = useAppointments();
 
-  const isLoading = propertiesLoading || tasksLoading || employeesLoading || appointmentsLoading;
+  const isLoading = propertiesLoading || taskAnalyticsLoading || analyticsLoading || propertyAnalyticsLoading || employeesLoading || appointmentsLoading;
 
   if (isLoading) {
     return (
@@ -697,20 +793,21 @@ const PerformanceWidget: React.FC = () => {
     );
   }
 
-  // Echte Performance-Metriken berechnen
-  const totalProperties = properties?.length || 0;
-  const activeProperties = properties?.filter(p => p.status === 'aktiv').length || 0;
-  const totalTasks = tasks?.tasks?.length || 0;
-  const completedTasks = tasks?.tasks?.filter(t => t.status === 'done').length || 0;
+  const properties = propertiesData?.items ?? [];
+  const totalProperties = propertyAnalytics?.total_properties ?? propertiesData?.total ?? properties.length;
+  const activeProperties = propertyAnalytics?.properties_by_status?.active ?? properties.filter((p) => (p.status || '').toLowerCase() === 'active').length;
+  const totalTasks = taskAnalytics?.total_tasks ?? dashboardAnalytics?.total_tasks ?? 0;
+  const completionRate = taskAnalytics?.completion_rate ?? dashboardAnalytics?.task_completion_rate ?? 0;
+  const overdueTasks = taskAnalytics?.overdue_tasks ?? dashboardAnalytics?.pending_tasks ?? 0;
   const totalEmployees = employees?.length || 0;
-  const activeEmployees = employees?.filter(e => e.status === 'active').length || 0;
+  const activeEmployees = employees?.filter((e: any) => e.is_active).length || 0;
   const totalAppointments = appointments?.length || 0;
 
   // Performance-Metriken berechnen
   const propertyUtilization = totalProperties > 0 ? (activeProperties / totalProperties) * 100 : 0;
-  const taskCompletionRate = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+  const taskCompletionRate = completionRate * 100;
   const employeeUtilization = totalEmployees > 0 ? (activeEmployees / totalEmployees) * 100 : 0;
-  const appointmentEfficiency = totalAppointments > 0 ? Math.min(100, (totalAppointments / totalEmployees) * 20) : 0;
+  const appointmentEfficiency = totalAppointments > 0 ? Math.min(100, (totalAppointments / Math.max(1, totalEmployees)) * 20) : 0;
 
   const performanceData = [
     { 
@@ -777,12 +874,13 @@ const PerformanceWidget: React.FC = () => {
 
 // Recent Activities Widget
 const RecentActivitiesWidget: React.FC = () => {
-  const { data: properties, isLoading: propertiesLoading } = useProperties();
-  const { data: tasks, isLoading: tasksLoading } = useTasks();
+  const { data: propertiesData, isLoading: propertiesLoading } = useProperties({ page: 1, size: 10, sort_by: 'created_at', sort_order: 'desc' });
+  const { data: tasksData, isLoading: tasksLoading } = useTasks({ page: 1, size: 20, sort_by: 'updated_at', sort_order: 'desc' });
   const { data: appointments, isLoading: appointmentsLoading } = useAppointments();
-  const { data: contacts, isLoading: contactsLoading } = useContacts();
+  const { data: contactsData, isLoading: contactsLoading } = useContacts({ page: 1, size: 10, sort_by: 'created_at', sort_order: 'desc' });
+  const { data: dashboardAnalytics, isLoading: analyticsLoading } = useDashboardAnalytics();
 
-  const isLoading = propertiesLoading || tasksLoading || appointmentsLoading || contactsLoading;
+  const isLoading = propertiesLoading || tasksLoading || appointmentsLoading || contactsLoading || analyticsLoading;
 
   if (isLoading) {
     return (
@@ -812,9 +910,25 @@ const RecentActivitiesWidget: React.FC = () => {
     );
   }
 
+  const properties = propertiesData?.items ?? [];
+  const tasks = tasksData?.items ?? [];
+  const contacts = contactsData?.items ?? [];
+
   // Echte Aktivitäten aus den verschiedenen Datenquellen generieren
   const generateActivities = () => {
     const activities: any[] = [];
+
+    if (dashboardAnalytics?.recent_activities?.length) {
+      dashboardAnalytics.recent_activities.slice(0, 5).forEach((a: any) => {
+        activities.push({
+          icon: a.icon || 'ri-flashlight-line',
+          title: a.title || a.description || 'Aktivität',
+          time: a.timestamp ? new Date(a.timestamp).toLocaleString('de-DE') : 'Gerade eben',
+          percentage: a.impact ? `${a.impact}%` : '—',
+          color: 'from-blue-500 to-purple-600'
+        });
+      });
+    }
     
     // Properties-Aktivitäten
     if (properties && properties.length > 0) {
@@ -830,8 +944,8 @@ const RecentActivitiesWidget: React.FC = () => {
     }
     
     // Tasks-Aktivitäten
-    if (tasks?.tasks && tasks.tasks.length > 0) {
-      tasks.tasks.slice(0, 2).forEach((task: any) => {
+    if (tasks && tasks.length > 0) {
+      tasks.slice(0, 2).forEach((task: any) => {
         activities.push({
           icon: 'ri-task-line',
           title: `Aufgabe ${task.status === 'done' ? 'abgeschlossen' : 'erstellt'}: ${task.title || 'Unbekannt'}`,
@@ -860,7 +974,7 @@ const RecentActivitiesWidget: React.FC = () => {
       contacts.slice(0, 1).forEach((contact: any) => {
         activities.push({
           icon: 'ri-user-line',
-          title: `Neuer Kontakt hinzugefügt: ${contact.first_name || ''} ${contact.last_name || ''}`.trim() || 'Unbekannt',
+          title: `Neuer Kontakt hinzugefügt: ${contact.name || contact.first_name || ''} ${contact.last_name || ''}`.trim() || 'Unbekannt',
           time: contact.created_at ? new Date(contact.created_at).toLocaleString('de-DE') : 'Vor kurzem',
           percentage: `${Math.floor(Math.random() * 5 + 1)}%`,
           color: 'from-teal-500 to-teal-600'
@@ -982,7 +1096,7 @@ const RoleBasedDashboard: React.FC = () => {
   const [widgets, setWidgets] = useState<DashboardWidget[]>([]);
 
   // Verfügbare Widget-Templates
-  const availableWidgets: DashboardWidget[] = [
+  const availableWidgets: DashboardWidget[] = useMemo(() => ([
     {
       id: 'kpi_cards',
       type: 'kpi_cards',
@@ -1106,6 +1220,50 @@ const RoleBasedDashboard: React.FC = () => {
       color: 'bg-gradient-to-br from-rose-500 to-pink-600'
     },
     {
+      id: 'live_contacts',
+      type: 'live_contacts',
+      title: 'Live Leads & Kontakte',
+      description: 'Quellen, Status & Conversion in Echtzeit',
+      position: { x: 0, y: 0, w: 6, h: 4 },
+      visible: false,
+      category: 'analytics',
+      icon: Users,
+      color: 'bg-gradient-to-br from-blue-500 to-teal-600'
+    },
+    {
+      id: 'ops_today',
+      type: 'ops_today',
+      title: 'Heute & Fälliges',
+      description: 'Tägliche Aufgaben und Termine im Blick',
+      position: { x: 6, y: 0, w: 6, h: 4 },
+      visible: false,
+      category: 'activities',
+      icon: Clock,
+      color: 'bg-gradient-to-br from-indigo-500 to-blue-600'
+    },
+    {
+      id: 'document_activity',
+      type: 'document_activity',
+      title: 'Dokument-Aktivität',
+      description: 'Uploads, Typen und Status in Echtzeit',
+      position: { x: 0, y: 0, w: 6, h: 4 },
+      visible: false,
+      category: 'activities',
+      icon: FileText,
+      color: 'bg-gradient-to-br from-orange-500 to-red-600'
+    },
+    {
+      id: 'portfolio_snapshot',
+      type: 'portfolio_snapshot',
+      title: 'Portfolio Snapshot',
+      description: 'Status- und Typenmix des Bestands',
+      position: { x: 6, y: 0, w: 6, h: 4 },
+      visible: false,
+      category: 'properties',
+      icon: Home,
+      color: 'bg-gradient-to-br from-emerald-500 to-teal-600'
+    },
+    {
       id: 'document_quick_access',
       type: 'document_quick_access',
       title: 'Quick Documents',
@@ -1182,48 +1340,52 @@ const RoleBasedDashboard: React.FC = () => {
       icon: MapPin,
       color: 'bg-gradient-to-br from-cyan-500 to-blue-600'
     }
-  ];
+  ]), []);
+
+  const filteredAvailableWidgets = useMemo(() => {
+    if (!user) return availableWidgets;
+    if (user.role === 'customer') {
+      return availableWidgets.filter(w => w.category !== 'finance');
+    }
+    return availableWidgets;
+  }, [availableWidgets, user]);
 
   // Load widgets from localStorage on component mount
   useEffect(() => {
+    if (isLoading) return;
     const savedWidgets = localStorage.getItem('dashboardWidgets');
     if (savedWidgets) {
       try {
         const parsed = JSON.parse(savedWidgets);
-        // Restore icons and colors from availableWidgets template
-        const restoredWidgets = parsed.map((widget: any) => {
-          const template = availableWidgets.find(aw => aw.type === widget.type);
-          return {
-            ...widget,
-            icon: template?.icon || BarChart3, // Fallback icon
-            color: template?.color || 'bg-gradient-to-br from-blue-500 to-blue-600' // Fallback color
-          };
-        });
+        const restoredWidgets = parsed
+          .map((widget: any) => {
+            const template = filteredAvailableWidgets.find(aw => aw.type === widget.type);
+            if (!template) return null;
+            return {
+              ...widget,
+              icon: template.icon || BarChart3,
+              color: template.color || 'bg-gradient-to-br from-blue-500 to-blue-600'
+            };
+          })
+          .filter(Boolean) as DashboardWidget[];
         setWidgets(restoredWidgets);
-        console.log('✅ Loaded widgets from localStorage with restored icons');
-      } catch (error) {
-        console.error('Error loading saved widgets:', error);
-        // Fallback zu Standard-Widgets
-        setDefaultWidgets();
+      } catch {
+        setDefaultWidgets(filteredAvailableWidgets);
       }
     } else {
-      // Erste Nutzung - Standard-Layout laden
-      setDefaultWidgets();
+      setDefaultWidgets(filteredAvailableWidgets);
     }
-  }, []);
+  }, [filteredAvailableWidgets, isLoading]);
 
   // Save widgets to localStorage whenever widgets change
   useEffect(() => {
     if (widgets.length > 0) {
-      // Remove icon function and color before saving to localStorage (not serializable)
       const serializableWidgets = widgets.map(({ icon, ...widget }) => widget);
       localStorage.setItem('dashboardWidgets', JSON.stringify(serializableWidgets));
-      console.log('💾 Saved widgets to localStorage:', serializableWidgets.length);
     }
   }, [widgets]);
 
-  const setDefaultWidgets = () => {
-    console.log('🚀 setDefaultWidgets called');
+  const setDefaultWidgets = (templates = filteredAvailableWidgets) => {
     const defaultWidgets = [];
     
     // Versuche die 5 besten Widgets zu laden, fallback zu verfügbaren
@@ -1240,15 +1402,13 @@ const RoleBasedDashboard: React.FC = () => {
       'traffic_revenue',
       'conversion_funnel', 
       'performance',
-      'recent_activities'
+      'recent_activities',
+      'portfolio_snapshot'
     ];
 
-    console.log('📋 Available widgets:', availableWidgets.map(w => w.type));
-    console.log('🎯 Preferred widgets:', preferredWidgets);
-    
     // Reihe 1: Vergrößerte und breitere Übersicht Widgets
-    const widget1 = availableWidgets.find(w => w.type === preferredWidgets[0]) || 
-                   availableWidgets.find(w => w.type === fallbackWidgets[0]);
+    const widget1 = templates.find(w => w.type === preferredWidgets[0]) || 
+                   templates.find(w => w.type === fallbackWidgets[0]);
     if (widget1) {
       defaultWidgets.push({
         ...widget1,
@@ -1258,8 +1418,8 @@ const RoleBasedDashboard: React.FC = () => {
       });
     }
     
-    const widget2 = availableWidgets.find(w => w.type === preferredWidgets[1]) || 
-                   availableWidgets.find(w => w.type === fallbackWidgets[1]);
+    const widget2 = templates.find(w => w.type === preferredWidgets[1]) || 
+                   templates.find(w => w.type === fallbackWidgets[1]);
     if (widget2) {
       defaultWidgets.push({
         ...widget2,
@@ -1270,8 +1430,8 @@ const RoleBasedDashboard: React.FC = () => {
     }
     
     // Reihe 2: Angepasstes Layout (Y-Position wegen höherer Widgets)
-    const widget3 = availableWidgets.find(w => w.type === preferredWidgets[2]) || 
-                   availableWidgets.find(w => w.type === fallbackWidgets[2]);
+    const widget3 = templates.find(w => w.type === preferredWidgets[2]) || 
+                   templates.find(w => w.type === fallbackWidgets[2]);
     if (widget3) {
       defaultWidgets.push({
         ...widget3,
@@ -1281,8 +1441,8 @@ const RoleBasedDashboard: React.FC = () => {
       });
     }
     
-    const widget4 = availableWidgets.find(w => w.type === preferredWidgets[3]) || 
-                   availableWidgets.find(w => w.type === fallbackWidgets[3]);
+    const widget4 = templates.find(w => w.type === preferredWidgets[3]) || 
+                   templates.find(w => w.type === fallbackWidgets[3]);
     if (widget4) {
       defaultWidgets.push({
         ...widget4,
@@ -1293,8 +1453,8 @@ const RoleBasedDashboard: React.FC = () => {
     }
     
     // Widget 5 (Task Progress) unter alle anderen
-    const widget5 = availableWidgets.find(w => w.type === preferredWidgets[4]) || 
-                   availableWidgets.find(w => w.type === fallbackWidgets[4]);
+    const widget5 = templates.find(w => w.type === preferredWidgets[4]) || 
+                   templates.find(w => w.type === fallbackWidgets[4]);
     if (widget5) {
       defaultWidgets.push({
         ...widget5,
@@ -1304,8 +1464,17 @@ const RoleBasedDashboard: React.FC = () => {
       });
     }
     
-    console.log('✅ Default widgets loaded:', defaultWidgets.map(w => w.type));
-    console.log('📊 Total widgets created:', defaultWidgets.length);
+    // Widget 6: Portfolio Snapshot, wenn vorhanden
+    const widget6 = templates.find(w => w.type === 'portfolio_snapshot');
+    if (widget6) {
+      defaultWidgets.push({
+        ...widget6,
+        id: generateId(),
+        visible: true,
+        position: { x: 0, y: 14, w: 6, h: 4 }
+      });
+    }
+    
     setWidgets(defaultWidgets);
   };
 
@@ -1319,7 +1488,7 @@ const RoleBasedDashboard: React.FC = () => {
 
   const handleAddWidget = (widget: DashboardWidget, position?: { x: number; y: number }) => {
     // Find the template widget to restore the icon component reference
-    const template = availableWidgets.find(aw => aw.type === widget.type);
+    const template = filteredAvailableWidgets.find(aw => aw.type === widget.type);
     
     const newWidget = {
       ...widget,
@@ -1607,7 +1776,7 @@ const RoleBasedDashboard: React.FC = () => {
         onLoadDefaultLayout={handleLoadDefaultLayout}
         onRearrangeLayout={handleAutoLayout}
         renderWidget={(widget) => (
-          <WidgetComponent
+          <MemoizedWidgetComponent
             key={widget.id}
             widget={widget}
             onRemove={isCustomizing ? handleRemoveWidget : undefined}
@@ -1622,7 +1791,7 @@ const RoleBasedDashboard: React.FC = () => {
       <WidgetManager
         isOpen={isWidgetManagerOpen}
         onClose={() => setIsWidgetManagerOpen(false)}
-        availableWidgets={availableWidgets}
+        availableWidgets={filteredAvailableWidgets}
         activeWidgets={widgets}
         onAddWidget={handleAddWidget}
         onRemoveWidget={handleRemoveWidget}

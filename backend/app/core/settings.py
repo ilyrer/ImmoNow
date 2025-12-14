@@ -81,6 +81,54 @@ class Settings(BaseSettings):
     # Frontend URL
     FRONTEND_URL: str = Field(default="http://localhost:3000", env="FRONTEND_URL")
 
+    # AI/LLM Configuration
+    AI_PROVIDER: str = Field(default="openrouter", env="AI_PROVIDER")
+    
+    # OpenRouter
+    OPENROUTER_API_KEY: Optional[str] = Field(default=None, env="OPENROUTER_API_KEY")
+    OPENROUTER_BASE_URL: str = Field(
+        default="https://openrouter.ai/api/v1", env="OPENROUTER_BASE_URL"
+    )
+    OPENROUTER_MODEL: str = Field(
+        default="deepseek/deepseek-chat-v3.1:free", env="OPENROUTER_MODEL"
+    )
+    OPENROUTER_TIMEOUT: int = Field(default=60, env="OPENROUTER_TIMEOUT")
+    OPENROUTER_MAX_TOKENS: int = Field(default=4096, env="OPENROUTER_MAX_TOKENS")
+    OPENROUTER_TEMPERATURE: float = Field(default=0.7, env="OPENROUTER_TEMPERATURE")
+    
+    # OpenAI Direct
+    OPENAI_API_KEY: Optional[str] = Field(default=None, env="OPENAI_API_KEY")
+    OPENAI_MODEL: str = Field(default="gpt-4-turbo-preview", env="OPENAI_MODEL")
+    OPENAI_BASE_URL: str = Field(
+        default="https://api.openai.com/v1", env="OPENAI_BASE_URL"
+    )
+    
+    # Azure OpenAI
+    AZURE_OPENAI_API_KEY: Optional[str] = Field(default=None, env="AZURE_OPENAI_API_KEY")
+    AZURE_OPENAI_ENDPOINT: Optional[str] = Field(
+        default=None, env="AZURE_OPENAI_ENDPOINT"
+    )
+    AZURE_OPENAI_DEPLOYMENT: str = Field(default="gpt-4", env="AZURE_OPENAI_DEPLOYMENT")
+    AZURE_OPENAI_API_VERSION: str = Field(
+        default="2024-02-15-preview", env="AZURE_OPENAI_API_VERSION"
+    )
+    
+    # AI General Settings
+    AI_RATE_LIMIT_REQUESTS_PER_MINUTE: int = Field(
+        default=60, env="AI_RATE_LIMIT_REQUESTS_PER_MINUTE"
+    )
+    AI_MAX_RETRIES: int = Field(default=3, env="AI_MAX_RETRIES")
+    
+    # Site Info (for OpenRouter)
+    SITE_URL: str = Field(default="https://immonow.com", env="SITE_URL")
+    SITE_NAME: str = Field(default="ImmoNow Dashboard", env="SITE_NAME")
+    
+    # Geodata APIs (for AVM)
+    GOOGLE_MAPS_API_KEY: Optional[str] = Field(default=None, env="GOOGLE_MAPS_API_KEY")
+    OPENROUTESERVICE_API_KEY: Optional[str] = Field(
+        default=None, env="OPENROUTESERVICE_API_KEY"
+    )
+
 
 # Global settings instance
 settings = Settings()

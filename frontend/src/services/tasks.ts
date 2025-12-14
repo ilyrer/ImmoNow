@@ -20,6 +20,10 @@ export interface TaskListParams extends PaginationParams, SortParams {
   assignee_id?: string;
   property_id?: string;
   tags?: string[];
+  label_ids?: string[];
+  project_id?: string;
+  board_id?: string;
+  overdue_only?: boolean;
   due_date_from?: string;
   due_date_to?: string;
   archived?: boolean;
@@ -30,8 +34,14 @@ class TasksService {
    * GET /api/v1/tasks - Tasks auflisten
    */
   async listTasks(params: TaskListParams): Promise<TaskResponse[]> {
-    const response = await apiClient.get<TaskResponse[]>('/api/v1/tasks', { params });
-    return response;
+    const response = await apiClient.get<any>('/api/v1/tasks', { params });
+    // Backend returns PaginatedResponse with {items, total, page, ...}
+    // Extract items array
+    if (response && typeof response === 'object' && 'items' in response) {
+      return response.items;
+    }
+    // Fallback if response is already an array
+    return Array.isArray(response) ? response : [];
   }
 
   /**

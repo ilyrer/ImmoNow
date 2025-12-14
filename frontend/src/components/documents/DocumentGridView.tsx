@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { 
+import {
   Document,
   DOCUMENT_TYPE_ICONS,
   DOCUMENT_TYPE_COLORS,
@@ -75,15 +75,13 @@ const DocumentGridView: React.FC<DocumentGridViewProps> = ({
       {documents.map((document) => (
         <div
           key={document.id}
-          className={`group relative bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-all duration-200 cursor-pointer overflow-hidden ${
-            selectedDocuments.includes(document.id) 
-              ? 'ring-2 ring-blue-500 border-blue-500' 
+          className={`group relative bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-all duration-200 cursor-pointer overflow-hidden ${selectedDocuments.includes(document.id)
+              ? 'ring-2 ring-blue-500 border-blue-500'
               : 'hover:border-gray-300 dark:hover:border-gray-600'
-          } ${
-            isExpired(document) 
-              ? 'border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/10' 
+            } ${isExpired(document)
+              ? 'border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/10'
               : ''
-          }`}
+            }`}
           onClick={() => onDocumentOpen(document)}
         >
           {/* Selection Checkbox */}
@@ -101,11 +99,10 @@ const DocumentGridView: React.FC<DocumentGridViewProps> = ({
           <div className="absolute top-3 right-3 z-10">
             <button
               onClick={(e) => onToggleFavorite(document.id, e)}
-              className={`p-1.5 rounded-full transition-colors ${
-                document.isFavorite
+              className={`p-1.5 rounded-full transition-colors ${document.isFavorite
                   ? 'bg-red-100 text-red-600 hover:bg-red-200'
                   : 'bg-white/80 text-gray-400 hover:bg-white hover:text-red-500'
-              }`}
+                }`}
             >
               <i className={document.isFavorite ? 'ri-heart-fill' : 'ri-heart-line'}></i>
             </button>
@@ -113,17 +110,31 @@ const DocumentGridView: React.FC<DocumentGridViewProps> = ({
 
           {/* Document Preview/Icon */}
           <div className="p-4">
-            <div className="w-full h-32 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800 rounded-lg flex items-center justify-center mb-3 relative">
+            <div className="w-full h-32 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800 rounded-lg flex items-center justify-center mb-3 relative overflow-hidden">
               {document.thumbnailUrl ? (
                 <img
                   src={document.thumbnailUrl}
                   alt={document.name}
                   className="w-full h-full object-cover rounded-lg"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = 'none';
+                  }}
+                />
+              ) : document.mimeType?.startsWith('image/') ? (
+                <img
+                  src={document.url}
+                  alt={document.name}
+                  className="w-full h-full object-cover rounded-lg"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = 'none';
+                  }}
                 />
               ) : (
                 <i className={`${DOCUMENT_TYPE_ICONS[document.type]} text-4xl ${DOCUMENT_TYPE_COLORS[document.type]}`}></i>
               )}
-              
+
               {/* Visibility Indicator */}
               <div className="absolute bottom-2 left-2">
                 <span className="text-xs bg-white/90 dark:bg-gray-800/90 px-1.5 py-0.5 rounded-full">
@@ -144,7 +155,7 @@ const DocumentGridView: React.FC<DocumentGridViewProps> = ({
               <h3 className="font-semibold text-gray-900 dark:text-white text-sm line-clamp-2">
                 {document.name}
               </h3>
-              
+
               <div className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400">
                 <span>{DOCUMENT_CATEGORY_LABELS[document.category]}</span>
                 <span>{formatFileSize(document.size)}</span>
@@ -171,8 +182,17 @@ const DocumentGridView: React.FC<DocumentGridViewProps> = ({
 
               {/* Upload Info */}
               <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                <span>von {document.uploadedBy}</span>
-                <span>{new Date(document.uploadedAt).toLocaleDateString('de-DE')}</span>
+                <span className="truncate">von {document.uploadedBy || 'Unbekannt'}</span>
+                <span>
+                  {document.uploadedAt && !document.uploadedAt.includes('Invalid')
+                    ? new Date(document.uploadedAt).toLocaleDateString('de-DE', {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric'
+                    })
+                    : 'Datum unbekannt'
+                  }
+                </span>
               </div>
 
               {/* Expiry Warning */}
