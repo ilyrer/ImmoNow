@@ -23,7 +23,8 @@ export const useTasks = (params: TaskListParams) => {
   return useQuery({
     queryKey: taskKeys.list(params),
     queryFn: () => tasksService.listTasks(params),
-    staleTime: 60_000, // 1 Minute Cache
+    staleTime: 0, // Always fresh - refetch on changes
+    refetchOnWindowFocus: false, // Don't refetch on window focus
   });
 };
 
@@ -51,9 +52,39 @@ export const useUpdateTask = () => {
   return useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: Partial<CreateTaskRequest> }) =>
       tasksService.updateTask(id, payload),
+    onMutate: async ({ id, payload }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: taskKeys.all });
+      
+      // Snapshot previous value
+      const previousData = queryClient.getQueriesData({ queryKey: taskKeys.all });
+      
+      // Optimistically update ALL matching queries
+      queryClient.setQueriesData({ queryKey: taskKeys.lists() }, (old: any) => {
+        if (!old) return old;
+        if (Array.isArray(old)) {
+          return old.map((task: any) =>
+            task.id === id ? { ...task, ...payload, updated_at: new Date().toISOString() } : task
+          );
+        }
+        return old;
+      });
+      
+      return { previousData };
+    },
     onSuccess: () => {
+      // Immediately refetch to show updated data
       queryClient.invalidateQueries({ queryKey: taskKeys.all });
       queryClient.invalidateQueries({ queryKey: taskKeys.statistics() });
+    },
+    onError: (err, variables, context) => {
+      // Rollback on error
+      if (context?.previousData) {
+        context.previousData.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
+      console.error('[useUpdateTask] Error:', err);
     },
   });
 };

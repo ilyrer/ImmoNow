@@ -12,26 +12,26 @@ const apiService = {
   login: async (credentials: { email: string; password: string; tenant_id?: string }) => {
     try {
       const response = await apiClient.post('/api/v1/auth/login', credentials);
-      
+
       // Store tokens and tenant info with CONSISTENT KEYS
       if ((response as any).access_token) {
         // Use the NEW keys that AuthContext expects
         localStorage.setItem('auth_token', (response as any).access_token);
         localStorage.setItem('tenant_id', (response as any).tenant.id);
-        
+
         // Also keep old keys for backward compatibility
         localStorage.setItem('authToken', (response as any).access_token);
         localStorage.setItem('refreshToken', (response as any).refresh_token);
         localStorage.setItem('tenantId', (response as any).tenant.id);
         localStorage.setItem('tenantSlug', (response as any).tenant.slug);
-        
+
         // ✅ SET AUTH TOKEN IN API CLIENT
         apiClient.setAuthToken((response as any).access_token, (response as any).tenant.id);
         console.log('✅ Auth token set in API client after login');
         console.log('✅ Token:', (response as any).access_token.substring(0, 20) + '...');
         console.log('✅ Tenant ID:', (response as any).tenant.id);
       }
-      
+
       return {
         token: (response as any).access_token,
         user: {
@@ -62,26 +62,26 @@ const apiService = {
   register: async (payload: any) => {
     try {
       const response = await apiClient.post('/api/v1/auth/register', payload);
-      
+
       // Store tokens and tenant info with CONSISTENT KEYS
       if ((response as any).access_token) {
         // Use the NEW keys that AuthContext expects
         localStorage.setItem('auth_token', (response as any).access_token);
         localStorage.setItem('tenant_id', (response as any).tenant.id);
-        
+
         // Also keep old keys for backward compatibility
         localStorage.setItem('authToken', (response as any).access_token);
         localStorage.setItem('refreshToken', (response as any).refresh_token);
         localStorage.setItem('tenantId', (response as any).tenant.id);
         localStorage.setItem('tenantSlug', (response as any).tenant.slug);
-        
+
         // ✅ SET AUTH TOKEN IN API CLIENT
         apiClient.setAuthToken((response as any).access_token, (response as any).tenant.id);
         console.log('✅ Auth token set in API client after register');
         console.log('✅ Token:', (response as any).access_token.substring(0, 20) + '...');
         console.log('✅ Tenant ID:', (response as any).tenant.id);
       }
-      
+
       return {
         token: (response as any).access_token,
         user: (response as any).user,
@@ -96,7 +96,7 @@ const apiService = {
   logout: async () => {
     try {
       await apiClient.post('/api/v1/auth/logout');
-      
+
       // Clear all tokens
       localStorage.removeItem('auth_token');
       localStorage.removeItem('tenant_id');
@@ -104,7 +104,7 @@ const apiService = {
       localStorage.removeItem('refreshToken');
       localStorage.removeItem('tenantId');
       localStorage.removeItem('tenantSlug');
-      
+
       // Clear API client
       apiClient.clearAuth();
     } catch (error: any) {
@@ -136,13 +136,13 @@ const apiService = {
         localStorage.setItem('authToken', (response as any).access_token);
         localStorage.setItem('refresh_token', (response as any).refresh_token);
         localStorage.setItem('refreshToken', (response as any).refresh_token);
-        
+
         if ((response as any).tenant) {
           localStorage.setItem('tenant_id', (response as any).tenant.id);
           localStorage.setItem('tenantId', (response as any).tenant.id);
           localStorage.setItem('tenantSlug', (response as any).tenant.slug);
         }
-        
+
         // Set in API client
         const tenantId = localStorage.getItem('tenantId');
         if (tenantId) {
@@ -167,7 +167,7 @@ const apiService = {
     try {
       const response = await apiClient.get('/api/v1/auth/me');
       const tenantRole = await apiClient.get('/api/v1/auth/me/tenant');
-      
+
       return {
         id: (response as any).id,
         email: (response as any).email,
@@ -214,11 +214,11 @@ const apiService = {
 
   uploadPropertyImages: async (propertyId: string, images: File[], options?: { onProgress?: (progress: number) => void }) => {
     const uploadedImages = [];
-    
+
     for (let i = 0; i < images.length; i++) {
       const formData = new FormData();
       formData.append('files', images[i]);
-      
+
       try {
         const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/api/v1/properties/${propertyId}/media`, {
           method: 'POST',
@@ -228,14 +228,14 @@ const apiService = {
           },
           body: formData,
         });
-        
+
         if (!response.ok) {
           throw new Error(`Failed to upload image: ${response.statusText}`);
         }
-        
+
         const result = await response.json();
         uploadedImages.push(...result);
-        
+
         // Update progress
         if (options?.onProgress) {
           const progress = Math.round(((i + 1) / images.length) * 100);
@@ -245,7 +245,7 @@ const apiService = {
         console.error(`Error uploading image ${images[i].name}:`, error);
       }
     }
-    
+
     return uploadedImages;
   },
 
@@ -258,11 +258,11 @@ const apiService = {
 
   uploadPropertyDocuments: async (propertyId: string, documents: File[], options?: { onProgress?: (progress: number) => void }) => {
     const uploadedDocs = [];
-    
+
     for (let i = 0; i < documents.length; i++) {
       const formData = new FormData();
       formData.append('files', documents[i]);
-      
+
       try {
         const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/api/v1/properties/${propertyId}/documents`, {
           method: 'POST',
@@ -272,14 +272,14 @@ const apiService = {
           },
           body: formData,
         });
-        
+
         if (!response.ok) {
           throw new Error(`Failed to upload document: ${response.statusText}`);
         }
-        
+
         const result = await response.json();
         uploadedDocs.push(...result);
-        
+
         // Update progress
         if (options?.onProgress) {
           const progress = Math.round(((i + 1) / documents.length) * 100);
@@ -289,7 +289,7 @@ const apiService = {
         console.error(`Error uploading document ${documents[i].name}:`, error);
       }
     }
-    
+
     return uploadedDocs;
   },
 
@@ -303,7 +303,7 @@ const apiService = {
           'X-Tenant-ID': localStorage.getItem('tenant_id') || '',
         },
       });
-      
+
       if (!response.ok) {
         throw new Error(`Failed to set primary image: ${response.statusText}`);
       }
@@ -331,16 +331,44 @@ const apiService = {
   },
 
   getCurrentUserInfo: async () => {
-    console.warn("Legacy getCurrentUserInfo called. Please use src/contexts/UserContext.tsx");
-    return {
-      id: '1',
-      name: 'Test User',
-      email: 'test@example.com',
-      role: 'admin',
-      tenant_id: 'mock-tenant',
-      first_name: 'Test',
-      last_name: 'User'
-    };
+    try {
+      const response = await apiClient.get('/api/v1/auth/me');
+      return response.data;
+    } catch (error) {
+      console.error('Failed to get current user info:', error);
+      // Fallback to mock data if API fails
+      return {
+        id: '1',
+        name: 'Test User',
+        email: 'test@example.com',
+        role: 'admin',
+        tenant_id: 'mock-tenant',
+        first_name: 'Test',
+        last_name: 'User'
+      };
+    }
+  },
+
+  // Contact-related methods
+  listContactDocuments: async (contactId: string) => {
+    try {
+      // TODO: Implement real endpoint when available
+      // For now return empty array
+      return [];
+    } catch (error) {
+      console.error('Error loading contact documents:', error);
+      return [];
+    }
+  },
+
+  listContactActivities: async (contactId: string) => {
+    try {
+      const response = await apiClient.get(`/api/v1/contacts/${contactId}/activities`);
+      return (response as any) || [];
+    } catch (error) {
+      console.error('Error loading contact activities:', error);
+      return [];
+    }
   },
 
   // Generic HTTP methods

@@ -3,6 +3,9 @@ Tasks API Endpoints
 """
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi.responses import StreamingResponse
+import csv
+import io
 
 from app.api.deps import (
     require_read_scope, require_write_scope, require_delete_scope,
@@ -30,6 +33,10 @@ async def get_tasks(
     assignee_id: Optional[str] = Query(None, description="Assignee ID filter"),
     property_id: Optional[str] = Query(None, description="Property ID filter"),
     tags: Optional[List[str]] = Query(None, description="Tags filter"),
+    label_ids: Optional[List[str]] = Query(None, description="Label IDs filter"),
+    project_id: Optional[str] = Query(None, description="Project ID filter"),
+    board_id: Optional[str] = Query(None, description="Board ID filter"),
+    overdue_only: bool = Query(False, description="Only overdue tasks"),
     sort_by: Optional[str] = Query("created_at", description="Sort field"),
     sort_order: Optional[str] = Query("desc", description="Sort order"),
     current_user: TokenData = Depends(require_read_scope),
@@ -38,7 +45,7 @@ async def get_tasks(
     """Get paginated list of tasks with filters"""
     
     # Validate sort field
-    allowed_sort_fields = ["created_at", "title", "due_date", "priority", "status"]
+    allowed_sort_fields = ["created_at", "updated_at", "title", "due_date", "priority", "status"]
     sort_by = validate_sort_field(allowed_sort_fields, sort_by)
     
     # Calculate pagination offset
@@ -55,6 +62,10 @@ async def get_tasks(
         assignee_id=assignee_id,
         property_id=property_id,
         tags=tags,
+        label_ids=label_ids,
+        project_id=project_id,
+        board_id=board_id,
+        overdue_only=overdue_only,
         sort_by=sort_by,
         sort_order=sort_order
     )
@@ -79,6 +90,64 @@ async def create_task(
     task = await tasks_service.create_task(task_data, current_user.user_id)
     
     return task
+
+
+@router.get("/statistics", response_model=TaskStatisticsResponse)
+async def get_task_statistics(
+    current_user: TokenData = Depends(require_read_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Get task statistics"""
+    
+    tasks_service = TasksService(tenant_id)
+    statistics = await tasks_service.get_statistics()
+    
+    return statistics
+
+
+@router.get("/export")
+async def export_tasks(
+    search: Optional[str] = Query(None, description="Search term"),
+    status: Optional[str] = Query(None, description="Status filter"),
+    priority: Optional[str] = Query(None, description="Priority filter"),
+    assignee_id: Optional[str] = Query(None, description="Assignee ID filter"),
+    project_id: Optional[str] = Query(None, description="Project ID filter"),
+    board_id: Optional[str] = Query(None, description="Board ID filter"),
+    current_user: TokenData = Depends(require_read_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Export tasks as CSV"""
+    tasks_service = TasksService(tenant_id)
+    tasks, _ = await tasks_service.get_tasks(
+        offset=0,
+        limit=5000,
+        search=search,
+        status=status,
+        priority=priority,
+        assignee_id=assignee_id,
+        project_id=project_id,
+        board_id=board_id,
+    )
+
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(["id", "title", "status", "priority", "assignee", "due_date"])
+    for task in tasks:
+        writer.writerow(
+            [
+                task.id,
+                task.title,
+                task.status,
+                task.priority,
+                task.assignee.name if task.assignee else "",
+                task.due_date.isoformat(),
+            ]
+        )
+
+    buffer.seek(0)
+    return StreamingResponse(
+        buffer, media_type="text/csv", headers={"Content-Disposition": "attachment; filename=tasks.csv"}
+    )
 
 
 @router.get("/{task_id}", response_model=TaskResponse)
@@ -144,16 +213,3 @@ async def delete_task(
     
     tasks_service = TasksService(tenant_id)
     await tasks_service.delete_task(task_id, current_user.user_id)
-
-
-@router.get("/statistics", response_model=TaskStatisticsResponse)
-async def get_task_statistics(
-    current_user: TokenData = Depends(require_read_scope),
-    tenant_id: str = Depends(get_tenant_id)
-):
-    """Get task statistics"""
-    
-    tasks_service = TasksService(tenant_id)
-    statistics = await tasks_service.get_statistics()
-    
-    return statistics

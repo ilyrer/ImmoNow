@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DragDropContext, Droppable, DropResult } from '@hello-pangea/dnd';
 import { Task, KanbanColumn, TaskFilters, BoardStatistics } from '../../../types/kanban';
@@ -14,12 +14,17 @@ import { EnhancedTaskCard } from './EnhancedTaskCard';
 
 interface ProfessionalKanbanBoardProps {
   tasks: Record<string, Task[]>;
+  columns?: KanbanColumn[];
   onTaskClick: (task: Task) => void;
   onDragEnd: (result: DropResult) => void;
   onCreateTask: (columnId: string) => void;
+  onAiCreateTask?: (columnId: string) => void;
+  onSummarizeBoard?: () => void;
   onBulkUpdate?: (taskIds: string[], updates: Partial<Task>) => void;
 }
 
+// TODO(next-level): Spalten sind aktuell statisch. Für Multi-Board/Workflow sollen
+// Status dynamisch vom Backend/Board-Config kommen (inkl. WIP/Transitions/RBAC).
 // Main board columns (visible on the board)
 const DEFAULT_COLUMNS: KanbanColumn[] = [
   {
@@ -40,7 +45,7 @@ const DEFAULT_COLUMNS: KanbanColumn[] = [
     order: 1
   },
   {
-    id: 'inProgress',
+    id: 'in_progress',
     title: 'In Arbeit',
     color: '#0A84FF',
     icon: '◉',
@@ -79,7 +84,7 @@ export const ALL_STATUSES: KanbanColumn[] = [
     order: 5
   },
   {
-    id: 'onHold',
+    id: 'on_hold',
     title: 'Pausiert',
     color: '#AC8E68',
     icon: '‖',
@@ -99,7 +104,7 @@ export const ALL_STATUSES: KanbanColumn[] = [
 // Map non-board statuses to visible columns
 const STATUS_COLUMN_MAPPING: Record<string, string> = {
   'blocked': 'todo',      // Blocked tasks show in Todo
-  'onHold': 'backlog',    // On-hold tasks show in Backlog
+  'on_hold': 'backlog',   // On-hold tasks show in Backlog
   'cancelled': 'done'     // Cancelled tasks show in Done
 };
 
@@ -115,9 +120,12 @@ const KEYBOARD_SHORTCUTS = [
 
 export const ProfessionalKanbanBoard: React.FC<ProfessionalKanbanBoardProps> = ({
   tasks,
+  columns,
   onTaskClick,
   onDragEnd,
   onCreateTask,
+  onAiCreateTask,
+  onSummarizeBoard,
   onBulkUpdate
 }) => {
   // State
@@ -128,6 +136,24 @@ export const ProfessionalKanbanBoard: React.FC<ProfessionalKanbanBoardProps> = (
   const [showFilters, setShowFilters] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [activeColumn, setActiveColumn] = useState<string>('');
+  const [showFeatureMenu, setShowFeatureMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const boardColumns = columns && columns.length ? columns : DEFAULT_COLUMNS;
+
+  // Close menu on click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowFeatureMenu(false);
+      }
+    };
+
+    if (showFeatureMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showFeatureMenu]);
 
   // Statistics
   const statistics: BoardStatistics = useMemo(() => {
@@ -140,9 +166,9 @@ export const ProfessionalKanbanBoard: React.FC<ProfessionalKanbanBoardProps> = (
 
     const totalEstimatedHours = allTasks.reduce((sum, t) => sum + t.estimatedHours, 0);
     const totalActualHours = allTasks.reduce((sum, t) => sum + (t.actualHours || 0), 0);
-    
-    const completionRate = allTasks.length > 0 
-      ? (completedTasks.length / allTasks.length) * 100 
+
+    const completionRate = allTasks.length > 0
+      ? (completedTasks.length / allTasks.length) * 100
       : 0;
 
     const tasksByPriority = allTasks.reduce((acc, t) => {
@@ -195,12 +221,12 @@ export const ProfessionalKanbanBoard: React.FC<ProfessionalKanbanBoardProps> = (
   // Filtered tasks with status mapping for non-board statuses
   const filteredTasks = useMemo(() => {
     const result: Record<string, Task[]> = {};
-    
+
     // Initialize all board columns
-    DEFAULT_COLUMNS.forEach(col => {
+    boardColumns.forEach(col => {
       result[col.id] = [];
     });
-    
+
     // Distribute tasks to appropriate columns
     Object.keys(tasks).forEach(columnId => {
       tasks[columnId].forEach(task => {
@@ -209,19 +235,19 @@ export const ProfessionalKanbanBoard: React.FC<ProfessionalKanbanBoardProps> = (
         if (STATUS_COLUMN_MAPPING[task.status]) {
           targetColumn = STATUS_COLUMN_MAPPING[task.status] as Task['status'];
         }
-        
+
         // Only show if column exists on board
         if (!result[targetColumn]) {
           return;
         }
-        
+
         // Apply filters
         let shouldShow = true;
-        
+
         // Search filter
         if (filters.search && shouldShow) {
           const searchLower = filters.search.toLowerCase();
-          const matchesSearch = 
+          const matchesSearch =
             task.title.toLowerCase().includes(searchLower) ||
             task.description.toLowerCase().includes(searchLower) ||
             task.id.toLowerCase().includes(searchLower) ||
@@ -393,7 +419,7 @@ export const ProfessionalKanbanBoard: React.FC<ProfessionalKanbanBoardProps> = (
   return (
     <div className="h-full flex flex-col bg-gradient-to-br from-blue-50/50 via-purple-50/50 
       to-pink-50/50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900 relative overflow-hidden">
-      
+
       {/* Glassmorphism Background Orbs */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <motion.div
@@ -417,84 +443,141 @@ export const ProfessionalKanbanBoard: React.FC<ProfessionalKanbanBoardProps> = (
       {/* Header */}
       <div className="relative z-20 bg-white/30 dark:bg-white/5 backdrop-blur-3xl border-b 
         border-white/20 dark:border-white/10 px-6 py-5">
-        
+
         {/* Title & Stats */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 
-                rounded-2xl flex items-center justify-center shadow-glass-lg">
-                <span className="text-3xl">📋</span>
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-5">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-600 
+                rounded-xl flex items-center justify-center shadow-lg text-white font-bold text-lg">
+                PT
               </div>
               <div>
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 
                   to-purple-800 dark:from-white dark:via-blue-200 dark:to-purple-200 
                   bg-clip-text text-transparent">
                   Professional Task Board
                 </h1>
-                <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">
+                <p className="text-xs text-gray-600 dark:text-gray-400 font-medium">
                   Enterprise Task Management System
                 </p>
               </div>
             </div>
 
             {/* Quick Stats */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <StatBadge icon="◉" value={statistics.activeTasks} label="Aktiv" color="blue" />
               <StatBadge icon="●" value={statistics.completedTasks} label="Erledigt" color="green" />
               {statistics.overdueTasks > 0 && (
                 <StatBadge icon="⚠" value={statistics.overdueTasks} label="Überfällig" color="red" />
               )}
-              {statistics.blockedTasks > 0 && (
-                <StatBadge icon="⊘" value={statistics.blockedTasks} label="Blockiert" color="orange" />
-              )}
-              <StatBadge 
-                icon="▢" 
-                value={`${Math.round(statistics.completionRate)}%`} 
-                label="Fertigstellung" 
-                color="purple" 
+              <StatBadge
+                icon="▢"
+                value={`${Math.round(statistics.completionRate)}%`}
+                label="Fertigstellung"
+                color="purple"
               />
             </div>
           </div>
 
           {/* Actions */}
-          <div className="flex items-center gap-3">
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => setShowShortcuts(true)}
-              className="px-4 py-2.5 bg-white/40 dark:bg-white/10 hover:bg-white/60 
-                dark:hover:bg-white/15 rounded-xl text-sm font-medium text-gray-700 
-                dark:text-gray-300 transition-all backdrop-blur-2xl border 
-                border-white/20 dark:border-white/10"
-              title="Tastenkürzel (Taste ?)"
-            >
-              ▤ Shortcuts
-            </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={toggleBulkMode}
-              className={`px-4 py-2.5 rounded-xl font-semibold text-sm transition-all duration-200 
-                backdrop-blur-2xl border ${bulkMode
-                  ? 'bg-purple-500/80 text-white border-purple-600/50 shadow-glass-lg'
-                  : 'bg-white/40 dark:bg-white/10 text-gray-700 dark:text-gray-300 border-white/20 dark:border-white/10 hover:bg-white/60 dark:hover:bg-white/15'
-                }`}
-            >
-              {bulkMode ? '✕ Beenden' : '☑ Mehrfach'}
-            </motion.button>
+          <div className="flex items-center gap-2">
+            {/* Feature Menu */}
+            <div className="relative" ref={menuRef}>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setShowFeatureMenu(!showFeatureMenu)}
+                className="px-4 py-2.5 bg-white/40 dark:bg-white/10 hover:bg-white/60 
+                  dark:hover:bg-white/15 rounded-xl text-sm font-medium text-gray-700 
+                  dark:text-gray-300 transition-all backdrop-blur-2xl border 
+                  border-white/20 dark:border-white/10 flex items-center gap-2"
+              >
+                <span className="text-lg">☰</span>
+                Features
+              </motion.button>
+
+              {/* Dropdown Menu */}
+              <AnimatePresence>
+                {showFeatureMenu && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                    transition={{ duration: 0.2 }}
+                    className="absolute right-0 mt-2 w-56 bg-white/95 dark:bg-gray-800/95 
+                      backdrop-blur-xl rounded-xl shadow-xl border border-white/20 
+                      dark:border-white/10 py-2 z-50"
+                  >
+                    {onSummarizeBoard && (
+                      <button
+                        onClick={() => {
+                          onSummarizeBoard();
+                          setShowFeatureMenu(false);
+                        }}
+                        className="w-full px-4 py-2.5 text-left text-sm text-gray-700 
+                          dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 
+                          transition-colors flex items-center gap-3"
+                      >
+                        <span className="text-lg">🤖</span>
+                        <span>KI-Summary</span>
+                      </button>
+                    )}
+                    <button
+                      onClick={() => {
+                        setShowShortcuts(true);
+                        setShowFeatureMenu(false);
+                      }}
+                      className="w-full px-4 py-2.5 text-left text-sm text-gray-700 
+                        dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 
+                        transition-colors flex items-center gap-3"
+                    >
+                      <span className="text-lg">⌨️</span>
+                      <span>Shortcuts</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        toggleBulkMode();
+                        setShowFeatureMenu(false);
+                      }}
+                      className="w-full px-4 py-2.5 text-left text-sm text-gray-700 
+                        dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 
+                        transition-colors flex items-center gap-3"
+                    >
+                      <span className="text-lg">{bulkMode ? '✕' : '☑'}</span>
+                      <span>{bulkMode ? 'Mehrfach beenden' : 'Mehrfach-Auswahl'}</span>
+                    </button>
+                    {onAiCreateTask && (
+                      <button
+                        onClick={() => {
+                          onAiCreateTask('todo');
+                          setShowFeatureMenu(false);
+                        }}
+                        className="w-full px-4 py-2.5 text-left text-sm text-gray-700 
+                          dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 
+                          transition-colors flex items-center gap-3"
+                      >
+                        <span className="text-lg">✨</span>
+                        <span>KI-Task erstellen</span>
+                      </button>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Primary Action */}
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => onCreateTask('todo')}
-              className="px-6 py-2.5 bg-gradient-to-r from-blue-500 to-purple-600 
+              className="px-5 py-2.5 bg-gradient-to-r from-blue-500 to-purple-600 
                 hover:from-blue-600 hover:to-purple-700 text-white rounded-xl font-semibold 
-                text-sm transition-all duration-200 shadow-glass-lg hover:shadow-glass-xl 
-                hover:scale-105 flex items-center gap-2"
+                text-sm transition-all duration-200 shadow-lg hover:shadow-xl 
+                flex items-center gap-2"
             >
               <span className="text-lg">+</span>
               Neue Aufgabe
-              <span className="text-xs opacity-75 ml-1">(N)</span>
             </motion.button>
           </div>
         </div>
@@ -565,11 +648,19 @@ export const ProfessionalKanbanBoard: React.FC<ProfessionalKanbanBoardProps> = (
         </AnimatePresence>
       </div>
 
-      {/* Kanban Board - Responsive columns without horizontal scroll */}
+      {/* Kanban Board - Responsive columns, no horizontal scroll */}
       <div className="flex-1 overflow-hidden">
-        <DragDropContext onDragEnd={onDragEnd}>
-          <div className="h-full flex gap-4 p-6">
-            {DEFAULT_COLUMNS.map((column, index) => {
+        <DragDropContext
+          onDragEnd={onDragEnd}
+          onDragStart={() => {
+            // Haptic feedback (if supported)
+            if (window.navigator.vibrate) {
+              window.navigator.vibrate(10);
+            }
+          }}
+        >
+          <div className="h-full w-full flex gap-2 px-4 py-6">
+            {boardColumns.map((column, index) => {
               const columnTasks = filteredTasks[column.id] || [];
               const isOverLimit = !!(column.limit && columnTasks.length > column.limit);
               const completionPercentage = column.id === 'done' && statistics.totalTasks > 0
@@ -580,7 +671,7 @@ export const ProfessionalKanbanBoard: React.FC<ProfessionalKanbanBoardProps> = (
                 <motion.div
                   key={column.id}
                   layout
-                  className="flex flex-col flex-1 min-w-[250px] max-w-[400px]"
+                  className="flex flex-col flex-1 min-w-0"
                 >
                   {/* Column Header */}
                   <ColumnHeader
@@ -592,7 +683,7 @@ export const ProfessionalKanbanBoard: React.FC<ProfessionalKanbanBoardProps> = (
                   />
 
                   {/* Column Content */}
-                  <Droppable droppableId={column.id}>
+                  <Droppable droppableId={column.id} type="TASK">
                     {(provided, snapshot) => (
                       <div
                         ref={provided.innerRef}
@@ -600,10 +691,14 @@ export const ProfessionalKanbanBoard: React.FC<ProfessionalKanbanBoardProps> = (
                         className={`flex-1 bg-white/20 dark:bg-white/5 backdrop-blur-xl 
                           rounded-b-2xl border border-white/20 dark:border-white/10 border-t-0 
                           p-4 space-y-3 min-h-[500px] max-h-[calc(100vh-400px)] overflow-y-auto 
-                          transition-all duration-200 custom-scrollbar ${snapshot.isDraggingOver 
-                            ? 'bg-blue-500/10 ring-2 ring-blue-400/50 ring-inset scale-105' 
+                          transition-all duration-150 custom-scrollbar ${snapshot.isDraggingOver
+                            ? 'bg-blue-500/20 ring-2 ring-blue-500/60 ring-inset shadow-inner'
                             : ''
                           }`}
+                        style={{
+                          minHeight: '500px',
+                          transition: 'background-color 0.15s ease, box-shadow 0.15s ease'
+                        }}
                       >
                         <AnimatePresence>
                           {columnTasks.map((task, index) => (
@@ -709,13 +804,12 @@ const ColumnHeader: React.FC<{
         <span className="text-gray-700 dark:text-gray-300 font-bold text-lg">+</span>
       </motion.button>
     </div>
-    
+
     <div className="flex items-center justify-between mb-2">
-      <span className={`px-3 py-1.5 rounded-lg text-xs font-bold border ${
-        isOverLimit 
-          ? 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/30 animate-pulse' 
-          : 'bg-white/40 dark:bg-white/10 text-gray-700 dark:text-gray-300 border-white/20 dark:border-white/10'
-      }`}>
+      <span className={`px-3 py-1.5 rounded-lg text-xs font-bold border ${isOverLimit
+        ? 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/30 animate-pulse'
+        : 'bg-white/40 dark:bg-white/10 text-gray-700 dark:text-gray-300 border-white/20 dark:border-white/10'
+        }`}>
         {taskCount}{column.limit ? `/${column.limit}` : ''}
       </span>
       {isOverLimit && (
@@ -916,7 +1010,7 @@ const BulkActionsBar: React.FC<{
         >
           <option value="">Status ändern...</option>
           <option value="todo">◐ Zu erledigen</option>
-          <option value="inProgress">◉ In Arbeit</option>
+          <option value="in_progress">◉ In Arbeit</option>
           <option value="review">◎ Überprüfung</option>
           <option value="done">● Abgeschlossen</option>
         </select>

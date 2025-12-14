@@ -16,7 +16,9 @@ import {
   Share2,
   UserCircle,
   Briefcase,
-  ChevronDown
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 
 interface SidebarItem {
@@ -57,7 +59,6 @@ const GlobalSidebar: React.FC<GlobalSidebarProps> = ({ onLogout, onCollapsedChan
   ];
 
   const workflowItems: SidebarItem[] = [
-    { id: 'team-status', label: 'Team Status', icon: Users, path: '/team-status' },
     { id: 'kanban', label: 'Kanban Board', icon: ClipboardList, path: '/kanban' }
   ];
 
@@ -88,7 +89,7 @@ const GlobalSidebar: React.FC<GlobalSidebarProps> = ({ onLogout, onCollapsedChan
   const renderNavItem = (item: SidebarItem) => {
     const Icon = item.icon;
     const active = isActive(item.path);
-    
+
     return (
       <div key={item.id} className="relative group/item">
         <button
@@ -96,8 +97,8 @@ const GlobalSidebar: React.FC<GlobalSidebarProps> = ({ onLogout, onCollapsedChan
           className={`w-full flex items-center gap-3.5 px-4 py-2.5 rounded-[12px] 
             transition-all duration-200 relative overflow-hidden
             ${isCollapsed ? 'justify-center px-3' : ''}
-            ${active 
-              ? 'bg-blue-500/15 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 shadow-sm' 
+            ${active
+              ? 'bg-blue-500/15 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 shadow-sm'
               : 'text-slate-700 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white'
             }`}
         >
@@ -105,23 +106,21 @@ const GlobalSidebar: React.FC<GlobalSidebarProps> = ({ onLogout, onCollapsedChan
           {active && (
             <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-blue-500 rounded-r-full"></div>
           )}
-          
+
           {/* Icon */}
-          <Icon className={`w-[18px] h-[18px] flex-shrink-0 transition-all duration-200 ${
-            active 
-              ? 'text-blue-600 dark:text-blue-400' 
+          <Icon className={`w-[18px] h-[18px] flex-shrink-0 transition-all duration-200 ${active
+              ? 'text-blue-600 dark:text-blue-400'
               : 'text-slate-600 dark:text-slate-400 group-hover/item:text-slate-900 dark:group-hover/item:text-white'
-          }`} />
-          
+            }`} />
+
           {/* Label */}
           {!isCollapsed && (
-            <span className={`font-medium text-[14px] transition-all duration-200 ${
-              active ? 'font-semibold' : ''
-            }`}>
+            <span className={`font-medium text-[14px] transition-all duration-200 ${active ? 'font-semibold' : ''
+              }`}>
               {item.label}
             </span>
           )}
-          
+
           {/* Badge */}
           {item.badge && (
             <>
@@ -135,7 +134,7 @@ const GlobalSidebar: React.FC<GlobalSidebarProps> = ({ onLogout, onCollapsedChan
             </>
           )}
         </button>
-        
+
         {/* Tooltip für Collapsed Mode */}
         {isCollapsed && (
           <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-3 py-2 
@@ -162,15 +161,14 @@ const GlobalSidebar: React.FC<GlobalSidebarProps> = ({ onLogout, onCollapsedChan
 
   // UserContext liefert bereits normalisierte Daten
   const userName = user.name || user.email;
-  const userInitials = user.name 
+  const userInitials = user.name
     ? user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
     : user.email?.[0]?.toUpperCase() || 'U';
 
   return (
-    <aside 
-      className={`fixed left-0 top-0 h-screen transition-all duration-300 ease-in-out z-50 ${
-        isCollapsed ? 'w-[90px]' : 'w-[300px]'
-      }`}
+    <aside
+      className={`fixed left-0 top-0 h-screen transition-all duration-300 ease-in-out z-50 ${isCollapsed ? 'w-[90px]' : 'w-[300px]'
+        }`}
     >
       {/* Apple-Style Glasmorphismus Container */}
       <div className={`h-full m-3 rounded-[28px] backdrop-blur-3xl transition-all duration-300 relative
@@ -180,30 +178,50 @@ const GlobalSidebar: React.FC<GlobalSidebarProps> = ({ onLogout, onCollapsedChan
         dark:shadow-[0_20px_60px_rgba(0,0,0,0.6),inset_0_0_0_1px_rgba(255,255,255,0.08)]
         flex flex-col overflow-hidden`}
       >
-        
+
         {/* Subtile Background Glow */}
         <div className="absolute inset-0 overflow-hidden rounded-[28px] pointer-events-none opacity-40">
           <div className="absolute -top-24 -left-24 w-48 h-48 bg-blue-500/20 dark:bg-blue-500/10 rounded-full blur-[80px]"></div>
           <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-purple-500/20 dark:bg-purple-500/10 rounded-full blur-[80px]"></div>
         </div>
 
+        {/* Toggle Button - Glasmorphismus in der Mitte */}
+        <button
+          onClick={toggleCollapsed}
+          className="absolute -right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full
+            bg-white/30 dark:bg-white/10
+            backdrop-blur-xl
+            border border-white/40 dark:border-white/20
+            shadow-[0_8px_32px_rgba(0,0,0,0.12)]
+            dark:shadow-[0_8px_32px_rgba(0,0,0,0.6)]
+            flex items-center justify-center
+            hover:bg-white/40 dark:hover:bg-white/15
+            hover:scale-110
+            hover:shadow-[0_12px_40px_rgba(0,0,0,0.16)]
+            transition-all duration-300
+            group/toggle
+            z-50"
+          aria-label={isCollapsed ? 'Sidebar ausklappen' : 'Sidebar einklappen'}
+        >
+          {isCollapsed ? (
+            <ChevronRight className="w-5 h-5 text-slate-700 dark:text-slate-300 group-hover/toggle:text-blue-600 dark:group-hover/toggle:text-blue-400 transition-all duration-200 group-hover/toggle:translate-x-0.5" />
+          ) : (
+            <ChevronLeft className="w-5 h-5 text-slate-700 dark:text-slate-300 group-hover/toggle:text-blue-600 dark:group-hover/toggle:text-blue-400 transition-all duration-200 group-hover/toggle:-translate-x-0.5" />
+          )}
+        </button>
+
         {/* Header: Logo & Brand - Apple Style mit ImmoNow Logo */}
-        <div className={`relative px-6 pt-7 pb-5 border-b border-white/20 dark:border-white/10 transition-all duration-300 ${
-          isCollapsed ? 'px-4' : ''
-        }`}>
-          <button 
-            onClick={toggleCollapsed}
-            className="w-full flex items-center justify-center group cursor-pointer"
-          >
-            <div className={`flex items-center gap-4 transition-all duration-300 ${
-              isCollapsed ? 'flex-col gap-2' : ''
-            }`}>
+        <div className={`relative px-6 pt-7 pb-5 border-b border-white/20 dark:border-white/10 transition-all duration-300 ${isCollapsed ? 'px-4' : ''
+          }`}>
+          <div className="w-full flex items-center justify-center">
+            <div className={`flex items-center gap-4 transition-all duration-300 ${isCollapsed ? 'flex-col gap-2' : ''
+              }`}>
               {/* ImmoNow Logo - Dein Firmenlogo */}
-              <div className="relative w-14 h-14 rounded-[18px] bg-gradient-to-br from-blue-500 via-purple-600 to-indigo-600 flex items-center justify-center shadow-lg group-hover:shadow-2xl group-hover:scale-105 transition-all duration-500 overflow-hidden">
+              <div className="relative w-14 h-14 rounded-[18px] bg-gradient-to-br from-blue-500 via-purple-600 to-indigo-600 flex items-center justify-center shadow-lg transition-all duration-500 overflow-hidden">
                 {/* Platzhalter für dein Logo - kannst du später durch ein Bild ersetzen */}
-                <img 
-                  src="/logo/immonow-logo.png" 
-                  alt="ImmoNow" 
+                <img
+                  src="/logo/immonow-logo.png"
+                  alt="ImmoNow"
                   className="w-full h-full object-cover"
                   onError={(e) => {
                     // Fallback zu Initialen wenn Bild nicht geladen werden kann
@@ -214,7 +232,7 @@ const GlobalSidebar: React.FC<GlobalSidebarProps> = ({ onLogout, onCollapsedChan
                 {/* Subtle Inner Glow */}
                 <div className="absolute inset-[2px] rounded-[16px] bg-gradient-to-br from-white/20 to-transparent opacity-60"></div>
               </div>
-              
+
               {/* Brand Text */}
               {!isCollapsed && (
                 <div className="flex flex-col">
@@ -227,13 +245,12 @@ const GlobalSidebar: React.FC<GlobalSidebarProps> = ({ onLogout, onCollapsedChan
                 </div>
               )}
             </div>
-          </button>
+          </div>
         </div>
 
         {/* User Profile Section mit Firmenlogo des Users */}
-        <div className={`relative px-5 py-4 border-b border-white/20 dark:border-white/10 transition-all duration-300 ${
-          isCollapsed ? 'px-4' : ''
-        }`}>
+        <div className={`relative px-5 py-4 border-b border-white/20 dark:border-white/10 transition-all duration-300 ${isCollapsed ? 'px-4' : ''
+          }`}>
           <div className={`w-full rounded-[16px] p-3.5 flex items-center gap-3.5 
             bg-white/40 dark:bg-white/5
             border border-white/50 dark:border-white/10
@@ -246,8 +263,8 @@ const GlobalSidebar: React.FC<GlobalSidebarProps> = ({ onLogout, onCollapsedChan
               {tenant?.logo_url ? (
                 /* Firmenlogo des Tenants */
                 <div className="relative w-11 h-11 rounded-full bg-white dark:bg-slate-800 flex items-center justify-center shadow-md border-2 border-white/50 dark:border-slate-700/50 overflow-hidden">
-                  <img 
-                    src={tenant.logo_url} 
+                  <img
+                    src={tenant.logo_url}
                     alt={tenant.name}
                     className="w-full h-full object-cover"
                     onError={(e) => {
@@ -269,11 +286,11 @@ const GlobalSidebar: React.FC<GlobalSidebarProps> = ({ onLogout, onCollapsedChan
                   </span>
                 </div>
               )}
-              
+
               {/* Online Status */}
               <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-white dark:border-slate-900 shadow-sm"></div>
             </div>
-            
+
             {/* User Info mit Firmenname */}
             {!isCollapsed && (
               <div className="flex-1 flex flex-col">
@@ -290,7 +307,7 @@ const GlobalSidebar: React.FC<GlobalSidebarProps> = ({ onLogout, onCollapsedChan
 
         {/* Navigation Items - Gruppiert für bessere Übersicht */}
         <nav className="flex-1 px-4 py-3 overflow-y-auto apple-scrollbar">
-          
+
           {/* Hauptnavigation */}
           {!isCollapsed && (
             <div className="px-2 mb-3">

@@ -2,11 +2,12 @@
 Contacts Service
 """
 from typing import Optional, List, Tuple
+from datetime import datetime
 from django.db import models
 from django.db.models import Q
 from asgiref.sync import sync_to_async
 
-from app.db.models import Contact, Property
+from app.db.models import Contact, Property, Task, Appointment
 from app.schemas.contacts import (
     ContactResponse, CreateContactRequest, UpdateContactRequest
 )
@@ -112,7 +113,10 @@ class ContactsService:
                 budget=contact_data.budget,
                 budget_currency=contact_data.budget_currency,
                 preferences=contact_data.preferences,
-                last_contact=contact_data.last_contact
+                additional_info=contact_data.additional_info,
+                address=contact_data.address,
+                notes=contact_data.notes,
+                last_contact=contact_data.last_contact,
             )
         
         contact = await create_contact_sync()
@@ -248,9 +252,82 @@ class ContactsService:
             budget_currency=contact.budget_currency,
             budget_min=float(contact.budget_min) if contact.budget_min else None,
             budget_max=float(contact.budget_max) if contact.budget_max else None,
-            preferences=contact.preferences,
+            preferences=contact.preferences or {},
+            additional_info=contact.additional_info or {},
+            address=contact.address or {},
+            notes=contact.notes,
             lead_score=contact.lead_score,
             last_contact=contact.last_contact,
             created_at=contact.created_at,
-            updated_at=contact.updated_at
+            updated_at=contact.updated_at,
         )
+
+    async def get_contact_activities(
+        self, contact_id: str, limit: int = 100
+    ) -> List[dict]:
+        """
+        Return recent activities for a contact (appointments + tasks tagged with contact).
+        Structure matches lead scoring expectations: type, status, timestamps.
+        """
+
+        @sync_to_async
+        def fetch():
+            activities: List[dict] = []
+
+            appointments = (
+                Appointment.objects.filter(
+                    tenant_id=self.tenant_id, contact_id=contact_id
+                )
+                .order_by("-start_datetime")[:limit]
+            )
+            for appt in appointments:
+                activities.append(
+                    {
+                        "id": str(appt.id),
+                        "type": appt.type,
+                        "status": appt.status,
+                        "title": appt.title,
+                        "description": appt.description,
+                        "created_at": appt.created_at,
+                        "scheduled_at": appt.start_datetime,
+                        "completed_at": appt.end_datetime
+                        if appt.status in ["completed", "cancelled"]
+                        else None,
+                    }
+                )
+
+            tasks = (
+                Task.objects.filter(
+                    tenant_id=self.tenant_id, tags__contains=[f"contact:{contact_id}"]
+                )
+                .order_by("-created_at")[:limit]
+            )
+            for task in tasks:
+                activities.append(
+                    {
+                        "id": str(task.id),
+                        "type": "task",
+                        "status": task.status,
+                        "title": task.title,
+                        "description": task.description,
+                        "created_at": task.created_at,
+                        "scheduled_at": task.due_date,
+                        "completed_at": task.updated_at
+                        if task.status in ["done", "completed"]
+                        else None,
+                    }
+                )
+
+            return activities
+
+        activities = await fetch()
+        activities = sorted(
+            activities,
+            key=lambda a: (
+                a.get("created_at")
+                or a.get("scheduled_at")
+                or datetime.utcnow()
+            ),
+            reverse=True,
+        )
+        return activities[:limit]

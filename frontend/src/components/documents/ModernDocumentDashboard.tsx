@@ -9,6 +9,8 @@ import DocumentListView from './DocumentListView';
 import DocumentAdvancedFilters from './DocumentAdvancedFilters';
 import DocumentAnalyticsDashboard from './DocumentAnalyticsDashboard';
 import { useDocuments, useDocumentFolders, useDocumentAnalytics } from '../../api/hooks';
+import { apiClient } from '../../lib/api/client';
+import { toast } from 'react-hot-toast';
 
 // Mock interfaces to match the expected types
 interface MockDocument {
@@ -78,9 +80,9 @@ interface ModernDocumentDashboardProps {
   className?: string;
 }
 
-const ModernDocumentDashboard: React.FC<ModernDocumentDashboardProps> = ({ 
-  showAnalytics = false, 
-  className = '' 
+const ModernDocumentDashboard: React.FC<ModernDocumentDashboardProps> = ({
+  showAnalytics = false,
+  className = ''
 }) => {
   // State
   const [viewMode, setViewMode] = useState<'grid' | 'list' | 'analytics'>('grid');
@@ -93,26 +95,29 @@ const ModernDocumentDashboard: React.FC<ModernDocumentDashboardProps> = ({
   const [filters, setFilters] = useState<MockDocumentFilter>({});
 
   // API Hooks with proper parameters
-  const { data: documents, isLoading: documentsLoading, error: documentsError } = useDocuments({ page: 1, size: 100 });
+  const { data: documentsData, isLoading: documentsLoading, error: documentsError, refetch: refetchDocuments } = useDocuments({ page: 1, size: 100 });
   const { data: folders, isLoading: foldersLoading, error: foldersError } = useDocumentFolders();
   const { data: analytics, isLoading: analyticsLoading, error: analyticsError } = useDocumentAnalytics();
+
+  // Extract items from PaginatedResponse
+  const documents = documentsData?.items || [];
 
   // Convert API data to mock types with proper handling
   const mockDocuments: MockDocument[] = Array.isArray(documents) ? documents.map((doc: any) => ({
     id: doc.id,
-    title: doc.title,
+    title: doc.title || doc.name,
     type: doc.type,
     size: doc.size,
-    createdAt: doc.createdAt,
-    updatedAt: doc.updatedAt,
+    createdAt: doc.created_at || doc.createdAt || doc.uploaded_at || new Date().toISOString(),
+    updatedAt: doc.last_modified || doc.updatedAt || new Date().toISOString(),
     url: doc.url,
-    folderId: doc.folderId,
+    folderId: doc.folder_id || doc.folderId,
     tags: doc.tags || [],
     description: doc.description,
-    isPublic: doc.isPublic || false,
+    isPublic: doc.visibility === 'public' || doc.isPublic || false,
     permissions: doc.permissions || [],
     metadata: doc.metadata || {},
-    originalName: doc.originalName || doc.title,
+    originalName: doc.original_name || doc.originalName || doc.name || doc.title,
     versions: doc.versions || []
   })) : [];
 
@@ -157,35 +162,35 @@ const ModernDocumentDashboard: React.FC<ModernDocumentDashboardProps> = ({
   // Filter documents based on current filters
   const filteredDocuments = useMemo(() => {
     if (!mockDocuments) return [];
-    
+
     return mockDocuments.filter(doc => {
       // Search filter
       if (filters.search && !doc.title.toLowerCase().includes(filters.search.toLowerCase()) &&
-          !doc.description?.toLowerCase().includes(filters.search.toLowerCase())) {
+        !doc.description?.toLowerCase().includes(filters.search.toLowerCase())) {
         return false;
       }
-      
+
       // Type filter
       if (filters.type && filters.type.length > 0 && !filters.type.includes(doc.type)) {
         return false;
       }
-      
+
       // Folder filter
       if (filters.folderId && doc.folderId !== filters.folderId) {
         return false;
       }
-      
+
       // Tags filter
       if (filters.tags && filters.tags.length > 0 &&
-          !filters.tags.some(tag => doc.tags.includes(tag))) {
+        !filters.tags.some(tag => doc.tags.includes(tag))) {
         return false;
       }
-      
+
       // Public filter
       if (filters.isPublic !== undefined && doc.isPublic !== filters.isPublic) {
         return false;
       }
-      
+
       return true;
     });
   }, [mockDocuments, filters]);
@@ -204,47 +209,101 @@ const ModernDocumentDashboard: React.FC<ModernDocumentDashboardProps> = ({
     setShowDetailModal(true);
   };
 
-  const handleDocumentDelete = (documentId: string) => {
-    console.log('Delete document:', documentId);
+  const handleDocumentDelete = async (documentId: string) => {
+    if (!window.confirm('Möchten Sie dieses Dokument wirklich löschen?')) {
+      return;
+    }
+
+    try {
+      await apiClient.delete(`/api/v1/documents/${documentId}`);
+      toast.success('Dokument erfolgreich gelöscht');
+      refetchDocuments();
+    } catch (error) {
+      console.error('Delete error:', error);
+      toast.error('Fehler beim Löschen des Dokuments');
+    }
   };
 
-  const handleDocumentShare = (documentId: string) => {
-    console.log('Share document:', documentId);
+  const handleDocumentShare = async (documentId: string) => {
+    const doc = mockDocuments.find(d => d.id === documentId);
+    if (doc && doc.url) {
+      navigator.clipboard.writeText(doc.url);
+
+      // Log share activity
+      try {
+        await apiClient.post(`/api/v1/documents/${documentId}/share`);
+      } catch (error) {
+        console.error('Failed to log share activity:', error);
+      }
+
+      toast.success('Link in Zwischenablage kopiert');
+    }
   };
 
-  const handleDocumentDownload = (documentId: string) => {
-    console.log('Download document:', documentId);
+  const handleDocumentDownload = async (documentId: string) => {
+    const doc = mockDocuments.find(d => d.id === documentId);
+    if (doc && doc.url) {
+      window.open(doc.url, '_blank');
+
+      // Log download activity
+      try {
+        await apiClient.post(`/api/v1/documents/${documentId}/download`);
+      } catch (error) {
+        console.error('Failed to log download activity:', error);
+      }
+
+      toast.success('Download gestartet');
+    }
   };
 
   const handleDocumentEdit = (documentId: string) => {
-    console.log('Edit document:', documentId);
+    const doc = mockDocuments.find(d => d.id === documentId);
+    if (doc) {
+      handleDocumentOpen(doc);
+    }
   };
 
-  const handleDocumentArchive = (documentId: string) => {
-    console.log('Archive document:', documentId);
+  const handleDocumentArchive = async (documentId: string) => {
+    try {
+      await apiClient.put(`/api/v1/documents/${documentId}/visibility`, {
+        visibility: 'private'
+      });
+      toast.success('Dokument archiviert');
+      refetchDocuments();
+    } catch (error) {
+      toast.error('Fehler beim Archivieren');
+    }
   };
 
   const handleDocumentTag = (documentId: string) => {
-    console.log('Tag document:', documentId);
+    toast('Tag-Funktion in Entwicklung', { icon: 'ℹ️' });
   };
 
   const handleDocumentMove = (documentId: string) => {
-    console.log('Move document:', documentId);
+    toast('Move-Funktion in Entwicklung', { icon: 'ℹ️' });
   };
 
   const handleDocumentCopy = (documentId: string) => {
-    console.log('Copy document:', documentId);
+    toast('Copy-Funktion in Entwicklung', { icon: 'ℹ️' });
   };
 
   const handleDocumentRename = (documentId: string) => {
-    console.log('Rename document:', documentId);
+    toast('Rename-Funktion in Entwicklung', { icon: 'ℹ️' });
   };
 
-  const handleToggleFavorite = (documentId: string, event?: React.MouseEvent) => {
+  const handleToggleFavorite = async (documentId: string, event?: React.MouseEvent) => {
     if (event) {
       event.stopPropagation();
     }
-    console.log('Toggle favorite:', documentId);
+
+    try {
+      await apiClient.put(`/api/v1/documents/${documentId}/favorite`);
+      toast.success('Favoriten-Status aktualisiert');
+      refetchDocuments();
+    } catch (error) {
+      console.error('Favorite toggle error:', error);
+      toast.error('Fehler beim Aktualisieren');
+    }
   };
 
   const formatFileSize = (bytes: number): string => {
@@ -396,12 +455,35 @@ const ModernDocumentDashboard: React.FC<ModernDocumentDashboardProps> = ({
     console.log('Version get response document:', documentId);
   };
 
-  const handleFolderCreate = (name: string, parentId?: string) => {
-    console.log('Create folder:', name, parentId);
+  const handleFolderCreate = async (name: string, parentId?: string) => {
+    const folderName = prompt('Ordnername eingeben:', name);
+    if (!folderName) return;
+
+    try {
+      await apiClient.post('/api/v1/documents/folders', {
+        name: folderName,
+        parent_id: parentId
+      });
+      toast.success('Ordner erfolgreich erstellt');
+      // Folders werden automatisch über React Query neu geladen
+    } catch (error) {
+      console.error('Folder create error:', error);
+      toast.error('Fehler beim Erstellen des Ordners');
+    }
   };
 
-  const handleFolderRename = (folderId: string, newName: string) => {
-    console.log('Rename folder:', folderId, newName);
+  const handleFolderRename = async (folderId: string, newName: string) => {
+    const folderName = prompt('Neuer Ordnername:', newName);
+    if (!folderName) return;
+
+    try {
+      await apiClient.put(`/api/v1/documents/folders/${folderId}`, {
+        name: folderName
+      });
+      toast.success('Ordner umbenannt');
+    } catch (error) {
+      toast.error('Fehler beim Umbenennen');
+    }
   };
 
   const handleFiltersChange = (newFilters: MockDocumentFilter) => {
@@ -440,41 +522,38 @@ const ModernDocumentDashboard: React.FC<ModernDocumentDashboardProps> = ({
                 Verwalten Sie Ihre Dokumente und Dateien
               </p>
             </div>
-            
+
             <div className="flex items-center space-x-4">
               <div className="flex bg-gray-200 dark:bg-gray-700 rounded-lg p-1">
                 <button
                   onClick={() => setViewMode('grid')}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                    viewMode === 'grid'
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${viewMode === 'grid'
                       ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm'
                       : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                  }`}
+                    }`}
                 >
                   <Grid className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => setViewMode('list')}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                    viewMode === 'list'
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${viewMode === 'list'
                       ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm'
                       : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                  }`}
+                    }`}
                 >
                   <List className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => setViewMode('analytics')}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                    viewMode === 'analytics'
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${viewMode === 'analytics'
                       ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm'
                       : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                  }`}
+                    }`}
                 >
                   <FileText className="w-4 h-4" />
                 </button>
               </div>
-              
+
               <button
                 onClick={() => setShowUploadModal(true)}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -593,6 +672,9 @@ const ModernDocumentDashboard: React.FC<ModernDocumentDashboardProps> = ({
           isOpen={showUploadModal}
           onClose={() => setShowUploadModal(false)}
           folderId={selectedFolder || undefined}
+          onUploadComplete={() => {
+            refetchDocuments();
+          }}
         />
 
         <DocumentDetailModal
@@ -600,6 +682,9 @@ const ModernDocumentDashboard: React.FC<ModernDocumentDashboardProps> = ({
           onClose={() => {
             setShowDetailModal(false);
             setSelectedDocument(null);
+          }}
+          onUpdate={() => {
+            refetchDocuments();
           }}
         />
       </div>

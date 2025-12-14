@@ -1,10 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { 
-  useContacts, 
-  useCreateContact, 
-  useUpdateContact, 
-  useDeleteContact 
+import {
+  useContacts,
+  useCreateContact,
+  useUpdateContact,
+  useDeleteContact
 } from '../../api/hooks';
 
 const ContactsList = ({ user }) => {
@@ -45,31 +45,34 @@ const ContactsList = ({ user }) => {
   const contacts = useMemo(() => {
     // Handle paginated response format
     const items = contactsData?.items || contactsData?.data || contactsData;
-    
+
     if (!items || !Array.isArray(items)) {
       return [];
     }
 
     // Transform API data to component format
     return items.map((contact, index) => {
-      
+
       const processed = {
         id: contact.id,
         name: contact.name || 'Unbekannt',
         phone: contact.phone || '',
         email: contact.email || '',
         category: contact.category || contact.company || '',
-        lastContact: contact.last_contact ? new Date(contact.last_contact).toLocaleDateString('de-DE') : 
-                     contact.updated_at ? new Date(contact.updated_at).toLocaleDateString('de-DE') : 
-                     new Date().toLocaleDateString('de-DE'),
+        lastContact: contact.last_contact ? new Date(contact.last_contact).toLocaleDateString('de-DE') :
+          contact.updated_at ? new Date(contact.updated_at).toLocaleDateString('de-DE') :
+            new Date().toLocaleDateString('de-DE'),
         status: contact.status || 'Lead',
         avatar: contact.avatar,
         company: contact.company || '',
         location: contact.location || '',
-        value: contact.budget_max ? `€ ${contact.budget_max.toLocaleString('de-DE')}` : '',
+        budget: contact.budget || contact.budget_max || contact.value || null,
+        budget_min: contact.budget_min || null,
+        budget_max: contact.budget_max || null,
+        value: contact.budget || contact.budget_max ? `€ ${(contact.budget || contact.budget_max).toLocaleString('de-DE')}` : '',
         priority: contact.priority || (contact.lead_score > 50 ? 'high' : 'medium')
       };
-      
+
       return processed;
     });
   }, [contactsData]);
@@ -78,13 +81,13 @@ const ContactsList = ({ user }) => {
   // Filterfunktionen
   const filteredContacts = contacts.filter(contact => {
     const matchesSearch = contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         contact.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         contact.phone.includes(searchTerm) ||
-                         contact.company.toLowerCase().includes(searchTerm.toLowerCase());
-    
+      contact.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      contact.phone.includes(searchTerm) ||
+      contact.company.toLowerCase().includes(searchTerm.toLowerCase());
+
     const matchesStatus = filterStatus === 'alle' || contact.status.toLowerCase() === filterStatus.toLowerCase();
     const matchesCategory = filterCategory === 'alle' || contact.category.toLowerCase().includes(filterCategory.toLowerCase());
-    
+
     return matchesSearch && matchesStatus && matchesCategory;
   });
 
@@ -92,12 +95,12 @@ const ContactsList = ({ user }) => {
   const sortedContacts = [...filteredContacts].sort((a, b) => {
     let aValue = a[sortBy];
     let bValue = b[sortBy];
-    
+
     if (sortBy === 'lastContact') {
       aValue = new Date(aValue.split('.').reverse().join('-'));
       bValue = new Date(bValue.split('.').reverse().join('-'));
     }
-    
+
     if (sortOrder === 'asc') {
       return aValue > bValue ? 1 : -1;
     } else {
@@ -184,13 +187,13 @@ const ContactsList = ({ user }) => {
 
   const handleSaveContact = () => {
     if (editingContact) {
-      // Parse value to get budget_max
-      let budgetMax = null;
+      // Parse value to get budget
+      let budget = null;
       if (editingContact.value) {
         const valueStr = editingContact.value.toString().replace(/[^\d.-]/g, '');
-        budgetMax = valueStr ? parseFloat(valueStr) : null;
+        budget = valueStr ? parseFloat(valueStr) : null;
       }
-      
+
       // Update existing contact
       updateContactMutation.mutate({
         id: editingContact.id,
@@ -203,7 +206,7 @@ const ContactsList = ({ user }) => {
           status: editingContact.status,
           priority: editingContact.priority,
           location: editingContact.location,
-          budget_max: budgetMax
+          budget: budget
         }
       }, {
         onSuccess: () => {
@@ -262,11 +265,11 @@ const ContactsList = ({ user }) => {
       return;
     }
 
-    // Parse value to get budget_max
-    let budgetMax = null;
+    // Parse value to get budget
+    let budget = null;
     if (newContact.value) {
       const valueStr = newContact.value.toString().replace(/[^\d.-]/g, '');
-      budgetMax = valueStr ? parseFloat(valueStr) : null;
+      budget = valueStr ? parseFloat(valueStr) : null;
     }
 
     createContactMutation.mutate({
@@ -278,7 +281,7 @@ const ContactsList = ({ user }) => {
       status: newContact.status || 'Lead',
       priority: newContact.priority || 'medium',
       location: newContact.location || undefined,
-      budget_max: budgetMax,
+      budget: budget,
       budget_currency: 'EUR',
       preferences: {}
     }, {
@@ -332,7 +335,7 @@ const ContactsList = ({ user }) => {
 
   // Check authentication
   const isAuthenticated = !!localStorage.getItem('access_token');
-  
+
   // Show loading state
   if (isLoading) {
     return (
@@ -385,39 +388,37 @@ const ContactsList = ({ user }) => {
                 </div>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-4">
               <div className="flex items-center bg-white/50 dark:bg-gray-700/50 backdrop-blur-sm rounded-xl p-1 border border-gray-200/50 dark:border-gray-600/50">
                 <button
                   onClick={() => setViewMode('table')}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                    viewMode === 'table'
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${viewMode === 'table'
                       ? 'bg-white dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 shadow-md'
                       : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                  }`}
+                    }`}
                 >
                   Tabelle
                 </button>
                 <button
                   onClick={() => setViewMode('grid')}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                    viewMode === 'grid'
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${viewMode === 'grid'
                       ? 'bg-white dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 shadow-md'
                       : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                  }`}
+                    }`}
                 >
                   Karten
                 </button>
               </div>
-              
-              <button 
+
+              <button
                 onClick={() => setShowNewContactModal(true)}
                 className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm"
               >
                 Neuer Kontakt
               </button>
-              
-              <button 
+
+              <button
                 onClick={handleExportContacts}
                 className="px-4 py-3 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm text-gray-700 dark:text-gray-300 text-sm font-medium rounded-lg border border-gray-200/50 dark:border-gray-600/50 hover:bg-white dark:hover:bg-gray-800 transition-all duration-200 shadow-sm"
               >
@@ -544,13 +545,13 @@ const ContactsList = ({ user }) => {
               Es sind noch keine Kontakte in der Datenbank vorhanden oder sie konnten nicht geladen werden.
             </p>
             <div className="flex gap-3">
-              <button 
+              <button
                 onClick={() => setShowNewContactModal(true)}
                 className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm"
               >
                 Ersten Kontakt erstellen
               </button>
-              <button 
+              <button
                 onClick={() => refetchContacts()}
                 className="px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm"
               >
@@ -572,11 +573,11 @@ const ContactsList = ({ user }) => {
                   <thead className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800">
                     <tr>
                       <th className="px-6 py-4 text-left">
-                        <input 
-                          type="checkbox" 
+                        <input
+                          type="checkbox"
                           checked={selectedContacts.size === paginatedContacts.length && paginatedContacts.length > 0}
                           onChange={toggleAllContacts}
-                          className="rounded border-gray-300 dark:border-gray-600 text-indigo-600 focus:ring-indigo-500" 
+                          className="rounded border-gray-300 dark:border-gray-600 text-indigo-600 focus:ring-indigo-500"
                         />
                       </th>
                       <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
@@ -604,17 +605,17 @@ const ContactsList = ({ user }) => {
                   </thead>
                   <tbody className="divide-y divide-gray-200/50 dark:divide-gray-700/50">
                     {paginatedContacts.map((contact, index) => (
-                      <tr 
-                        key={contact.id} 
+                      <tr
+                        key={contact.id}
                         className="group hover:bg-gradient-to-r hover:from-indigo-50/50 hover:to-purple-50/50 dark:hover:from-indigo-900/10 dark:hover:to-purple-900/10 transition-all duration-200"
                         style={{ animationDelay: `${index * 50}ms` }}
                       >
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <input 
-                            type="checkbox" 
+                          <input
+                            type="checkbox"
                             checked={selectedContacts.has(contact.id)}
                             onChange={() => toggleContactSelection(contact.id)}
-                            className="rounded border-gray-300 dark:border-gray-600 text-indigo-600 focus:ring-indigo-500" 
+                            className="rounded border-gray-300 dark:border-gray-600 text-indigo-600 focus:ring-indigo-500"
                           />
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -671,7 +672,10 @@ const ContactsList = ({ user }) => {
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm font-bold text-gray-900 dark:text-white">
                             {(() => {
-                              if (contact.budget_min && contact.budget_max) {
+                              // Prioritize new budget field
+                              if (contact.budget) {
+                                return `€${contact.budget.toLocaleString('de-DE')}`;
+                              } else if (contact.budget_min && contact.budget_max) {
                                 return `€${contact.budget_min.toLocaleString('de-DE')} - €${contact.budget_max.toLocaleString('de-DE')}`;
                               } else if (contact.budget_max) {
                                 return `bis zu €${contact.budget_max.toLocaleString('de-DE')}`;
@@ -734,7 +738,7 @@ const ContactsList = ({ user }) => {
                 >
                   {/* Prioritäts-Indikator */}
                   <div className={`absolute top-4 right-4 w-3 h-3 rounded-full ${contact.priority === 'high' ? 'bg-red-500' : contact.priority === 'medium' ? 'bg-yellow-500' : 'bg-green-500'} shadow-lg`}></div>
-                  
+
                   {/* Avatar und Name */}
                   <div className="flex items-center space-x-4 mb-4">
                     <div className="relative">
@@ -789,7 +793,10 @@ const ContactsList = ({ user }) => {
                   <div className="mb-4">
                     <div className="text-lg font-bold text-gray-900 dark:text-white">
                       {(() => {
-                        if (contact.budget_min && contact.budget_max) {
+                        // Prioritize new budget field
+                        if (contact.budget) {
+                          return `€${contact.budget.toLocaleString('de-DE')}`;
+                        } else if (contact.budget_min && contact.budget_max) {
                           return `€${contact.budget_min.toLocaleString('de-DE')} - €${contact.budget_max.toLocaleString('de-DE')}`;
                         } else if (contact.budget_max) {
                           return `bis zu €${contact.budget_max.toLocaleString('de-DE')}`;
@@ -845,7 +852,7 @@ const ContactsList = ({ user }) => {
                   </div>
                 )}
               </div>
-              
+
               <div className="flex items-center space-x-2">
                 <button
                   onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
@@ -855,7 +862,7 @@ const ContactsList = ({ user }) => {
                   <i className="ri-arrow-left-line mr-1"></i>
                   Zurück
                 </button>
-                
+
                 {/* Seitenzahlen */}
                 <div className="flex items-center space-x-1">
                   {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
@@ -868,23 +875,22 @@ const ContactsList = ({ user }) => {
                       page = start + i;
                       if (page > end) return null;
                     }
-                    
+
                     return (
                       <button
                         key={page}
                         onClick={() => setCurrentPage(page)}
-                        className={`px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200 transform hover:scale-105 ${
-                          currentPage === page
+                        className={`px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200 transform hover:scale-105 ${currentPage === page
                             ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg'
                             : 'text-gray-500 dark:text-gray-400 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-gray-300/50 dark:border-gray-600/50 hover:bg-white dark:hover:bg-gray-800'
-                        }`}
+                          }`}
                       >
                         {page}
                       </button>
                     );
                   }).filter(Boolean)}
                 </div>
-                
+
                 <button
                   onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
                   disabled={currentPage === totalPages}
@@ -917,7 +923,7 @@ const ContactsList = ({ user }) => {
                 </button>
               </div>
             </div>
-            
+
             <div className="p-6 space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -1047,7 +1053,7 @@ const ContactsList = ({ user }) => {
                 >
                   Abbrechen
                 </button>
-                <button 
+                <button
                   onClick={handleSaveContact}
                   disabled={updateContactMutation.isPending}
                   className="px-6 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
@@ -1075,13 +1081,13 @@ const ContactsList = ({ user }) => {
               <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-red-100 dark:bg-red-900/30 rounded-full">
                 <i className="ri-delete-bin-line text-2xl text-red-600 dark:text-red-400"></i>
               </div>
-              
+
               <h3 className="text-lg font-bold text-gray-900 dark:text-white text-center mb-2">
                 Kontakt löschen
               </h3>
-              
+
               <p className="text-gray-600 dark:text-gray-400 text-center mb-6">
-                Sind Sie sicher, dass Sie <strong>{contactToDelete.name}</strong> löschen möchten? 
+                Sind Sie sicher, dass Sie <strong>{contactToDelete.name}</strong> löschen möchten?
                 Diese Aktion kann nicht rückgängig gemacht werden.
               </p>
 
@@ -1092,7 +1098,7 @@ const ContactsList = ({ user }) => {
                 >
                   Abbrechen
                 </button>
-                <button 
+                <button
                   onClick={handleConfirmDelete}
                   disabled={deleteContactMutation.isPending}
                   className="px-6 py-2 bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold rounded-lg hover:from-red-700 hover:to-red-800 transition-all duration-200 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
@@ -1130,7 +1136,7 @@ const ContactsList = ({ user }) => {
                 </button>
               </div>
             </div>
-            
+
             <div className="p-6 space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -1260,7 +1266,7 @@ const ContactsList = ({ user }) => {
                 >
                   Abbrechen
                 </button>
-                <button 
+                <button
                   onClick={handleCreateContact}
                   disabled={!newContact.name || !newContact.email || createContactMutation.isPending}
                   className="px-6 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center"

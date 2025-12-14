@@ -5,7 +5,7 @@
 
 import { useMutation } from '@tanstack/react-query';
 import { avmService } from '../services/avm';
-import { AvmRequest, AvmResult } from '../lib/api/types';
+import { AvmRequest, AvmResponseData } from '../types/avm';
 
 // Query Keys gemäß Backend Contract
 export const avmKeys = {

@@ -1,13 +1,13 @@
 /**
- * AVM Page
- * Seite für automatische Immobilienbewertung
+ * AVM Page - Premium Edition
+ * Seite für automatische Immobilienbewertung mit Wizard
  */
 
 import React from 'react';
-import AvmValuationView from '../components/avm/AvmValuationView';
+import AVMWizard from '../components/avm/wizard/AVMWizard';
 
 const AvmPage: React.FC = () => {
-  return <AvmValuationView />;
+  return <AVMWizard />;
 };
 
 export default AvmPage;

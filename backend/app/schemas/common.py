@@ -1,6 +1,7 @@
 """
 Common Pydantic Schemas
 """
+
 from typing import Optional, List, Dict, Any, Union
 from datetime import datetime
 from pydantic import BaseModel, Field, ConfigDict
@@ -11,6 +12,7 @@ from app.core.pagination import PaginatedResponse, PageResponse
 
 class ErrorResponse(BaseModel):
     """Standard error response envelope"""
+
     detail: Union[str, List[Dict[str, Any]]]
     code: Optional[str] = None
     timestamp: datetime = Field(default_factory=datetime.utcnow)
@@ -61,11 +63,14 @@ class TaskPriority(str, Enum):
 
 
 class TaskStatus(str, Enum):
+    BACKLOG = "backlog"
     TODO = "todo"
     IN_PROGRESS = "in_progress"
     REVIEW = "review"
     DONE = "done"
     BLOCKED = "blocked"
+    ON_HOLD = "on_hold"
+    CANCELLED = "cancelled"
 
 
 class PropertyType(str, Enum):
@@ -104,6 +109,7 @@ class UserRole(str, Enum):
 # Common Response Models
 class UserResponse(BaseModel):
     """User response model"""
+
     id: str
     email: str
     first_name: str
@@ -114,12 +120,13 @@ class UserResponse(BaseModel):
     tenant_id: str
     created_at: datetime
     last_login: Optional[datetime] = None
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 
 class ContactResponse(BaseModel):
     """Contact response model"""
+
     id: str
     name: str
     email: str
@@ -130,26 +137,30 @@ class ContactResponse(BaseModel):
     priority: Optional[str] = None
     location: Optional[str] = None
     avatar: Optional[str] = None
-    
+
     # Main budget field (potential_value)
     budget: Optional[float] = None
     budget_currency: str
-    
+
     # Legacy fields for backward compatibility
     budget_min: Optional[float] = None
     budget_max: Optional[float] = None
-    
+
     preferences: Dict[str, Any]
+    additional_info: Dict[str, Any] = {}
+    address: Dict[str, Any] = {}
+    notes: Optional[str] = None
     lead_score: int
     last_contact: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 
 class PropertyResponse(BaseModel):
     """Property response model"""
+
     id: str
     title: str
     description: str
@@ -164,12 +175,13 @@ class PropertyResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     created_by: str
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 
 class NotificationResponse(BaseModel):
     """Notification response model"""
+
     id: str
     type: str
     title: str
@@ -177,22 +189,24 @@ class NotificationResponse(BaseModel):
     read: bool
     created_at: datetime
     action_url: Optional[str] = None
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 
 class TagResponse(BaseModel):
     """Tag response model"""
+
     id: str
     name: str
     color: str
     usage_count: int
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 
 class CommentResponse(BaseModel):
     """Comment response model"""
+
     id: str
     author: UserResponse
     text: str
@@ -200,12 +214,13 @@ class CommentResponse(BaseModel):
     parent_id: Optional[str] = None
     mentions: List[str] = Field(default_factory=list)
     reactions: List[Dict[str, Any]] = Field(default_factory=list)
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 
 class AuditLogResponse(BaseModel):
     """Audit log response model"""
+
     id: str
     timestamp: datetime
     user: UserResponse
@@ -215,5 +230,5 @@ class AuditLogResponse(BaseModel):
     old_values: Dict[str, Any]
     new_values: Dict[str, Any]
     description: str
-    
+
     model_config = ConfigDict(from_attributes=True)

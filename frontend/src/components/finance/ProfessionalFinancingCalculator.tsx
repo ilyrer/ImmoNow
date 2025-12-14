@@ -5,12 +5,12 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  DollarSign, 
-  FileText, 
-  Download, 
+import {
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  FileText,
+  Download,
   Building2,
   Calculator,
   PieChart,
@@ -23,18 +23,18 @@ import {
   Calendar,
   Landmark
 } from 'lucide-react';
-import { 
-  ResponsiveContainer, 
-  AreaChart, 
-  Area, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  PieChart as RePieChart, 
-  Pie, 
-  Cell, 
-  BarChart, 
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  PieChart as RePieChart,
+  Pie,
+  Cell,
+  BarChart,
   Bar,
   LineChart,
   Line,
@@ -78,46 +78,46 @@ const ProfessionalFinancingCalculator: React.FC = () => {
     const loanAmount = parameters.propertyPrice - parameters.equity + parameters.additionalCosts;
     const monthlyInterestRate = parameters.interestRate / 100 / 12;
     const numberOfPayments = parameters.loanTerm * 12;
-    
+
     // Monthly payment calculation (Annuity)
-    const monthlyPayment = loanAmount * 
+    const monthlyPayment = loanAmount *
       (monthlyInterestRate * Math.pow(1 + monthlyInterestRate, numberOfPayments)) /
       (Math.pow(1 + monthlyInterestRate, numberOfPayments) - 1);
-    
+
     // Additional monthly costs
-    const monthlyInsurance = parameters.includeInsurance 
-      ? (parameters.insuranceRate / 100) * parameters.propertyPrice / 12 
+    const monthlyInsurance = parameters.includeInsurance
+      ? (parameters.insuranceRate / 100) * parameters.propertyPrice / 12
       : 0;
     const monthlyMaintenance = (parameters.maintenanceRate / 100) * parameters.propertyPrice / 12;
-    
+
     // Amortization schedule
     const schedule = [];
     const chartData = [];
     let remainingDebt = loanAmount;
     let cumulativeInterest = 0;
     let cumulativePrincipal = 0;
-    
+
     for (let month = 1; month <= numberOfPayments && remainingDebt > 0; month++) {
       const interestPayment = remainingDebt * monthlyInterestRate;
       let principalPayment = monthlyPayment - interestPayment;
-      
+
       // Special repayment (yearly in December)
       let extraPayment = 0;
       if (parameters.includeRepayment && month % 12 === 0 && remainingDebt > 0) {
         extraPayment = Math.min(parameters.repaymentAmount, remainingDebt - principalPayment);
       }
-      
+
       const totalPrincipal = principalPayment + extraPayment;
-      
+
       if (remainingDebt < totalPrincipal) {
         principalPayment = remainingDebt;
         extraPayment = 0;
       }
-      
+
       remainingDebt = Math.max(0, remainingDebt - (principalPayment + extraPayment));
       cumulativeInterest += interestPayment;
       cumulativePrincipal += (principalPayment + extraPayment);
-      
+
       schedule.push({
         month,
         year: Math.ceil(month / 12),
@@ -128,7 +128,7 @@ const ProfessionalFinancingCalculator: React.FC = () => {
         cumulativeInterest,
         cumulativePrincipal
       });
-      
+
       // Yearly data for charts
       if (month % 12 === 0 || remainingDebt <= 0) {
         const prevData = chartData[chartData.length - 1];
@@ -138,7 +138,7 @@ const ProfessionalFinancingCalculator: React.FC = () => {
         const yearlyPrincipal: number = month >= 12 && prevData
           ? cumulativePrincipal - prevData.cumulativePrincipal
           : cumulativePrincipal;
-        
+
         chartData.push({
           year: Math.ceil(month / 12),
           remainingDebt,
@@ -150,15 +150,18 @@ const ProfessionalFinancingCalculator: React.FC = () => {
         });
       }
     }
-    
+
     const totalMonthlyPayment = monthlyPayment + monthlyInsurance + monthlyMaintenance;
-    const totalCost = loanAmount + cumulativeInterest + 
-                     (monthlyInsurance + monthlyMaintenance) * schedule.length;
+    const totalCost = loanAmount + cumulativeInterest +
+      (monthlyInsurance + monthlyMaintenance) * schedule.length;
     const effectiveInterestRate = (cumulativeInterest / loanAmount / parameters.loanTerm) * 100;
     const loanToValue = (loanAmount / parameters.propertyPrice) * 100;
-    
+    const repaymentRate = ((monthlyPayment * 12 / loanAmount) - (parameters.interestRate / 100)) * 100;
+    const equityRatio = (parameters.equity / parameters.propertyPrice) * 100;
+
     return {
       monthlyPayment: totalMonthlyPayment,
+      baseMonthlyPayment: monthlyPayment,
       totalInterest: cumulativeInterest,
       totalCost,
       loanAmount,
@@ -167,7 +170,17 @@ const ProfessionalFinancingCalculator: React.FC = () => {
       amortizationSchedule: schedule,
       chartData,
       effectiveInterestRate,
-      loanToValue
+      loanToValue,
+      repaymentRate,
+      equityRatio,
+      fixedRatePeriod: parameters.loanTerm,
+      remainingDebtAfterFixedRate: 0,
+      fees: {
+        processing: 0,
+        appraisal: 0,
+        broker: 0,
+        total: 0
+      }
     };
   }, [parameters]);
 
@@ -192,7 +205,7 @@ const ProfessionalFinancingCalculator: React.FC = () => {
   // ==================== EXPORT FUNCTIONS ====================
   const handleWordExport = async () => {
     if (!results) return;
-    
+
     setExportLoading(true);
     try {
       await generateFinancingWord({
@@ -212,7 +225,7 @@ const ProfessionalFinancingCalculator: React.FC = () => {
         bankName: 'ImmoNow Finanzberatung',
         bankComparison: bankComparison || undefined
       });
-      
+
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
     } catch (error) {
@@ -226,9 +239,9 @@ const ProfessionalFinancingCalculator: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
-        
+
         {/* ========== HEADER ========== */}
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 p-8"
@@ -247,7 +260,7 @@ const ProfessionalFinancingCalculator: React.FC = () => {
                 </p>
               </div>
             </div>
-            
+
             <button
               onClick={handleWordExport}
               disabled={exportLoading || !results}
@@ -309,11 +322,11 @@ const ProfessionalFinancingCalculator: React.FC = () => {
               setActiveChart={setActiveChart}
             />
           )}
-          
+
           {activeTab === 'banks' && bankComparison && (
             <BankComparisonTab comparison={bankComparison} />
           )}
-          
+
           {activeTab === 'investment' && investmentMetrics && (
             <InvestmentTab
               metrics={investmentMetrics}
@@ -341,11 +354,10 @@ const TabButton: React.FC<{
 }> = ({ active, onClick, icon, label }) => (
   <button
     onClick={onClick}
-    className={`flex items-center space-x-2 px-6 py-3 rounded-xl font-semibold transition-all ${
-      active
+    className={`flex items-center space-x-2 px-6 py-3 rounded-xl font-semibold transition-all ${active
         ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg'
         : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-    }`}
+      }`}
   >
     {icon}
     <span>{label}</span>

@@ -3,12 +3,14 @@ Exposé Service
 Service for AI-powered exposé generation using LLM
 """
 import logging
+import os
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 from asgiref.sync import sync_to_async
 
 from app.db.models import Property, ExposeVersion, User
 from app.services.llm_service import LLMService
+from app.services.ai_manager import AIManager
 from app.schemas.llm import LLMRequest
 from app.core.errors import NotFoundError
 
@@ -16,11 +18,23 @@ logger = logging.getLogger(__name__)
 
 
 class ExposeService:
-    """Service for exposé generation and management"""
+    """Service for exposé generation and management with enhanced AI"""
     
     def __init__(self, tenant_id: str):
         self.tenant_id = tenant_id
-        self.llm_service = LLMService(tenant_id)
+        self.use_ai_manager = os.getenv("AI_PROVIDER") and os.getenv("OPENROUTER_API_KEY")
+        
+        if self.use_ai_manager:
+            try:
+                self.ai_manager = AIManager(tenant_id)
+                logger.info("✅ Expose Service initialized with AI Manager")
+            except Exception as e:
+                logger.warning(f"⚠️ AI Manager initialization failed, using LLM Service: {e}")
+                self.use_ai_manager = False
+        
+        # Fallback to LLM Service
+        if not self.use_ai_manager:
+            self.llm_service = LLMService(tenant_id)
     
     async def generate_expose(
         self,
@@ -32,28 +46,48 @@ class ExposeService:
         keywords: List[str],
         user_id: str
     ) -> ExposeVersion:
-        """Generate exposé using LLM"""
+        """Generate exposé using enhanced AI"""
         
         # Get property data
         property_obj = await self._get_property(property_id)
         
-        # Create prompt template
-        prompt = self._create_expose_prompt(
-            property_obj, audience, tone, language, length, keywords
-        )
-        
-        # Generate exposé using LLM
-        llm_request = LLMRequest(
-            prompt=prompt,
-            max_tokens=2048,
-            temperature=0.7
-        )
-        
         try:
-            response = await self.llm_service.ask_question(
-                request=llm_request,
-                user_id=user_id
-            )
+            # Use AI Manager if available (better prompts and structure)
+            if self.use_ai_manager:
+                property_data = await self._property_to_dict(property_obj)
+                
+                result = await self.ai_manager.generate_expose_content(
+                    property_data=property_data,
+                    audience=audience,
+                    tone=tone,
+                    language=language,
+                    length=length,
+                    keywords=keywords
+                )
+                
+                # Format as structured expose
+                content = self._format_expose_content(result)
+                title = result.get("title", f"Exposé für {property_obj.title}")
+                
+            else:
+                # Fallback to LLM Service
+                prompt = self._create_expose_prompt(
+                    property_obj, audience, tone, language, length, keywords
+                )
+                
+                llm_request = LLMRequest(
+                    prompt=prompt,
+                    max_tokens=2048,
+                    temperature=0.7
+                )
+                
+                response = await self.llm_service.ask_question(
+                    request=llm_request,
+                    user_id=user_id
+                )
+                
+                content = response.response
+                title = f"Exposé für {property_obj.title}"
             
             # Get next version number
             version_number = await self._get_next_version_number(property_id)
@@ -61,7 +95,8 @@ class ExposeService:
             # Create exposé version
             expose_version = await self._create_expose_version(
                 property_obj=property_obj,
-                content=response.response,
+                title=title,
+                content=content,
                 audience=audience,
                 tone=tone,
                 language=language,
@@ -76,6 +111,51 @@ class ExposeService:
         except Exception as e:
             logger.error(f"Error generating exposé: {str(e)}")
             raise Exception(f"Failed to generate exposé: {str(e)}")
+    
+    async def _property_to_dict(self, property_obj: Property) -> Dict[str, Any]:
+        """Convert Property model to dict for AI processing"""
+        
+        @sync_to_async
+        def get_property_dict():
+            return {
+                "property_type": property_obj.property_type,
+                "title": property_obj.title,
+                "description": property_obj.description or "",
+                "size": property_obj.size,
+                "rooms": property_obj.rooms,
+                "price": property_obj.price,
+                "location": property_obj.location or "",
+                "features": property_obj.features or [],
+                "build_year": getattr(property_obj, 'build_year', None),
+                "condition": getattr(property_obj, 'condition', 'good')
+            }
+        
+        return await get_property_dict()
+    
+    def _format_expose_content(self, ai_result: Dict[str, Any]) -> str:
+        """Format AI result into structured expose content"""
+        
+        content_parts = []
+        
+        # Title
+        if ai_result.get("title"):
+            content_parts.append(f"# {ai_result['title']}\n")
+        
+        # Main description
+        if ai_result.get("description"):
+            content_parts.append(f"{ai_result['description']}\n")
+        
+        # Highlights
+        if ai_result.get("highlights"):
+            content_parts.append("\n## Highlights\n")
+            for highlight in ai_result["highlights"]:
+                content_parts.append(f"- {highlight}\n")
+        
+        # Call to action
+        if ai_result.get("call_to_action"):
+            content_parts.append(f"\n---\n\n{ai_result['call_to_action']}\n")
+        
+        return "\n".join(content_parts)
     
     async def get_expose_versions(self, property_id: str) -> List[ExposeVersion]:
         """Get all exposé versions for a property"""
