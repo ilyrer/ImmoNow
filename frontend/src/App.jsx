@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { Toaster, toast } from 'react-hot-toast';
 import { QueryProvider } from './providers/QueryProvider';
 import Layout from './components/Layout/Layout';
 import DashboardNew from './components/dashboard/DashboardNew';
@@ -42,6 +43,38 @@ import { useCurrentUser, useCurrentTenant, useLogin, useLogout } from './api/hoo
 function AppContent() {
   const { token, tenantId, setAuth, clearAuth, isAuthenticated } = useAuth();
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+
+  // Global UI Command Handlers for AI
+  const handleNavigate = (url, target = '_self') => {
+    if (target === '_blank') {
+      window.open(url, '_blank');
+    } else {
+      navigate(url);
+    }
+  };
+
+  const handleToast = (message, type = 'info') => {
+    switch (type) {
+      case 'success':
+        toast.success(message);
+        break;
+      case 'error':
+        toast.error(message);
+        break;
+      case 'warning':
+        toast(message, { icon: '⚠️' });
+        break;
+      default:
+        toast(message);
+    }
+  };
+
+  const handleOpenModal = (modalType, data) => {
+    console.log('Open modal:', modalType, data);
+    // TODO: Implement modal system
+    handleToast(`Opening ${modalType} modal`, 'info');
+  };
 
   // Nur User-Daten laden wenn authentifiziert
   const { data: user, isLoading: userLoading, error: userError } = useCurrentUser({
@@ -203,7 +236,11 @@ function AppContent() {
   console.log('🏠 App: Rendering main application');
   return (
     <div className="App">
-      <Layout user={user} onLogout={handleLogout}>
+      <Layout
+        user={user}
+        onLogout={handleLogout}
+        uiHandlers={{ onNavigate: handleNavigate, onToast: handleToast, onOpenModal: handleOpenModal }}
+      >
         <Routes>
           <Route path="/" element={<RoleBasedDashboard />} />
           <Route path="/dashboard" element={<RoleBasedDashboard />} />
@@ -239,6 +276,32 @@ function AppContent() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Layout>
+      {/* Global Toast Notifications */}
+      <Toaster
+        position="top-right"
+        reverseOrder={false}
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: '#363636',
+            color: '#fff',
+          },
+          success: {
+            duration: 3000,
+            iconTheme: {
+              primary: '#10b981',
+              secondary: '#fff',
+            },
+          },
+          error: {
+            duration: 5000,
+            iconTheme: {
+              primary: '#ef4444',
+              secondary: '#fff',
+            },
+          },
+        }}
+      />
     </div>
   );
 }

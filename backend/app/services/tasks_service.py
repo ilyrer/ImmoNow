@@ -421,6 +421,37 @@ class TasksService:
             for task in stats["upcoming_deadlines"]
         ]
 
+        # Get recent activity (last 50 activities across all tasks)
+        @sync_to_async
+        def get_recent_activities():
+            from app.db.models import TaskActivity
+
+            activities = (
+                TaskActivity.objects.filter(task__tenant_id=self.tenant_id)
+                .select_related("task", "user")
+                .order_by("-created_at")[:50]
+            )
+
+            return [
+                {
+                    "id": str(act.id),
+                    "task_id": str(act.task_id),
+                    "task_title": act.task.title,
+                    "action": act.action,
+                    "user": (
+                        f"{act.user.first_name} {act.user.last_name}"
+                        if act.user
+                        else "System"
+                    ),
+                    "user_id": str(act.user_id) if act.user_id else None,
+                    "timestamp": act.created_at,
+                    "description": act.description or "",
+                }
+                for act in activities
+            ]
+
+        recent_activity = await get_recent_activities()
+
         return TaskStatisticsResponse(
             total_tasks=stats["total_tasks"],
             active_tasks=stats["active_tasks"],
@@ -434,7 +465,7 @@ class TasksService:
             tasks_by_status=stats["tasks_by_status"],
             tasks_by_assignee=stats["tasks_by_assignee"],
             upcoming_deadlines=upcoming_tasks,
-            recent_activity=[],  # TODO: Implement recent activity
+            recent_activity=recent_activity,
         )
 
     async def _build_task_response(self, task: Task) -> TaskResponse:
@@ -524,6 +555,55 @@ class TasksService:
                 for act in task.activities.all().order_by("-created_at")[:20]
             ]
 
+            # Load comments with author info
+            comments = [
+                TaskCommentSchema(
+                    id=str(comment.id),
+                    author=TaskAssignee(
+                        id=str(comment.author.id),
+                        name=f"{comment.author.first_name} {comment.author.last_name}",
+                        avatar=getattr(comment.author, "avatar", "") or "",
+                        role=getattr(
+                            getattr(comment.author, "profile", None), "role", ""
+                        )
+                        or "",
+                        email=comment.author.email,
+                    ),
+                    text=comment.text,
+                    timestamp=comment.timestamp,
+                    parent_id=str(comment.parent_id) if comment.parent_id else None,
+                )
+                for comment in task.comments.all().order_by("timestamp")
+            ]
+
+            # Load property info if property_id exists
+            property_info = None
+            if task.property_id:
+                try:
+                    from app.db.models import Property
+
+                    property_obj = Property.objects.filter(
+                        id=task.property_id, tenant_id=self.tenant_id
+                    ).first()
+
+                    if property_obj:
+                        property_info = {
+                            "id": str(property_obj.id),
+                            "title": property_obj.title,
+                            "type": property_obj.type,
+                            "status": property_obj.status,
+                            "address": property_obj.address or "",
+                            "city": property_obj.city or "",
+                            "price": (
+                                float(property_obj.price)
+                                if property_obj.price
+                                else None
+                            ),
+                        }
+                except Exception as e:
+                    print(f"⚠️ Could not load property info: {e}")
+                    property_info = None
+
             return TaskResponse(
                 id=str(task.id),
                 project_id=str(task.project_id) if task.project_id else None,
@@ -547,16 +627,16 @@ class TasksService:
                 complexity=task.complexity,
                 dependencies=task.dependencies or [],
                 subtasks=subtasks,
-                comments=[],  # TODO: Implement comments hydration
+                comments=comments,
                 attachments=attachments,
-                property=None,  # TODO: Implement property info
-                financing_status=None,  # TODO: Implement financing status
+                property=property_info,
+                financing_status=None,  # TODO: Implement financing status if needed
                 activity_log=activities,
                 created_at=task.created_at,
                 updated_at=task.updated_at,
                 created_by=created_by,
                 archived=task.archived,
-                blocked=None,  # TODO: Implement blocked info
+                blocked=None,  # TODO: Implement blocked info if blocking system exists
             )
 
         return await build_response_sync()

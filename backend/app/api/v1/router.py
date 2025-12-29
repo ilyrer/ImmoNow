@@ -6,6 +6,7 @@ from fastapi import APIRouter
 
 from app.api.v1 import (
     auth,
+    profile,
     documents,
     tasks,
     boards,
@@ -43,6 +44,7 @@ api_router = APIRouter()
 
 # Include auth router (no prefix, it has its own)
 api_router.include_router(auth.router, tags=["Authentication"])
+api_router.include_router(profile.router, tags=["Profile"])
 
 # Include all domain routers
 api_router.include_router(documents.router, prefix="/documents", tags=["documents"])
