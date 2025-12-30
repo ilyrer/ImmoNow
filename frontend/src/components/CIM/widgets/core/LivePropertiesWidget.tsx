@@ -1,9 +1,13 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Home, MapPin } from 'lucide-react';
+import { Home, MapPin, AlertCircle } from 'lucide-react';
 import { useProperties } from '../../../../hooks/useApi';
 import { Property } from '../../../../types/api';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
 const LivePropertiesWidget: React.FC = () => {
   const navigate = useNavigate();
@@ -22,44 +26,49 @@ const LivePropertiesWidget: React.FC = () => {
   // Show loading state
   if (isLoading) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
-        <div className="flex items-center justify-between mb-6">
+      <Card className="h-full">
+        <CardHeader>
           <div className="flex items-center space-x-3">
             <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
               <Home className="h-5 w-5 text-blue-600 dark:text-blue-400" />
             </div>
             <div>
-              <h3 className="font-semibold text-gray-900 dark:text-white">Immobilien</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Live Immobiliendaten</p>
+              <Skeleton className="h-5 w-24 mb-2" />
+              <Skeleton className="h-4 w-32" />
             </div>
           </div>
-        </div>
-        <div className="flex items-center justify-center h-32">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        </div>
-      </div>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center h-32">
+            <Skeleton className="h-8 w-8 rounded-full" />
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
   // Show error state
   if (error) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
-        <div className="flex items-center justify-between mb-6">
+      <Card className="h-full">
+        <CardHeader>
           <div className="flex items-center space-x-3">
             <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
               <Home className="h-5 w-5 text-red-600 dark:text-red-400" />
             </div>
             <div>
-              <h3 className="font-semibold text-gray-900 dark:text-white">Immobilien</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Fehler beim Laden</p>
+              <CardTitle>Immobilien</CardTitle>
+              <CardDescription>Fehler beim Laden</CardDescription>
             </div>
           </div>
-        </div>
-        <div className="text-center text-red-600 dark:text-red-400">
-          Fehler beim Laden der Immobiliendaten
-        </div>
-      </div>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center text-red-600 dark:text-red-400">
+            <AlertCircle className="h-8 w-8 mx-auto mb-2" />
+            Fehler beim Laden der Immobiliendaten
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
@@ -131,25 +140,28 @@ const LivePropertiesWidget: React.FC = () => {
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center space-x-3">
-          <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-            <Home className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+    <Card className="h-full">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+              <Home className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+            </div>
+            <div>
+              <CardTitle>Immobilien</CardTitle>
+              <CardDescription>Live Immobiliendaten</CardDescription>
+            </div>
           </div>
-          <div>
-            <h3 className="font-semibold text-gray-900 dark:text-white">Immobilien</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Live Immobiliendaten</p>
-          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate('/immobilien')}
+          >
+            Alle anzeigen →
+          </Button>
         </div>
-        <button
-          onClick={() => navigate('/immobilien')}
-          className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 text-sm font-medium transition-colors"
-        >
-          Alle anzeigen →
-        </button>
-      </div>
+      </CardHeader>
+      <CardContent>
 
       {/* Stats */}
       <div className="grid grid-cols-2 gap-4 mb-6">
@@ -205,9 +217,9 @@ const LivePropertiesWidget: React.FC = () => {
                 <p className="font-semibold text-gray-900 dark:text-white">
                   €{property.price?.toLocaleString('de-DE') || 'N/A'}
                 </p>
-                <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(property.status)}`}>
+                <Badge variant="outline" className={getStatusColor(property.status)}>
                   {getStatusText(property.status)}
-                </span>
+                </Badge>
               </div>
             </motion.div>
           ))}
@@ -221,12 +233,13 @@ const LivePropertiesWidget: React.FC = () => {
           <p className="text-gray-500 dark:text-gray-400">
             Es sind noch keine Immobiliendaten vom Backend verfügbar.
           </p>
-          <button
+          <Button
+            variant="outline"
             onClick={() => navigate('/immobilien')}
-            className="mt-4 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
+            className="mt-4"
           >
             Immobilien verwalten →
-          </button>
+          </Button>
         </div>
       )}
 
@@ -240,7 +253,8 @@ const LivePropertiesWidget: React.FC = () => {
           <span>Letzte Aktualisierung: {new Date().toLocaleTimeString('de-DE')}</span>
         </div>
       </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 };
 

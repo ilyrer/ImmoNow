@@ -2,6 +2,10 @@ import React, { useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useResetPassword } from '../../api/hooks';
 import { toast } from 'react-hot-toast';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 function useQuery() {
   const { search } = useLocation();
@@ -33,55 +37,56 @@ const ResetPassword = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-white rounded-xl shadow p-6">
-        <h1 className="text-2xl font-semibold mb-1">Passwort zurücksetzen</h1>
-        <p className="text-sm text-gray-500 mb-6">Geben Sie Ihr neues Passwort ein. Fügen Sie den Token ein, falls er nicht automatisch übernommen wurde.</p>
-        <form onSubmit={onSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Token</label>
-            <input
-              type="text"
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
-              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              placeholder="Token aus der E-Mail"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Neues Passwort</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              placeholder="••••••••"
-              required
-              minLength={8}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Passwort bestätigen</label>
-            <input
-              type="password"
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              placeholder="••••••••"
-              required
-              minLength={8}
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={resetMutation.isPending}
-            className="w-full bg-indigo-600 text-white py-2.5 rounded-lg hover:bg-indigo-700 transition disabled:opacity-50"
-          >
-            {resetMutation.isPending ? 'Wird gespeichert…' : 'Passwort setzen'}
-          </button>
-        </form>
-      </div>
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle>Passwort zurücksetzen</CardTitle>
+          <p className="text-sm text-muted-foreground">Geben Sie Ihr neues Passwort ein. Fügen Sie den Token ein, falls er nicht automatisch übernommen wurde.</p>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={onSubmit} className="space-y-4">
+            <div>
+              <Label>Token</Label>
+              <Input
+                type="text"
+                value={token}
+                onChange={(e) => setToken(e.target.value)}
+                placeholder="Token aus der E-Mail"
+                required
+              />
+            </div>
+            <div>
+              <Label>Neues Passwort</Label>
+              <Input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+                minLength={8}
+              />
+            </div>
+            <div>
+              <Label>Passwort bestätigen</Label>
+              <Input
+                type="password"
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+                placeholder="••••••••"
+                required
+                minLength={8}
+              />
+            </div>
+            <Button
+              type="submit"
+              disabled={resetMutation.isPending}
+              className="w-full"
+            >
+              {resetMutation.isPending ? 'Wird gespeichert…' : 'Passwort setzen'}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 };

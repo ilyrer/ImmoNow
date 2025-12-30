@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import apiClient from '../../../../lib/api/client';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { AlertCircle } from 'lucide-react';
 
 interface PropertyMetrics {
   views: number;
@@ -179,48 +184,47 @@ const PropertyPerformanceWidget: React.FC = () => {
   // Loading state
   if (isLoading) {
     return (
-      <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 dark:border-gray-700/50 p-6 h-full">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center">
-            <i className="ri-building-line mr-2 text-blue-600 dark:text-blue-400"></i>
-            Top Immobilien
-          </h3>
-        </div>
-        <div className="flex items-center justify-center h-32">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        </div>
-      </div>
+      <Card className="h-full">
+        <CardHeader>
+          <Skeleton className="h-6 w-32" />
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center h-32">
+            <Skeleton className="h-8 w-8 rounded-full" />
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
   // Error state
   if (error) {
     return (
-      <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 dark:border-gray-700/50 p-6 h-full">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center">
-            <i className="ri-building-line mr-2 text-blue-600 dark:text-blue-400"></i>
-            Top Immobilien
-          </h3>
-        </div>
-        <div className="text-center text-red-600 dark:text-red-400 py-8">
-          {error}
-        </div>
-      </div>
+      <Card className="h-full">
+        <CardHeader>
+          <CardTitle>Top Immobilien</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center text-red-600 dark:text-red-400 py-8">
+            <AlertCircle className="h-8 w-8 mx-auto mb-2" />
+            {error}
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 dark:border-gray-700/50 p-6 h-full">
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center">
-          <i className="ri-building-line mr-2 text-blue-600 dark:text-blue-400"></i>
-          Top Immobilien
-        </h3>
-        <button className="text-xs text-blue-600 dark:text-blue-400 hover:underline">
-          Alle anzeigen
-        </button>
-      </div>
+    <Card className="h-full">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle>Top Immobilien</CardTitle>
+          <Button variant="ghost" size="sm">
+            Alle anzeigen
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
 
       {properties.length > 0 ? (
         <>
@@ -243,15 +247,17 @@ const PropertyPerformanceWidget: React.FC = () => {
                         </p>
                       </div>
 
-                      <span className={`
-                        px-2 py-1 rounded-full text-xs font-medium
-                        bg-${getStatusColor(property.status)}-100 
-                        dark:bg-${getStatusColor(property.status)}-900/30
-                        text-${getStatusColor(property.status)}-600 
-                        dark:text-${getStatusColor(property.status)}-400
-                      `}>
+                      <Badge 
+                        variant="outline"
+                        className={
+                          getStatusColor(property.status) === 'green' ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400' :
+                          getStatusColor(property.status) === 'blue' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' :
+                          getStatusColor(property.status) === 'yellow' ? 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400' :
+                          'bg-gray-100 text-gray-600 dark:bg-gray-900/30 dark:text-gray-400'
+                        }
+                      >
                         {getStatusText(property.status)}
-                      </span>
+                      </Badge>
                     </div>
 
                     <div className="flex items-center justify-between text-xs">
@@ -321,7 +327,8 @@ const PropertyPerformanceWidget: React.FC = () => {
           <span>Aktualisiert: {lastUpdated.toLocaleTimeString('de-DE')}</span>
         </div>
       </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 };
 

@@ -101,7 +101,7 @@ const ReportsPage: React.FC = () => {
 
   const handleDownload = async (rep: Report) => {
     try {
-      const url = `${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/reports/${rep.id}/download`;
+      const url = `${import.meta.env.VITE_API_URL || process.env.REACT_APP_API_URL || 'http://localhost:8000'}/reports/${rep.id}/download`;
       // trigger browser download
       window.open(url, '_blank');
     } catch {}

@@ -220,7 +220,7 @@ const apiService = {
       formData.append('files', images[i]);
 
       try {
-        const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/api/v1/properties/${propertyId}/media`, {
+        const response = await fetch(`${import.meta.env.VITE_API_URL || process.env.REACT_APP_API_URL || 'http://localhost:8000'}/api/v1/properties/${propertyId}/media`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
@@ -264,7 +264,7 @@ const apiService = {
       formData.append('files', documents[i]);
 
       try {
-        const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/api/v1/properties/${propertyId}/documents`, {
+        const response = await fetch(`${import.meta.env.VITE_API_URL || process.env.REACT_APP_API_URL || 'http://localhost:8000'}/api/v1/properties/${propertyId}/documents`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
@@ -296,7 +296,7 @@ const apiService = {
   // Helper method for setting primary image with property_id
   setPrimaryImage: async (propertyId: string, imageId: string) => {
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/api/v1/properties/${propertyId}/media/${imageId}/primary`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || process.env.REACT_APP_API_URL || 'http://localhost:8000'}/api/v1/properties/${propertyId}/media/${imageId}/primary`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,

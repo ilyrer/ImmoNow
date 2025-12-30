@@ -1,0 +1,83 @@
+# Cursor AI - Ignoriere diese Dateien/Ordner für bessere Performance
+
+# Dependencies
+**/node_modules/**
+**/venv/**
+**/__pycache__/**
+**/.venv/**
+**/dist/**
+**/build/**
+
+# IDE & Editor
+**/.vscode/**
+**/.idea/**
+**/.cursor/**
+**/*.swp
+**/*.swo
+**/.DS_Store
+
+# Logs
+**/*.log
+**/logs/**
+
+# Database
+**/*.sqlite3
+**/*.db
+
+# Environment
+**/.env
+**/.env.local
+**/env.local
+
+# Build artifacts
+**/package-lock.json
+**/yarn.lock
+**/poetry.lock
+**/.next/**
+**/.nuxt/**
+
+# Static files
+**/staticfiles/**
+**/media/**
+**/uploads/**
+
+# Coverage
+**/coverage/**
+**/.coverage
+**/.pytest_cache/**
+
+# Migrations (optional - auskommentieren wenn Cursor auch Migrations sehen soll)
+# **/migrations/**
+
+# Documentation (große Dateien)
+# **/*.pdf
+# **/*.docx
+
+# Large binary files
+**/*.png
+**/*.jpg
+**/*.jpeg
+**/*.gif
+**/*.ico
+**/*.svg
+**/*.woff
+**/*.woff2
+**/*.ttf
+**/*.eot
+
+# Generated files
+**/types.gen.ts
+**/tailwind.output.css
+
+# Test fixtures
+**/fixtures/**
+**/test_data/**
+
+# Docker
+**/docker-compose.override.yml
+
+# Backups
+**/*.backup
+**/*.bak
+**/*.old
+

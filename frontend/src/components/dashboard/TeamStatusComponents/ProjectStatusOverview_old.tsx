@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, RadialBarChart, RadialBar } from 'recharts';
 import { useProperties, useDashboardAnalytics } from '../../../hooks/useApi';
-import { ProjectTimeRange } from 'api';
+import { ProjectTimeRange } from '../../../api';
 
 interface ProjectStatusOverviewProps {
   timeRange: ProjectTimeRange;

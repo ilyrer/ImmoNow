@@ -3,6 +3,10 @@ import { useTasks } from '../../../../hooks/useApi';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Clock, AlertCircle, CheckCircle, Users, TrendingUp } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
 const LiveTasksWidget: React.FC = () => {
   const navigate = useNavigate();
@@ -21,44 +25,49 @@ const LiveTasksWidget: React.FC = () => {
   // Show loading state
   if (isLoading) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
-        <div className="flex items-center justify-between mb-6">
+      <Card className="h-full">
+        <CardHeader>
           <div className="flex items-center space-x-3">
             <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
               <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
             </div>
             <div>
-              <h3 className="font-semibold text-gray-900 dark:text-white">Aufgaben</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Live Task Board</p>
+              <Skeleton className="h-5 w-24 mb-2" />
+              <Skeleton className="h-4 w-32" />
             </div>
           </div>
-        </div>
-        <div className="flex items-center justify-center h-32">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
-        </div>
-      </div>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center h-32">
+            <Skeleton className="h-8 w-8 rounded-full" />
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
   // Show error state
   if (error) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
-        <div className="flex items-center justify-between mb-6">
+      <Card className="h-full">
+        <CardHeader>
           <div className="flex items-center space-x-3">
             <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
               <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
             </div>
             <div>
-              <h3 className="font-semibold text-gray-900 dark:text-white">Aufgaben</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Fehler beim Laden</p>
+              <CardTitle>Aufgaben</CardTitle>
+              <CardDescription>Fehler beim Laden</CardDescription>
             </div>
           </div>
-        </div>
-        <div className="text-center text-red-600 dark:text-red-400">
-          Fehler beim Laden der Task-Daten
-        </div>
-      </div>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center text-red-600 dark:text-red-400">
+            <AlertCircle className="h-8 w-8 mx-auto mb-2" />
+            Fehler beim Laden der Task-Daten
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
@@ -156,25 +165,24 @@ const LiveTasksWidget: React.FC = () => {
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center space-x-3">
-          <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
-            <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
+    <Card className="h-full">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+              <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
+            </div>
+            <div>
+              <CardTitle>Aufgaben</CardTitle>
+              <CardDescription>Live Task Board</CardDescription>
+            </div>
           </div>
-          <div>
-            <h3 className="font-semibold text-gray-900 dark:text-white">Aufgaben</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Live Task Board</p>
-          </div>
+          <Button variant="ghost" size="sm" onClick={() => navigate('/tasks')}>
+            Alle anzeigen →
+          </Button>
         </div>
-        <button
-          onClick={() => navigate('/tasks')}
-          className="text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 text-sm font-medium transition-colors"
-        >
-          Alle anzeigen →
-        </button>
-      </div>
+      </CardHeader>
+      <CardContent>
 
       {/* Stats */}
       <div className="grid grid-cols-2 gap-4 mb-6">
@@ -228,13 +236,13 @@ const LiveTasksWidget: React.FC = () => {
                 </div>
               </div>
               <div className="text-right">
-                <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(task.status)}`}>
+                <Badge variant="outline" className={getStatusColor(task.status)}>
                   {getStatusText(task.status)}
-                </span>
+                </Badge>
                 <div className="mt-1">
-                  <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getPriorityColor(task.priority)}`}>
+                  <Badge variant="outline" className={getPriorityColor(task.priority)}>
                     {task.priority || 'Normal'}
-                  </span>
+                  </Badge>
                 </div>
               </div>
             </motion.div>
@@ -249,12 +257,9 @@ const LiveTasksWidget: React.FC = () => {
           <p className="text-gray-500 dark:text-gray-400">
             Es sind noch keine Task-Daten vom Backend verfügbar.
           </p>
-          <button
-            onClick={() => navigate('/tasks')}
-            className="mt-4 text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 font-medium"
-          >
+          <Button variant="outline" onClick={() => navigate('/tasks')} className="mt-4">
             Tasks verwalten →
-          </button>
+          </Button>
         </div>
       )}
 
@@ -280,7 +285,8 @@ const LiveTasksWidget: React.FC = () => {
           <span>Letzte Aktualisierung: {new Date().toLocaleTimeString('de-DE')}</span>
         </div>
       </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 };
 

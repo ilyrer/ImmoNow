@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import apiClient from '../../../../lib/api/client';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { AlertCircle } from 'lucide-react';
 
 interface Task {
   id: number;
@@ -154,51 +159,50 @@ const TaskProgressWidget: React.FC = () => {
   // Show loading state
   if (isLoading) {
     return (
-      <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 dark:border-gray-700/50 p-6 h-full">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center">
-            <i className="ri-task-line mr-2 text-blue-600 dark:text-blue-400"></i>
-            Aufgaben
-          </h3>
-        </div>
-        <div className="flex items-center justify-center h-32">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        </div>
-      </div>
+      <Card className="h-full">
+        <CardHeader>
+          <Skeleton className="h-6 w-32" />
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center h-32">
+            <Skeleton className="h-8 w-8 rounded-full" />
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
   // Show error state
   if (error) {
     return (
-      <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 dark:border-gray-700/50 p-6 h-full">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center">
-            <i className="ri-task-line mr-2 text-blue-600 dark:text-blue-400"></i>
-            Aufgaben
-          </h3>
-        </div>
-        <div className="text-center text-red-600 dark:text-red-400 py-8">
-          {error}
-        </div>
-      </div>
+      <Card className="h-full">
+        <CardHeader>
+          <CardTitle>Aufgaben</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center text-red-600 dark:text-red-400 py-8">
+            <AlertCircle className="h-8 w-8 mx-auto mb-2" />
+            {error}
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 dark:border-gray-700/50 p-6 h-full">
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center">
-          <i className="ri-task-line mr-2 text-blue-600 dark:text-blue-400"></i>
-          Aufgaben
-        </h3>
-        <div className="text-right">
-          <div className="text-xs text-gray-500 dark:text-gray-400">Fortschritt</div>
-          <div className="text-lg font-bold text-blue-600 dark:text-blue-400">
-            {totalProgress}%
+    <Card className="h-full">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle>Aufgaben</CardTitle>
+          <div className="text-right">
+            <div className="text-xs text-muted-foreground">Fortschritt</div>
+            <div className="text-lg font-bold text-blue-600 dark:text-blue-400">
+              {totalProgress}%
+            </div>
           </div>
         </div>
-      </div>
+      </CardHeader>
+      <CardContent>
 
       {/* Overview Stats */}
       <div className="grid grid-cols-2 gap-3 mb-6">
@@ -240,15 +244,16 @@ const TaskProgressWidget: React.FC = () => {
                   </div>
                   
                   <div className="flex items-center space-x-2 flex-shrink-0">
-                    <span className={`
-                      px-2 py-1 rounded-full text-xs font-medium
-                      bg-${getPriorityColor(task.mappedPriority)}-100 
-                      dark:bg-${getPriorityColor(task.mappedPriority)}-900/30
-                      text-${getPriorityColor(task.mappedPriority)}-600 
-                      dark:text-${getPriorityColor(task.mappedPriority)}-400
-                    `}>
+                    <Badge 
+                      variant="outline"
+                      className={
+                        task.mappedPriority === 'high' ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' :
+                        task.mappedPriority === 'medium' ? 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400' :
+                        'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400'
+                      }
+                    >
                       {getPriorityText(task.mappedPriority)}
-                    </span>
+                    </Badge>
                     
                     <span className={`text-xs font-medium ${
                       isOverdue(task.dueDate) && task.status !== 'completed'
@@ -283,13 +288,12 @@ const TaskProgressWidget: React.FC = () => {
 
           {/* Quick Actions */}
           <div className="flex items-center space-x-2">
-            <button className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition-colors">
-              <i className="ri-add-line mr-1"></i>
+            <Button size="sm" className="flex-1">
               Neue Aufgabe
-            </button>
-            <button className="px-3 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 text-xs font-medium rounded-lg transition-colors">
+            </Button>
+            <Button size="sm" variant="outline">
               Alle anzeigen
-            </button>
+            </Button>
           </div>
         </>
       ) : (
@@ -301,10 +305,9 @@ const TaskProgressWidget: React.FC = () => {
           <p className="text-gray-500 dark:text-gray-400 mb-4">
             Es sind noch keine Aufgaben vorhanden.
           </p>
-          <button className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">
-            <i className="ri-add-line mr-1"></i>
+          <Button>
             Erste Aufgabe erstellen
-          </button>
+          </Button>
         </div>
       )}
 
@@ -318,7 +321,8 @@ const TaskProgressWidget: React.FC = () => {
           <span>Aktualisiert: {new Date().toLocaleTimeString('de-DE')}</span>
         </div>
       </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 };
 

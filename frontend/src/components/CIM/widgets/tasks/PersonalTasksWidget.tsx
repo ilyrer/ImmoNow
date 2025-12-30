@@ -2,6 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useUser } from '../../../../contexts/UserContext';
 import apiService from '../../../../services/api.service';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface Task {
   id: string;
@@ -124,56 +128,38 @@ const PersonalTasksWidget: React.FC = () => {
   const todayCount = tasks.filter(t => t.deadline === new Date().toISOString().split('T')[0] && t.status !== 'completed').length;
 
   return (
-    <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 dark:border-gray-700/50 p-6 h-full">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center">
-          <i className="ri-task-line mr-2 text-blue-600 dark:text-blue-400"></i>
-          Meine Aufgaben
-          {overdueCount > 0 && (
-            <span className="ml-2 px-2 py-1 text-xs font-bold bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300 rounded-full">
-              {overdueCount}
-            </span>
-          )}
-        </h3>
-        <Link
-          to="/aufgaben"
-          className="text-sm text-blue-600 dark:text-blue-400 hover:underline font-medium"
-        >
-          Alle anzeigen
-        </Link>
-      </div>
-
-      {/* Filter Tabs */}
-      <div className="flex space-x-1 mb-4 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
-        {[
-          { key: 'all', label: 'Alle', count: tasks.filter(t => t.status !== 'completed').length },
-          { key: 'today', label: 'Heute', count: todayCount },
-          { key: 'overdue', label: 'Überfällig', count: overdueCount }
-        ].map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setFilter(tab.key as any)}
-            className={`flex-1 px-3 py-2 text-xs font-medium rounded-md transition-colors ${
-              filter === tab.key
-                ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
-                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-            }`}
-          >
-            {tab.label}
-            {tab.count > 0 && (
-              <span className={`ml-1 px-1.5 py-0.5 text-xs rounded-full ${
-                tab.key === 'overdue' 
-                  ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
-                  : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
-              }`}>
-                {tab.count}
-              </span>
+    <Card className="h-full">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <CardTitle>Meine Aufgaben</CardTitle>
+            {overdueCount > 0 && (
+              <Badge variant="destructive">
+                {overdueCount}
+              </Badge>
             )}
-          </button>
-        ))}
-      </div>
+          </div>
+          <Button variant="ghost" size="sm" asChild>
+            <Link to="/aufgaben">Alle anzeigen</Link>
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+      <Tabs value={filter} onValueChange={(v) => setFilter(v as any)} className="w-full">
+        <TabsList className="grid w-full grid-cols-3 mb-4">
+          <TabsTrigger value="all">
+            Alle {tasks.filter(t => t.status !== 'completed').length > 0 && <Badge variant="outline" className="ml-1">{tasks.filter(t => t.status !== 'completed').length}</Badge>}
+          </TabsTrigger>
+          <TabsTrigger value="today">
+            Heute {todayCount > 0 && <Badge variant="outline" className="ml-1">{todayCount}</Badge>}
+          </TabsTrigger>
+          <TabsTrigger value="overdue">
+            Überfällig {overdueCount > 0 && <Badge variant="destructive" className="ml-1">{overdueCount}</Badge>}
+          </TabsTrigger>
+        </TabsList>
 
       {/* Tasks List */}
+      <TabsContent value={filter} className="mt-0">
       <div className="space-y-3 max-h-96 overflow-y-auto">
         {filteredTasks.length === 0 ? (
           <div className="text-center py-8">
@@ -231,16 +217,18 @@ const PersonalTasksWidget: React.FC = () => {
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getPriorityColor(task.priority)}`}>
+                    <Badge variant="outline" className={getPriorityColor(task.priority)}>
                       {task.priority === 'high' ? 'Hoch' : task.priority === 'medium' ? 'Mittel' : 'Niedrig'}
-                    </span>
-                    <button
+                    </Badge>
+                    <Button
+                      size="sm"
+                      variant="ghost"
                       onClick={() => markAsCompleted(task.id)}
-                      className="p-1 rounded-full bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors"
+                      className="p-1 h-6 w-6"
                       title="Als erledigt markieren"
                     >
                       <i className="ri-check-line text-xs"></i>
-                    </button>
+                    </Button>
                   </div>
                 </div>
 
@@ -273,7 +261,10 @@ const PersonalTasksWidget: React.FC = () => {
           </Link>
         </div>
       )}
-    </div>
+      </TabsContent>
+      </Tabs>
+      </CardContent>
+    </Card>
   );
 };
 

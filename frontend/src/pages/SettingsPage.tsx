@@ -19,6 +19,8 @@ import {
   Eye,
   EyeOff
 } from 'lucide-react';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 
 interface UserSettings {
   // Appearance
@@ -178,14 +180,12 @@ const SettingsPage: React.FC = () => {
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Vorname
-                  </label>
-                  <input
+                  <Label className="mb-2">Vorname</Label>
+                  <Input
                     type="text"
                     value={settings.firstName}
                     onChange={(e) => updateSetting('firstName', e.target.value)}
-                    className="w-full px-3 py-2 bg-white/50 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="bg-white/50 dark:bg-gray-800/50"
                   />
                 </div>
                 

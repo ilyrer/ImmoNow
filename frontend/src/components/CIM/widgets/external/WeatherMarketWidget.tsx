@@ -1,4 +1,6 @@
 import React from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
 const WeatherMarketWidget: React.FC = () => {
   const weatherData = {
@@ -48,16 +50,16 @@ const WeatherMarketWidget: React.FC = () => {
   };
 
   return (
-    <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 dark:border-gray-700/50 p-6 h-full">
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center">
-          <i className="ri-earth-line mr-2 text-blue-600 dark:text-blue-400"></i>
-          Wetter & Markt
-        </h3>
-        <div className="text-xs text-gray-500 dark:text-gray-400">
-          Live-Daten
+    <Card className="h-full">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle>Wetter & Markt</CardTitle>
+          <Badge variant="outline" className="bg-blue-500/10 text-blue-600 dark:text-blue-300 border-blue-500/20">
+            Live-Daten
+          </Badge>
         </div>
-      </div>
+      </CardHeader>
+      <CardContent>
 
       {/* Weather Section */}
       <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 rounded-xl">
@@ -168,7 +170,8 @@ const WeatherMarketWidget: React.FC = () => {
           </div>
         </div>
       </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 };
 

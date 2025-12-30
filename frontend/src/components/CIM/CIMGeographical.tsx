@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import GeographicalModule from './modules/GeographicalModule';
+import { Button } from '@/components/ui/button';
 
 const CIMGeographical: React.FC = () => {
   const navigate = useNavigate();
@@ -17,19 +18,14 @@ const CIMGeographical: React.FC = () => {
 
       <div className="relative z-10 p-6">
         {/* Back Button */}
-        <button
+        <Button
           onClick={() => navigate('/cim')}
-          className="mb-6 flex items-center gap-2 px-4 py-2 rounded-xl
-            bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl
-            border border-white/50 dark:border-slate-700/50
-            shadow-lg hover:shadow-xl
-            text-slate-700 dark:text-slate-300
-            hover:bg-white dark:hover:bg-slate-700
-            transition-all duration-200"
+          variant="outline"
+          className="mb-6"
         >
-          <ArrowLeft className="w-5 h-5" />
-          <span className="font-medium">Zurück zu CIM Overview</span>
-        </button>
+          <ArrowLeft className="w-5 h-5 mr-2" />
+          Zurück zu CIM Overview
+        </Button>
 
         <GeographicalModule />
       </div>

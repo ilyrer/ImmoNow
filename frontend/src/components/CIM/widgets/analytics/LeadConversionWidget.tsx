@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { apiClient } from '../../../../lib/api/client';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface ConversionStage {
   stage: string;
@@ -76,29 +78,34 @@ const LeadConversionWidget: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 dark:border-gray-700/50 p-6 h-full flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Lädt Conversion-Daten...</p>
-        </div>
-      </div>
+      <Card className="h-full">
+        <CardHeader>
+          <Skeleton className="h-6 w-32" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-center">
+            <Skeleton className="h-8 w-8 rounded-full mx-auto mb-2" />
+            <Skeleton className="h-4 w-32 mx-auto" />
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 dark:border-gray-700/50 p-6 h-full">
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center">
-          <i className="ri-funnel-line mr-2 text-blue-600 dark:text-blue-400"></i>
-          Lead Conversion
-        </h3>
-        <div className="text-right">
-          <div className="text-xs text-gray-500 dark:text-gray-400">Rate</div>
-          <div className="text-lg font-bold text-green-600 dark:text-green-400">
-            {conversionRate}%
+    <Card className="h-full">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle>Lead Conversion</CardTitle>
+          <div className="text-right">
+            <div className="text-xs text-muted-foreground">Rate</div>
+            <div className="text-lg font-bold text-green-600 dark:text-green-400">
+              {conversionRate}%
+            </div>
           </div>
         </div>
-      </div>
+      </CardHeader>
+      <CardContent>
 
       <div className="space-y-4 mb-6">
         {conversionData.map((stage, index) => (
@@ -163,7 +170,8 @@ const LeadConversionWidget: React.FC = () => {
           </span>
         </div>
       </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 };
 

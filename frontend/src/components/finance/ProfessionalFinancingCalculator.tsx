@@ -23,6 +23,10 @@ import {
   Calendar,
   Landmark
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -244,32 +248,34 @@ const ProfessionalFinancingCalculator: React.FC = () => {
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 p-8"
         >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl p-4 shadow-lg">
-                <Calculator className="w-8 h-8 text-white" />
+        <Card className="p-8">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl p-4 shadow-lg">
+                  <Calculator className="w-8 h-8 text-white" />
+                </div>
+                <div>
+                  <CardTitle className="text-3xl">
+                    Finanzierungsrechner Professional
+                  </CardTitle>
+                  <p className="text-muted-foreground mt-1">
+                    Banking-Grade Analyse • Erweiterte Berechnungen • Bankenvergleich
+                  </p>
+                </div>
               </div>
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                  Finanzierungsrechner Professional
-                </h1>
-                <p className="text-gray-600 dark:text-gray-400 mt-1">
-                  Banking-Grade Analyse • Erweiterte Berechnungen • Bankenvergleich
-                </p>
-              </div>
-            </div>
 
-            <button
-              onClick={handleWordExport}
-              disabled={exportLoading || !results}
-              className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Download className="w-5 h-5" />
-              <span>{exportLoading ? 'Erstelle Word...' : 'Word Export'}</span>
-            </button>
-          </div>
+              <Button
+                onClick={handleWordExport}
+                disabled={exportLoading || !results}
+              >
+                <Download className="w-5 h-5 mr-2" />
+                {exportLoading ? 'Erstelle Word...' : 'Word Export'}
+              </Button>
+            </div>
+          </CardHeader>
+        </Card>
         </motion.div>
 
         {/* ========== SUCCESS MESSAGE ========== */}
@@ -288,28 +294,24 @@ const ProfessionalFinancingCalculator: React.FC = () => {
         </AnimatePresence>
 
         {/* ========== MAIN TABS ========== */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 p-2">
-          <div className="flex space-x-2">
-            <TabButton
-              active={activeTab === 'calculator'}
-              onClick={() => setActiveTab('calculator')}
-              icon={<Calculator className="w-5 h-5" />}
-              label="Rechner"
-            />
-            <TabButton
-              active={activeTab === 'banks'}
-              onClick={() => setActiveTab('banks')}
-              icon={<Landmark className="w-5 h-5" />}
-              label="Bankenvergleich"
-            />
-            <TabButton
-              active={activeTab === 'investment'}
-              onClick={() => setActiveTab('investment')}
-              icon={<TrendingUp className="w-5 h-5" />}
-              label="Investment-Analyse"
-            />
-          </div>
-        </div>
+        <Card>
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'calculator' | 'banks' | 'investment')}>
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="calculator" className="flex items-center space-x-2">
+                <Calculator className="w-5 h-5" />
+                <span>Rechner</span>
+              </TabsTrigger>
+              <TabsTrigger value="banks" className="flex items-center space-x-2">
+                <Landmark className="w-5 h-5" />
+                <span>Bankenvergleich</span>
+              </TabsTrigger>
+              <TabsTrigger value="investment" className="flex items-center space-x-2">
+                <TrendingUp className="w-5 h-5" />
+                <span>Investment-Analyse</span>
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </Card>
 
         {/* ========== TAB CONTENT ========== */}
         <AnimatePresence mode="wait">
@@ -345,23 +347,5 @@ const ProfessionalFinancingCalculator: React.FC = () => {
   );
 };
 
-// ==================== TAB BUTTON COMPONENT ====================
-const TabButton: React.FC<{
-  active: boolean;
-  onClick: () => void;
-  icon: React.ReactNode;
-  label: string;
-}> = ({ active, onClick, icon, label }) => (
-  <button
-    onClick={onClick}
-    className={`flex items-center space-x-2 px-6 py-3 rounded-xl font-semibold transition-all ${active
-        ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg'
-        : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-      }`}
-  >
-    {icon}
-    <span>{label}</span>
-  </button>
-);
 
 export default ProfessionalFinancingCalculator;

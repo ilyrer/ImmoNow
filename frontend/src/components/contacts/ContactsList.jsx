@@ -6,6 +6,14 @@ import {
   useUpdateContact,
   useDeleteContact
 } from '../../api/hooks';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
 
 const ContactsList = ({ user }) => {
   // API Hooks
@@ -391,39 +399,42 @@ const ContactsList = ({ user }) => {
 
             <div className="flex items-center gap-4">
               <div className="flex items-center bg-white/50 dark:bg-gray-700/50 backdrop-blur-sm rounded-xl p-1 border border-gray-200/50 dark:border-gray-600/50">
-                <button
+                <Button
                   onClick={() => setViewMode('table')}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${viewMode === 'table'
-                      ? 'bg-white dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 shadow-md'
-                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                    }`}
+                  variant={viewMode === 'table' ? 'default' : 'ghost'}
+                  size="sm"
+                  className={cn(
+                    viewMode === 'table' && 'bg-white dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 shadow-md'
+                  )}
                 >
                   Tabelle
-                </button>
-                <button
+                </Button>
+                <Button
                   onClick={() => setViewMode('grid')}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${viewMode === 'grid'
-                      ? 'bg-white dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 shadow-md'
-                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                    }`}
+                  variant={viewMode === 'grid' ? 'default' : 'ghost'}
+                  size="sm"
+                  className={cn(
+                    viewMode === 'grid' && 'bg-white dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 shadow-md'
+                  )}
                 >
                   Karten
-                </button>
+                </Button>
               </div>
 
-              <button
+              <Button
                 onClick={() => setShowNewContactModal(true)}
-                className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
               >
                 Neuer Kontakt
-              </button>
+              </Button>
 
-              <button
+              <Button
                 onClick={handleExportContacts}
-                className="px-4 py-3 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm text-gray-700 dark:text-gray-300 text-sm font-medium rounded-lg border border-gray-200/50 dark:border-gray-600/50 hover:bg-white dark:hover:bg-gray-800 transition-all duration-200 shadow-sm"
+                variant="outline"
+                className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm"
               >
                 Exportieren
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -434,60 +445,66 @@ const ContactsList = ({ user }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           {/* Erweiterte Suchleiste */}
           <div className="lg:col-span-2 relative">
-            <input
+            <Input
               type="text"
               placeholder="Nach Name, E-Mail, Telefon oder Firma suchen..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-4 pr-4 py-3 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
+              className="w-full"
             />
           </div>
 
           {/* Status Filter */}
           <div className="relative">
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 appearance-none cursor-pointer"
-            >
-              <option value="alle">Alle Status</option>
-              <option value="kunde">Kunde</option>
-              <option value="interessent">Interessent</option>
-              <option value="lead">Lead</option>
-            </select>
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Alle Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="alle">Alle Status</SelectItem>
+                <SelectItem value="kunde">Kunde</SelectItem>
+                <SelectItem value="interessent">Interessent</SelectItem>
+                <SelectItem value="lead">Lead</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Kategorie Filter */}
           <div className="relative">
-            <select
-              value={filterCategory}
-              onChange={(e) => setFilterCategory(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 appearance-none cursor-pointer"
-            >
-              <option value="alle">Alle Kategorien</option>
-              <option value="eigentümer">Eigentümer</option>
-              <option value="kaufinteressent">Kaufinteressent</option>
-              <option value="bauträger">Bauträger</option>
-              <option value="mieter">Mieter</option>
-            </select>
+            <Select value={filterCategory} onValueChange={setFilterCategory}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Alle Kategorien" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="alle">Alle Kategorien</SelectItem>
+                <SelectItem value="eigentümer">Eigentümer</SelectItem>
+                <SelectItem value="kaufinteressent">Kaufinteressent</SelectItem>
+                <SelectItem value="bauträger">Bauträger</SelectItem>
+                <SelectItem value="mieter">Mieter</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Sortierung */}
           <div className="relative">
-            <select
+            <Select
               value={`${sortBy}-${sortOrder}`}
-              onChange={(e) => {
-                const [field, order] = e.target.value.split('-');
+              onValueChange={(value) => {
+                const [field, order] = value.split('-');
                 setSortBy(field);
                 setSortOrder(order);
               }}
-              className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 appearance-none cursor-pointer"
             >
-              <option value="name-asc">Name A-Z</option>
-              <option value="name-desc">Name Z-A</option>
-              <option value="lastContact-desc">Neueste zuerst</option>
-              <option value="lastContact-asc">Älteste zuerst</option>
-            </select>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Sortieren" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="name-asc">Name A-Z</SelectItem>
+                <SelectItem value="name-desc">Name Z-A</SelectItem>
+                <SelectItem value="lastContact-desc">Neueste zuerst</SelectItem>
+                <SelectItem value="lastContact-asc">Älteste zuerst</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
@@ -495,37 +512,43 @@ const ContactsList = ({ user }) => {
         {(searchTerm || filterStatus !== 'alle' || filterCategory !== 'alle') && (
           <div className="mt-4 flex flex-wrap gap-2">
             {searchTerm && (
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300">
+              <Badge variant="secondary" className="bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300">
                 Suche: "{searchTerm}"
-                <button
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => setSearchTerm('')}
-                  className="ml-2 text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-200"
+                  className="ml-2 h-auto p-0 text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-200"
                 >
                   ×
-                </button>
-              </span>
+                </Button>
+              </Badge>
             )}
             {filterStatus !== 'alle' && (
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300">
+              <Badge variant="secondary" className="bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300">
                 Status: {filterStatus}
-                <button
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => setFilterStatus('alle')}
-                  className="ml-2 text-purple-600 hover:text-purple-800 dark:text-purple-400 dark:hover:text-purple-200"
+                  className="ml-2 h-auto p-0 text-purple-600 hover:text-purple-800 dark:text-purple-400 dark:hover:text-purple-200"
                 >
                   ×
-                </button>
-              </span>
+                </Button>
+              </Badge>
             )}
             {filterCategory !== 'alle' && (
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-300">
+              <Badge variant="secondary" className="bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-300">
                 Kategorie: {filterCategory}
-                <button
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => setFilterCategory('alle')}
-                  className="ml-2 text-pink-600 hover:text-pink-800 dark:text-pink-400 dark:hover:text-pink-200"
+                  className="ml-2 h-auto p-0 text-pink-600 hover:text-pink-800 dark:text-pink-400 dark:hover:text-pink-200"
                 >
                   ×
-                </button>
-              </span>
+                </Button>
+              </Badge>
             )}
           </div>
         )}
@@ -545,18 +568,19 @@ const ContactsList = ({ user }) => {
               Es sind noch keine Kontakte in der Datenbank vorhanden oder sie konnten nicht geladen werden.
             </p>
             <div className="flex gap-3">
-              <button
+              <Button
                 onClick={() => setShowNewContactModal(true)}
-                className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
               >
                 Ersten Kontakt erstellen
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={() => refetchContacts()}
-                className="px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm"
+                variant="secondary"
+                className="bg-gray-600 hover:bg-gray-700 text-white shadow-sm"
               >
                 Erneut versuchen
-              </button>
+              </Button>
             </div>
           </div>
         </div>

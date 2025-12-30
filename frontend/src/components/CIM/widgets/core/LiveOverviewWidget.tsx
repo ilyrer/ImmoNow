@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { apiClient } from '../../../../lib/api/client';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { AlertCircle } from 'lucide-react';
 
 interface LiveAnalytics {
   totalProperties: number;
@@ -84,48 +87,53 @@ const LiveOverviewWidget: React.FC = () => {
   if (error) {
     const errorMessage = (error as any)?.message || 'Unbekannter Fehler';
     return (
-      <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 dark:border-gray-700/50 p-6 h-full">
-        <div className="text-center text-red-600 dark:text-red-400">
-          <i className="ri-error-warning-line text-2xl mb-2"></i>
-          <p>Fehler beim Laden der Statistiken</p>
-          <p className="text-xs mt-1">{errorMessage}</p>
-          <button 
-            onClick={() => window.location.reload()} 
-            className="mt-2 text-sm underline hover:no-underline"
-          >
-            Seite neu laden
-          </button>
-        </div>
-      </div>
+      <Card className="h-full">
+        <CardContent className="pt-6">
+          <div className="text-center text-red-600 dark:text-red-400">
+            <AlertCircle className="w-8 h-8 mx-auto mb-2" />
+            <p>Fehler beim Laden der Statistiken</p>
+            <p className="text-xs mt-1">{errorMessage}</p>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="mt-2 text-sm underline hover:no-underline"
+            >
+              Seite neu laden
+            </button>
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
   if (isLoading) {
     return (
-      <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 dark:border-gray-700/50 p-6 h-full">
-        <div className="animate-pulse">
-          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4 mb-4"></div>
+      <Card className="h-full">
+        <CardHeader>
+          <Skeleton className="h-6 w-32" />
+        </CardHeader>
+        <CardContent>
           <div className="space-y-3">
-            <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded"></div>
-            <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-5/6"></div>
-            <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-4/6"></div>
+            <Skeleton className="h-20 w-full" />
+            <Skeleton className="h-20 w-full" />
+            <Skeleton className="h-20 w-full" />
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 dark:border-gray-700/50 p-6 h-full">
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-          Live Übersicht
-        </h3>
-        <div className="flex items-center space-x-2">
-          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-          <span className="text-xs text-gray-500 dark:text-gray-400">Live</span>
+    <Card className="h-full">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg">Live Übersicht</CardTitle>
+          <div className="flex items-center space-x-2">
+            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            <span className="text-xs text-muted-foreground">Live</span>
+          </div>
         </div>
-      </div>
+      </CardHeader>
+      <CardContent>
 
       <div className="grid grid-cols-2 gap-4">
         {/* Immobilien */}
@@ -239,7 +247,8 @@ const LiveOverviewWidget: React.FC = () => {
           </p>
         </div>
       </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 };
 

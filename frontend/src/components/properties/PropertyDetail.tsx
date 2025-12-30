@@ -13,6 +13,14 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Skeleton } from '@/components/ui/skeleton';
 
 // Import specialized tab components
 import ExposeTab from './ExposeTab';
@@ -419,8 +427,8 @@ const PropertyDetail: React.FC = () => {
           animate={{ opacity: 1, scale: 1 }}
           className="text-center"
         >
-          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">Immobilie wird geladen...</p>
+          <Skeleton className="w-16 h-16 rounded-full mx-auto mb-4" />
+          <Skeleton className="h-4 w-48 mx-auto" />
         </motion.div>
       </div>
     );
@@ -437,13 +445,14 @@ const PropertyDetail: React.FC = () => {
         <div className="max-w-[2000px] mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <button
+              <Button
                 onClick={() => navigate('/properties')}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-all duration-200 group"
+                variant="outline"
+                className="group"
               >
-                <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-                <span>Zurück</span>
-              </button>
+                <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" />
+                Zurück
+              </Button>
 
               <div>
                 <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
@@ -458,56 +467,59 @@ const PropertyDetail: React.FC = () => {
 
             <div className="flex items-center gap-3">
               {isEditing ? (
-                <select
+                <Select
                   value={editingProperty?.status || property.status}
-                  onChange={(e) => updateEditingProperty('status', e.target.value)}
-                  className="px-4 py-2 rounded-lg font-semibold bg-white dark:bg-gray-700 border-2 border-blue-500 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  onValueChange={(value) => updateEditingProperty('status', value)}
                 >
-                  <option value="akquise">Akquise</option>
-                  <option value="vorbereitung">Vorbereitung</option>
-                  <option value="aktiv">Aktiv</option>
-                  <option value="reserviert">Reserviert</option>
-                  <option value="verkauft">Verkauft</option>
-                  <option value="zurückgezogen">Zurückgezogen</option>
-                </select>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="akquise">Akquise</SelectItem>
+                    <SelectItem value="vorbereitung">Vorbereitung</SelectItem>
+                    <SelectItem value="aktiv">Aktiv</SelectItem>
+                    <SelectItem value="reserviert">Reserviert</SelectItem>
+                    <SelectItem value="verkauft">Verkauft</SelectItem>
+                    <SelectItem value="zurückgezogen">Zurückgezogen</SelectItem>
+                  </SelectContent>
+                </Select>
               ) : (
-                <span className={`px-4 py-2 rounded-lg font-semibold ${getStatusStyle(property.status)}`}>
+                <Badge className={`${getStatusStyle(property.status)}`}>
                   {property.status === 'aktiv' && 'Aktiv'}
                   {property.status === 'verkauft' && 'Verkauft'}
                   {property.status === 'reserviert' && 'Reserviert'}
                   {property.status === 'akquise' && 'Akquise'}
                   {property.status === 'vorbereitung' && 'Vorbereitung'}
                   {property.status === 'zurückgezogen' && 'Zurückgezogen'}
-                </span>
+                </Badge>
               )}
 
               {isEditing ? (
                 <>
-                  <button
+                  <Button
                     onClick={handleCancelEdit}
                     disabled={isSaving}
-                    className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-all"
+                    variant="outline"
                   >
-                    <X className="w-4 h-4" />
+                    <X className="w-4 h-4 mr-2" />
                     Abbrechen
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     onClick={handleSave}
                     disabled={isSaving}
-                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white rounded-lg transition-all disabled:opacity-50"
                   >
-                    <Save className="w-4 h-4" />
+                    <Save className="w-4 h-4 mr-2" />
                     {isSaving ? 'Speichern...' : 'Speichern'}
-                  </button>
+                  </Button>
                 </>
               ) : (
-                <button
+                <Button
                   onClick={handleEdit}
-                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-lg transition-all"
+                  variant="default"
                 >
-                  <Edit2 className="w-4 h-4" />
+                  <Edit2 className="w-4 h-4 mr-2" />
                   Bearbeiten
-                </button>
+                </Button>
               )}
             </div>
           </div>
@@ -523,8 +535,8 @@ const PropertyDetail: React.FC = () => {
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden"
             >
+            <Card className="overflow-hidden">
               <div className="relative aspect-video bg-gray-900">
                 {property.images.length > 0 ? (
                   <>
@@ -537,18 +549,22 @@ const PropertyDetail: React.FC = () => {
                     {/* Navigation Arrows */}
                     {property.images.length > 1 && (
                       <>
-                        <button
+                        <Button
                           onClick={handlePrevImage}
-                          className="absolute left-6 top-1/2 -translate-y-1/2 w-14 h-14 bg-black/50 hover:bg-black/70 backdrop-blur-sm rounded-full flex items-center justify-center text-white transition-all hover:scale-110"
+                          size="icon"
+                          variant="secondary"
+                          className="absolute left-6 top-1/2 -translate-y-1/2 w-14 h-14 bg-black/50 hover:bg-black/70 backdrop-blur-sm rounded-full"
                         >
                           <ChevronLeft className="w-7 h-7" />
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                           onClick={handleNextImage}
-                          className="absolute right-6 top-1/2 -translate-y-1/2 w-14 h-14 bg-black/50 hover:bg-black/70 backdrop-blur-sm rounded-full flex items-center justify-center text-white transition-all hover:scale-110"
+                          size="icon"
+                          variant="secondary"
+                          className="absolute right-6 top-1/2 -translate-y-1/2 w-14 h-14 bg-black/50 hover:bg-black/70 backdrop-blur-sm rounded-full"
                         >
                           <ChevronRight className="w-7 h-7" />
-                        </button>
+                        </Button>
                       </>
                     )}
 
@@ -581,31 +597,28 @@ const PropertyDetail: React.FC = () => {
                   ))}
                 </div>
               )}
+            </Card>
             </motion.div>
 
             {/* Tab Navigation - Professional & Compact */}
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
-              <div className="flex items-center gap-1 p-2">
-                {tabs.map((tab) => {
-                  const Icon = tab.icon;
-                  return (
-                    <button
-                      key={tab.id}
-                      onClick={() => setActiveTab(tab.id)}
-                      className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg font-medium transition-all duration-200 ${activeTab === tab.id
-                          ? 'bg-blue-600 text-white shadow-md'
-                          : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'
-                        }`}
-                    >
-                      <Icon className="w-4 h-4" />
-                      <span className="text-sm font-semibold hidden sm:inline">{tab.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+            <Card>
+              <Tabs value={activeTab} onValueChange={setActiveTab}>
+                <TabsList className="grid w-full grid-cols-9">
+                  {tabs.map((tab) => {
+                    const Icon = tab.icon;
+                    return (
+                      <TabsTrigger key={tab.id} value={tab.id} className="flex items-center gap-2">
+                        <Icon className="w-4 h-4" />
+                        <span className="hidden sm:inline">{tab.label}</span>
+                      </TabsTrigger>
+                    );
+                  })}
+                </TabsList>
+              </Tabs>
+            </Card>
 
             {/* Tab Content */}
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeTab}
@@ -613,8 +626,9 @@ const PropertyDetail: React.FC = () => {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.2 }}
-                className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6"
               >
+              <Card className="p-6">
+                <CardContent>
                 {/* Overview Tab */}
                 {activeTab === 'overview' && (
                   <div className="space-y-8">
@@ -629,11 +643,10 @@ const PropertyDetail: React.FC = () => {
                           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                             Titel
                           </label>
-                          <input
+                          <Input
                             type="text"
                             value={editingProperty?.title || ''}
                             onChange={(e) => updateEditingProperty('title', e.target.value)}
-                            className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           />
                         </div>
 
@@ -641,15 +654,19 @@ const PropertyDetail: React.FC = () => {
                           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                             Objektart
                           </label>
-                          <select
+                          <Select
                             value={editingProperty?.type || 'house'}
-                            onChange={(e) => updateEditingProperty('type', e.target.value)}
-                            className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            onValueChange={(value) => updateEditingProperty('type', value)}
                           >
-                            <option value="apartment">Wohnung</option>
-                            <option value="house">Haus</option>
-                            <option value="commercial">Gewerbe</option>
-                          </select>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="apartment">Wohnung</SelectItem>
+                              <SelectItem value="house">Haus</SelectItem>
+                              <SelectItem value="commercial">Gewerbe</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
                       </div>
                     )}
@@ -659,11 +676,11 @@ const PropertyDetail: React.FC = () => {
                       <div className="p-6 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl border border-blue-200 dark:border-blue-700 hover:shadow-lg transition-all">
                         <Euro className="w-10 h-10 text-blue-600 dark:text-blue-400 mb-3" />
                         {isEditing ? (
-                          <input
+                          <Input
                             type="number"
                             value={editingProperty?.price || ''}
                             onChange={(e) => updateEditingProperty('price', Number(e.target.value))}
-                            className="w-full text-2xl font-bold bg-transparent border-b border-blue-300 dark:border-blue-600 text-gray-900 dark:text-white mb-1 focus:outline-none focus:border-blue-500"
+                            className="text-2xl font-bold border-b-2 border-blue-300 dark:border-blue-600 mb-1"
                           />
                         ) : (
                           <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
@@ -989,8 +1006,11 @@ const PropertyDetail: React.FC = () => {
                 {activeTab === 'performance' && (
                   <PerformanceTab propertyId={property.id} property={property} />
                 )}
+                </CardContent>
+              </Card>
               </motion.div>
             </AnimatePresence>
+            </Tabs>
           </div>
 
           {/* Right Column: Sidebar */}
@@ -1089,21 +1109,24 @@ const PropertyDetail: React.FC = () => {
               </h3>
 
               <div className="space-y-3">
-                <button
+                <Button
                   onClick={() => setActiveTab('expose')}
-                  className="w-full flex items-center gap-3 px-5 py-4 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white rounded-xl transition-all hover:shadow-xl"
+                  className="w-full"
+                  size="lg"
                 >
-                  <FileText className="w-5 h-5" />
+                  <FileText className="w-5 h-5 mr-3" />
                   <span className="font-semibold">Exposé erstellen</span>
-                </button>
+                </Button>
 
-                <button
+                <Button
                   onClick={() => setActiveTab('publish')}
-                  className="w-full flex items-center gap-3 px-5 py-4 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-xl transition-all hover:shadow-xl"
+                  className="w-full"
+                  size="lg"
+                  variant="default"
                 >
                   <Share2 className="w-5 h-5" />
                   <span className="font-semibold">Veröffentlichen</span>
-                </button>
+                </Button>
 
                 <button className="w-full flex items-center gap-3 px-5 py-4 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-900 dark:text-white rounded-xl transition-all hover:shadow-lg">
                   <Download className="w-5 h-5" />

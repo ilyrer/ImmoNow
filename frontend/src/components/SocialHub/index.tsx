@@ -5,13 +5,16 @@
  */
 
 import React, { useState } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '../common/Card';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import AccountsView from './Accounts/AccountsView';
 import ComposerView from './Composer/ComposerView';
 import SchedulerView from './Scheduler/SchedulerView';
 import QueueView from './Queue/QueueView';
 import AnalyticsView from './Analytics/AnalyticsView';
 import { useSocialHubDashboard } from '../../api/hooks';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   FileText,
   Heart,

@@ -17,6 +17,8 @@ import ReportsView from '../components/investor/ReportsView';
 import AnalyticsView from '../components/investor/AnalyticsView';
 import SimulationsView from '../components/investor/SimulationsView';
 import MarketplaceView from '../components/investor/MarketplaceView';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 type Tab = 'portfolio' | 'reports' | 'analytics' | 'simulations' | 'marketplace';
 
@@ -102,56 +104,49 @@ const InvestorDashboard: React.FC = () => {
         </motion.div>
 
         {/* Tab Navigation */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl p-2 border border-white/20 dark:border-gray-700/50 shadow-lg mb-6"
-        >
-          <div className="flex gap-2 overflow-x-auto">
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
-              
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-3 px-6 py-4 rounded-xl font-semibold transition-all duration-300 whitespace-nowrap ${
-                    isActive
-                      ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg'
-                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700/50'
-                  }`}
-                >
-                  <Icon className="w-5 h-5" />
-                  <div className="text-left">
-                    <div className={`${isActive ? 'text-white' : 'text-gray-900 dark:text-white'}`}>
-                      {tab.label}
-                    </div>
-                    {isActive && (
-                      <div className="text-xs opacity-90 mt-0.5">
-                        {tab.description}
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as Tab)}>
+          <Card className="mb-6">
+            <CardContent className="p-2">
+              <TabsList className="flex gap-2 overflow-x-auto">
+                {tabs.map((tab) => {
+                  const Icon = tab.icon;
+                  return (
+                    <TabsTrigger
+                      key={tab.id}
+                      value={tab.id}
+                      className="flex items-center gap-3 px-6 py-4 whitespace-nowrap"
+                    >
+                      <Icon className="w-5 h-5" />
+                      <div className="text-left">
+                        <div>{tab.label}</div>
+                        <div className="text-xs opacity-90 mt-0.5">
+                          {tab.description}
+                        </div>
                       </div>
-                    )}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </motion.div>
+                    </TabsTrigger>
+                  );
+                })}
+              </TabsList>
+            </CardContent>
+          </Card>
 
-        {/* Content Area with Animation */}
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.3 }}
-          >
-            {renderContent()}
-          </motion.div>
-        </AnimatePresence>
+          {/* Content Area with Animation */}
+          {tabs.map((tab) => (
+            <TabsContent key={tab.id} value={tab.id}>
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={tab.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  {renderContent()}
+                </motion.div>
+              </AnimatePresence>
+            </TabsContent>
+          ))}
+        </Tabs>
       </div>
     </div>
   );

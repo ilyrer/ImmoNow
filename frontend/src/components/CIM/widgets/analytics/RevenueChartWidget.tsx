@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { apiClient } from '../../../../lib/api/client';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
 
 interface MonthlyRevenue {
   month: string;
@@ -173,18 +176,23 @@ const RevenueChartWidget: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 dark:border-gray-700/50 p-4 h-full flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Lädt Umsatzdaten...</p>
-        </div>
-      </div>
+      <Card className="h-full">
+        <CardHeader>
+          <Skeleton className="h-6 w-32" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-center">
+            <Skeleton className="h-8 w-8 rounded-full mx-auto mb-2" />
+            <Skeleton className="h-4 w-32 mx-auto" />
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <div 
-      className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 dark:border-gray-700/50 p-4 h-full flex flex-col overflow-hidden"
+    <Card 
+      className="h-full flex flex-col overflow-hidden"
       onMouseEnter={() => {
         setIsAnimationPaused(true);
         setIsUserHovering(true);
@@ -194,12 +202,12 @@ const RevenueChartWidget: React.FC = () => {
         setIsUserHovering(false);
       }}
     >
-      <div className="flex items-center justify-between mb-3 flex-shrink-0">
-        <div className="flex items-center">
-          <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center">
-            <i className="ri-line-chart-line mr-2 text-blue-600 dark:text-blue-400"></i>
-            Umsatz-Entwicklung
-          </h3>
+      <CardHeader className="flex-shrink-0">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            <CardTitle className="flex items-center">
+              Umsatz-Entwicklung
+            </CardTitle>
           <div className="ml-2 flex items-center">
             <div className={`w-1.5 h-1.5 rounded-full ${isAnimationPaused ? 'bg-yellow-500 animate-pulse' : 'bg-green-500 animate-bounce'}`}></div>
             <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">
@@ -212,9 +220,11 @@ const RevenueChartWidget: React.FC = () => {
           <div className={`text-sm font-bold ${growth >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
             {growth >= 0 ? '+' : ''}{growth.toFixed(1)}%
           </div>
+          </div>
         </div>
-      </div>
+      </CardHeader>
 
+      <CardContent className="flex flex-col flex-1 min-h-0">
       {/* Kompakte Key Metrics */}
       <div className="grid grid-cols-3 gap-2 mb-3 flex-shrink-0">
         <div className="text-center p-2 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
@@ -328,18 +338,16 @@ const RevenueChartWidget: React.FC = () => {
           </div>
         </div>
         
-        <button
+        <Button
+          size="sm"
+          variant="outline"
           onClick={() => setIsAnimationPaused(!isAnimationPaused)}
-          className={`px-2 py-0.5 rounded text-xs transition-colors ${
-            isAnimationPaused 
-              ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' 
-              : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300'
-          }`}
         >
           {isAnimationPaused ? '▶️' : '⏸️'}
-        </button>
+        </Button>
       </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 };
 

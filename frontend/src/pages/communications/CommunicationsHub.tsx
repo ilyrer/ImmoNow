@@ -16,6 +16,12 @@ import {
   ChannelMessage,
 } from '../../api/hooks';
 import { apiClient } from '../../lib/api/client';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 
 const CommunicationsHub: React.FC = () => {
   const [selectedChannel, setSelectedChannel] = useState<string | null>(null);
@@ -264,263 +270,345 @@ const CommunicationsHub: React.FC = () => {
   }, [memberSearch, showMemberModal]);
 
   return (
-    <div className="h-[calc(100vh-120px)] grid grid-cols-12 gap-4 p-4">
-      {/* Channels */}
-      <div className="col-span-3 space-y-3">
-        <div className="rounded-2xl bg-white/85 dark:bg-gray-900/80 border border-gray-200 dark:border-gray-800 shadow-[0_10px_30px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_30px_rgba(0,0,0,0.25)] backdrop-blur p-4">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <MessageSquare className="w-5 h-5 text-indigo-500" />
-              <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Channels & Teams</h2>
-            </div>
-            {channelsLoading && <Loader2 className="w-4 h-4 animate-spin text-gray-400" />}
-          </div>
-
-          <div className="grid grid-cols-2 gap-2 text-xs">
-            <input
-              className="col-span-2 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 text-sm"
-              placeholder="Channel-Name (z.B. Team Nord, Objekt 123...)"
-              value={channelName}
-              onChange={(e) => setChannelName(e.target.value)}
-            />
-            <input
-              className="px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950"
-              placeholder="Thema / Agenda"
-              value={settingsTopic}
-              onChange={(e) => setSettingsTopic(e.target.value)}
-            />
-            <label className="flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 text-gray-700 dark:text-gray-300">
-              <input
-                type="checkbox"
-                checked={settingsPrivate}
-                onChange={(e) => setSettingsPrivate(e.target.checked)}
-              />
-              Privat (nur Mitglieder)
-            </label>
-            <input
-              className="col-span-2 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950"
-              placeholder="Mitglieder-IDs/Emails, getrennt durch Kommas"
-              value={memberInput}
-              onChange={(e) => setMemberInput(e.target.value)}
-            />
-            <button
-              className="col-span-1 px-3 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-200 dark:border-gray-800"
-              onClick={() => {
-                if (!memberInput.trim()) return;
-                memberInput
-                  .split(',')
-                  .map((x) => x.trim())
-                  .filter(Boolean)
-                  .forEach((id) => addMember.mutate({ channel_id: activeChannelId || '', user_id: id, role: 'member' }));
-                setMemberInput('');
-              }}
-            >
-              Mitglieder anwenden
-            </button>
-            <button
-              onClick={handleCreateChannel}
-              className="col-span-1 px-3 py-2 rounded-xl bg-indigo-600 text-white text-sm hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center gap-1"
-              disabled={createChannel.isPending}
-            >
-              {createChannel.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-              <span>Chat starten</span>
-            </button>
-          </div>
-        </div>
-
-        <div className="rounded-2xl bg-white/85 dark:bg-gray-900/80 border border-gray-200 dark:border-gray-800 shadow-[0_10px_30px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_30px_rgba(0,0,0,0.25)] backdrop-blur p-3">
-          <div className="flex items-center justify-between mb-2 text-sm font-semibold text-gray-800 dark:text-white">
-            <span>Channel-Liste</span>
-            <span className="text-[11px] text-gray-500">{channels?.length || 0} Einträge</span>
-          </div>
-          <div className="space-y-1 overflow-y-auto max-h-[65vh] pr-1">
-            {channels?.map((ch) => (
-              <button
-                key={ch.id}
-                onClick={() => setSelectedChannel(ch.id)}
-                className={`w-full text-left px-3 py-2 rounded-xl border text-sm transition ${
-                  activeChannelId === ch.id
-                    ? 'border-indigo-200 bg-indigo-50 dark:border-indigo-500/40 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-200 shadow-sm'
-                    : 'border-transparent hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-800 dark:text-gray-200'
-                }`}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-semibold truncate">{ch.name}</span>
-                  {ch.is_private && (
-                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-gray-200 dark:bg-gray-700">Privat</span>
-                  )}
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/20 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+      <div className="h-[calc(100vh-120px)] grid grid-cols-12 gap-4 p-4 max-w-[1920px] mx-auto">
+        {/* Channels */}
+        <div className="col-span-3 space-y-3">
+          <Card className="shadow-xl border-gray-200 dark:border-gray-800 bg-white/95 dark:bg-gray-900/95 backdrop-blur">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg">
+                    <MessageSquare className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                  </div>
+                  <CardTitle className="text-base font-bold text-gray-900 dark:text-white">Channels & Teams</CardTitle>
                 </div>
-                {ch.topic && <div className="text-[12px] text-gray-500 line-clamp-1">{ch.topic}</div>}
-                <div className="text-[11px] text-gray-400 mt-1">{ch.members?.length || 0} Mitglieder</div>
-              </button>
-            ))}
-            {!channels?.length && !channelsLoading && (
-              <div className="text-xs text-gray-500">Keine Channels vorhanden.</div>
-            )}
-          </div>
-        </div>
+                {channelsLoading && <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />}
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+
+              <div className="space-y-3">
+                <div>
+                  <Label className="text-xs font-medium mb-1.5 block text-gray-700 dark:text-gray-300">Channel-Name</Label>
+                  <Input
+                    className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700"
+                    placeholder="z.B. Team Nord, Objekt 123..."
+                    value={channelName}
+                    onChange={(e) => setChannelName(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs font-medium mb-1.5 block text-gray-700 dark:text-gray-300">Thema / Agenda</Label>
+                  <Input
+                    className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700"
+                    placeholder="Optional"
+                    value={settingsTopic}
+                    onChange={(e) => setSettingsTopic(e.target.value)}
+                  />
+                </div>
+                <div className="flex items-center gap-2 p-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+                  <Checkbox
+                    id="private-channel"
+                    checked={settingsPrivate}
+                    onCheckedChange={(checked) => setSettingsPrivate(checked as boolean)}
+                  />
+                  <Label htmlFor="private-channel" className="text-xs text-gray-700 dark:text-gray-300 cursor-pointer">
+                    Privat (nur Mitglieder)
+                  </Label>
+                </div>
+                <div>
+                  <Label className="text-xs font-medium mb-1.5 block text-gray-700 dark:text-gray-300">Mitglieder (IDs/Emails, Komma-getrennt)</Label>
+                  <Input
+                    className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700"
+                    placeholder="user@example.com, 123"
+                    value={memberInput}
+                    onChange={(e) => setMemberInput(e.target.value)}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs"
+                    onClick={() => {
+                      if (!memberInput.trim()) return;
+                      memberInput
+                        .split(',')
+                        .map((x) => x.trim())
+                        .filter(Boolean)
+                        .forEach((id) => addMember.mutate({ channel_id: activeChannelId || '', user_id: id, role: 'member' }));
+                      setMemberInput('');
+                    }}
+                  >
+                    Anwenden
+                  </Button>
+                  <Button
+                    onClick={handleCreateChannel}
+                    size="sm"
+                    className="text-xs bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white"
+                    disabled={createChannel.isPending}
+                  >
+                    {createChannel.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <Plus className="w-3.5 h-3.5 mr-1" />}
+                    Chat starten
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-xl border-gray-200 dark:border-gray-800 bg-white/95 dark:bg-gray-900/95 backdrop-blur">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-bold text-gray-900 dark:text-white">Channel-Liste</CardTitle>
+                <Badge variant="secondary" className="text-[11px]">
+                  {channels?.length || 0}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2 overflow-y-auto max-h-[65vh] pr-1">
+                {channels?.map((ch) => (
+                  <button
+                    key={ch.id}
+                    onClick={() => setSelectedChannel(ch.id)}
+                    className={`w-full text-left px-4 py-3 rounded-xl border text-sm transition-all duration-200 ${
+                      activeChannelId === ch.id
+                        ? 'border-indigo-300 bg-gradient-to-r from-indigo-50 to-indigo-100 dark:from-indigo-950/50 dark:to-indigo-900/30 dark:border-indigo-500/40 text-indigo-700 dark:text-indigo-200 shadow-md shadow-indigo-500/20'
+                        : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 text-gray-800 dark:text-gray-200 hover:border-indigo-200 dark:hover:border-indigo-700'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <span className="font-bold truncate">{ch.name}</span>
+                      {ch.is_private && (
+                        <Badge variant="outline" className="text-[10px] px-2 py-0.5">Privat</Badge>
+                      )}
+                    </div>
+                    {ch.topic && <div className="text-xs text-gray-600 dark:text-gray-400 line-clamp-1 mb-1">{ch.topic}</div>}
+                    <div className="text-[11px] text-gray-500 dark:text-gray-500">{ch.members?.length || 0} Mitglieder</div>
+                  </button>
+                ))}
+                {!channels?.length && !channelsLoading && (
+                  <div className="text-center py-8">
+                    <MessageSquare className="w-10 h-10 text-gray-300 dark:text-gray-700 mx-auto mb-2" />
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Keine Channels vorhanden</p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
       </div>
 
       {/* Messages */}
-      <div className="col-span-6 bg-white/80 dark:bg-gray-900/70 border border-gray-200 dark:border-gray-700 rounded-2xl p-4 shadow-sm backdrop-blur flex flex-col">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-3">
-            <div>
-              <div className="text-sm font-semibold text-gray-800 dark:text-white">{activeChannel?.name || 'Channel wählen'}</div>
-              {activeChannel?.topic && <div className="text-xs text-gray-500">{activeChannel.topic}</div>}
-            </div>
-            <div className="flex flex-wrap gap-1">
-              {pinnedResources.slice(0, 3).map((p) => (
-                <a
-                  key={p.id}
-                  href={p.type === 'contact' ? `/contacts/${p.resourceId}` : `/properties/${p.resourceId}`}
-                  className="text-[11px] px-2 py-1 rounded bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-200"
-                >
-                  {p.label} • {p.resourceId.slice(0, 6)}…
-                </a>
-              ))}
+      <Card className="col-span-6 shadow-xl border-gray-200 dark:border-gray-800 bg-white/95 dark:bg-gray-900/95 backdrop-blur flex flex-col">
+        <div className="p-4 flex-1 flex flex-col min-h-0">
+          <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-200 dark:border-gray-800">
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <div className="flex-1 min-w-0">
+                <div className="text-base font-bold text-gray-900 dark:text-white mb-1">
+                  {activeChannel?.name || 'Channel wählen'}
+                </div>
+                {activeChannel?.topic && (
+                  <div className="text-xs text-gray-500 dark:text-gray-400">{activeChannel.topic}</div>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {pinnedResources.slice(0, 3).map((p) => (
+                  <Badge
+                    key={p.id}
+                    variant="secondary"
+                    className="text-[10px] px-2 py-1 bg-indigo-100 hover:bg-indigo-200 dark:bg-indigo-900/40 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-200 cursor-pointer"
+                    asChild
+                  >
+                    <a
+                      href={p.type === 'contact' ? `/contacts/${p.resourceId}` : `/properties/${p.resourceId}`}
+                    >
+                      <LinkIcon className="w-2.5 h-2.5 mr-1" />
+                      {p.label}
+                    </a>
+                  </Badge>
+                ))}
+              </div>
             </div>
           </div>
-          <LinkIcon className="w-4 h-4 text-gray-400" />
-        </div>
 
-        <div className="flex-1 overflow-y-auto space-y-3 pr-1">
-          {messagesLoading && <div className="text-xs text-gray-500">Lade Nachrichten...</div>}
-          {rootMessages.map((msg) => (
-            <div key={msg.id} className="p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
-              <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-                <span>User {msg.user_id.slice(0, 6)}…</span>
-                <span>{new Date(msg.created_at).toLocaleString('de-DE')}</span>
+          <div className="flex-1 overflow-y-auto space-y-4 pr-2">
+            {messagesLoading && (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
+                <span className="ml-2 text-sm text-gray-500">Lade Nachrichten...</span>
               </div>
-              <div className="text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap">{msg.content || 'Gelöscht'}</div>
-              {msg.attachments?.length ? (
-                <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                  {msg.attachments.map((a) => (
-                    <a
-                      key={a.id}
-                      href={a.file_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="px-2 py-1 rounded bg-gray-200 dark:bg-gray-700 inline-flex items-center gap-1"
-                    >
-                      <Paperclip className="w-3 h-3" />
-                      {a.file_name}
-                    </a>
-                  ))}
-                </div>
-              ) : null}
-              {msg.resource_links?.length ? (
-                <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                  {msg.resource_links.map((r) => (
-                    <a
-                      key={r.id}
-                      href={r.resource_type === 'contact' ? `/contacts/${r.resource_id}` : `/properties/${r.resource_id}`}
-                      className="px-2 py-1 rounded bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-200"
-                    >
-                      {r.label || r.resource_type} • {r.resource_id.slice(0, 6)}…
-                    </a>
-                  ))}
-                </div>
-              ) : null}
-              <div className="flex items-center gap-2 mt-2">
-                <button
-                  className="text-xs px-2 py-1 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 flex items-center gap-1"
-                  onClick={() => handleReaction(msg, '👍')}
-                >
-                  <Smile className="w-3 h-3" /> {msg.reactions?.find((r) => r.emoji === '👍') ? 'Entfernen' : '👍'}
-                </button>
-                {msg.reactions?.length > 0 && (
-                  <div className="text-[11px] text-gray-500">
-                    {msg.reactions.map((r) => r.emoji).join(' ')}
+            )}
+            {rootMessages.map((msg) => (
+              <Card key={msg.id} className="border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 shadow-sm hover:shadow-md transition-shadow">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mb-2">
+                    <Badge variant="outline" className="text-[10px] px-2 py-0.5">
+                      User {msg.user_id.slice(0, 6)}…
+                    </Badge>
+                    <span className="text-[10px]">{new Date(msg.created_at).toLocaleString('de-DE')}</span>
                   </div>
-                )}
-                <div className="flex gap-1">
-                  {emojiPalette.map((emoji) => (
-                    <button
-                      key={emoji}
-                      className="text-xs px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700"
-                      onClick={() => handleReaction(msg, emoji)}
+                  <div className="text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap leading-relaxed mb-3">
+                    {msg.content || 'Gelöscht'}
+                  </div>
+                  {msg.attachments?.length ? (
+                    <div className="mt-2 flex flex-wrap gap-2 mb-3">
+                      {msg.attachments.map((a) => (
+                        <Badge
+                          key={a.id}
+                          variant="secondary"
+                          className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 cursor-pointer"
+                          asChild
+                        >
+                          <a href={a.file_url} target="_blank" rel="noreferrer">
+                            <Paperclip className="w-3 h-3 mr-1" />
+                            {a.file_name}
+                          </a>
+                        </Badge>
+                      ))}
+                    </div>
+                  ) : null}
+                  {msg.resource_links?.length ? (
+                    <div className="mt-2 flex flex-wrap gap-2 mb-3">
+                      {msg.resource_links.map((r) => (
+                        <Badge
+                          key={r.id}
+                          variant="secondary"
+                          className="text-xs px-2 py-1 bg-indigo-100 hover:bg-indigo-200 dark:bg-indigo-900/40 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-200 cursor-pointer"
+                          asChild
+                        >
+                          <a href={r.resource_type === 'contact' ? `/contacts/${r.resource_id}` : `/properties/${r.resource_id}`}>
+                            <LinkIcon className="w-2.5 h-2.5 mr-1" />
+                            {r.label || r.resource_type}
+                          </a>
+                        </Badge>
+                      ))}
+                    </div>
+                  ) : null}
+                  <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-xs h-7 px-2"
+                      onClick={() => handleReaction(msg, '👍')}
                     >
-                      {emoji}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="flex items-center justify-between mt-2 text-[11px] text-gray-500">
-                <button
-                  className="underline"
-                  onClick={() => setThreadParentId(threadParentId === msg.id ? null : msg.id)}
-                >
-                  {threadParentId === msg.id ? 'Thread schließen' : 'Antworten'}
-                </button>
-                {repliesByParent[msg.id]?.length ? (
-                  <span>{repliesByParent[msg.id].length} Antworten</span>
-                ) : null}
-              </div>
-            </div>
+                      <Smile className="w-3 h-3 mr-1" />
+                      {msg.reactions?.find((r) => r.emoji === '👍') ? 'Entfernen' : '👍'}
+                    </Button>
+                    {msg.reactions && msg.reactions.length > 0 && (
+                      <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                        {msg.reactions.map((r) => (
+                          <span key={r.emoji} className="text-sm">{r.emoji}</span>
+                        ))}
+                      </div>
+                    )}
+                    <div className="flex gap-1 ml-auto">
+                      {emojiPalette.map((emoji) => (
+                        <Button
+                          key={emoji}
+                          variant="ghost"
+                          size="sm"
+                          className="text-xs h-7 w-7 p-0 hover:bg-gray-100 dark:hover:bg-gray-700"
+                          onClick={() => handleReaction(msg, emoji)}
+                        >
+                          {emoji}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between mt-2 text-[11px] text-gray-500 dark:text-gray-400">
+                    <Button
+                      variant="link"
+                      size="sm"
+                      className="text-xs h-auto p-0"
+                      onClick={() => setThreadParentId(threadParentId === msg.id ? null : msg.id)}
+                    >
+                      {threadParentId === msg.id ? 'Thread schließen' : 'Antworten'}
+                    </Button>
+                    {repliesByParent[msg.id]?.length ? (
+                      <Badge variant="outline" className="text-[10px]">
+                        {repliesByParent[msg.id].length} Antworten
+                      </Badge>
+                    ) : null}
+                  </div>
+                </CardContent>
+              </Card>
           ))}
-          {!messagesLoading && !messagesPage?.items?.length && (
-            <div className="text-xs text-gray-500">Keine Nachrichten vorhanden.</div>
-          )}
-        </div>
-
-        <div className="mt-3 flex items-center gap-2">
-          <input
-            className="flex-1 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white/70 dark:bg-gray-800 text-sm"
-            placeholder={
-              activeChannelId
-                ? threadParentId
-                  ? 'Antwort im Thread eingeben…'
-                  : 'Nachricht eingeben…'
-                : 'Channel wählen um zu schreiben'
-            }
-            value={messageText}
-            onChange={(e) => setMessageText(e.target.value)}
-            disabled={!activeChannelId}
-          />
-          <button
-            onClick={handleSend}
-            disabled={!activeChannelId || sendMessage.isPending}
-            className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-1"
-          >
-            {sendMessage.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-            Senden
-          </button>
-        </div>
-        {sendError && <div className="text-[11px] text-red-500 mt-1">{sendError}</div>}
-        <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
-          <input
-            className="px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white/70 dark:bg-gray-800"
-            placeholder="Attachment URL"
-            value={attachmentUrl}
-            onChange={(e) => setAttachmentUrl(e.target.value)}
-          />
-          <input
-            className="px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white/70 dark:bg-gray-800"
-            placeholder="Attachment Name"
-            value={attachmentName}
-            onChange={(e) => setAttachmentName(e.target.value)}
-          />
-          <input
-            type="file"
-            className="px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white/70 dark:bg-gray-800"
-            onChange={(e) => handleFile(e.target.files?.[0] || null)}
-          />
-          <div className="flex gap-2 items-center">
-            <button
-              className="px-3 py-2 rounded-lg bg-indigo-600 text-white text-xs hover:bg-indigo-700"
-              onClick={() => setShowResourceModal(true)}
-            >
-              Resource auswählen
-            </button>
-            {resourceId && (
-              <span className="text-[11px] px-2 py-1 rounded bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-200">
-                {resourceLabel || resourceType} • {resourceId.slice(0, 6)}…
-              </span>
+            {!messagesLoading && !messagesPage?.items?.length && (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <MessageSquare className="w-12 h-12 text-gray-300 dark:text-gray-700 mb-3" />
+                <p className="text-sm text-gray-500 dark:text-gray-400">Noch keine Nachrichten</p>
+              </div>
             )}
           </div>
+
+          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-800 space-y-3">
+            <div className="flex items-center gap-2">
+              <Input
+                className="flex-1 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 rounded-xl h-11"
+                placeholder={
+                  activeChannelId
+                    ? threadParentId
+                      ? 'Antwort im Thread eingeben…'
+                      : 'Nachricht eingeben…'
+                    : 'Channel wählen um zu schreiben'
+                }
+                value={messageText}
+                onChange={(e) => setMessageText(e.target.value)}
+                disabled={!activeChannelId}
+                onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
+              />
+              <Button
+                onClick={handleSend}
+                disabled={!activeChannelId || sendMessage.isPending || !messageText.trim()}
+                size="icon"
+                className="h-11 w-11 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white shadow-lg shadow-indigo-500/30 disabled:opacity-50"
+              >
+                {sendMessage.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              </Button>
+            </div>
+            {sendError && (
+              <div className="text-xs text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-950/30 px-3 py-2 rounded-lg border border-red-200 dark:border-red-800">
+                {sendError}
+              </div>
+            )}
+            <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
+              <Input
+                className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700"
+                placeholder="Attachment URL"
+                value={attachmentUrl}
+                onChange={(e) => setAttachmentUrl(e.target.value)}
+              />
+              <Input
+                className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700"
+                placeholder="Attachment Name"
+                value={attachmentName}
+                onChange={(e) => setAttachmentName(e.target.value)}
+              />
+              <Input
+                type="file"
+                className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700"
+                onChange={(e) => handleFile(e.target.files?.[0] || null)}
+              />
+              <div className="flex gap-2 items-center col-span-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs"
+                  onClick={() => setShowResourceModal(true)}
+                >
+                  Resource auswählen
+                </Button>
+                {resourceId && (
+                  <Badge variant="secondary" className="text-[11px]">
+                    {resourceLabel || resourceType} • {resourceId.slice(0, 6)}…
+                  </Badge>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+      </Card>
 
       {/* Details / Threads / Search / Settings */}
       <div className="col-span-3 bg-white/80 dark:bg-gray-900/70 border border-gray-200 dark:border-gray-700 rounded-2xl p-4 shadow-[0_10px_30px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_30px_rgba(0,0,0,0.25)] backdrop-blur space-y-5">
@@ -716,6 +804,7 @@ const CommunicationsHub: React.FC = () => {
             searchTerm && !searchLoading && <div className="text-xs text-gray-500">Keine Treffer.</div>
           )}
         </div>
+      </div>
       </div>
 
       {showResourceModal && (
