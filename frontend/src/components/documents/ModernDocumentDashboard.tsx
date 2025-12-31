@@ -11,6 +11,11 @@ import DocumentAnalyticsDashboard from './DocumentAnalyticsDashboard';
 import { useDocuments, useDocumentFolders, useDocumentAnalytics } from '../../api/hooks';
 import { apiClient } from '../../lib/api/client';
 import { toast } from 'react-hot-toast';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 // Mock interfaces to match the expected types
 interface MockDocument {
@@ -524,43 +529,26 @@ const ModernDocumentDashboard: React.FC<ModernDocumentDashboardProps> = ({
             </div>
 
             <div className="flex items-center space-x-4">
-              <div className="flex bg-gray-200 dark:bg-gray-700 rounded-lg p-1">
-                <button
-                  onClick={() => setViewMode('grid')}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${viewMode === 'grid'
-                      ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm'
-                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                    }`}
-                >
-                  <Grid className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => setViewMode('list')}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${viewMode === 'list'
-                      ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm'
-                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                    }`}
-                >
-                  <List className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => setViewMode('analytics')}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${viewMode === 'analytics'
-                      ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm'
-                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                    }`}
-                >
-                  <FileText className="w-4 h-4" />
-                </button>
-              </div>
+              <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'grid' | 'list' | 'analytics')}>
+                <TabsList>
+                  <TabsTrigger value="grid">
+                    <Grid className="w-4 h-4" />
+                  </TabsTrigger>
+                  <TabsTrigger value="list">
+                    <List className="w-4 h-4" />
+                  </TabsTrigger>
+                  <TabsTrigger value="analytics">
+                    <FileText className="w-4 h-4" />
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
 
-              <button
+              <Button
                 onClick={() => setShowUploadModal(true)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
                 <Upload className="w-4 h-4 mr-2" />
                 Hochladen
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -570,62 +558,68 @@ const ModernDocumentDashboard: React.FC<ModernDocumentDashboardProps> = ({
           {/* Sidebar */}
           <div className="xl:col-span-3 space-y-6">
             {/* Search */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <input
-                  type="text"
-                  placeholder="Dokumente durchsuchen..."
-                  value={filters.search || ''}
-                  onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                />
-              </div>
-            </div>
+            <Card>
+              <CardContent className="p-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                  <Input
+                    type="text"
+                    placeholder="Dokumente durchsuchen..."
+                    value={filters.search || ''}
+                    onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+                    className="pl-10"
+                  />
+                </div>
+              </CardContent>
+            </Card>
 
             {/* Folder Tree */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Ordner
-                </h3>
-                <button
-                  onClick={() => handleFolderCreate('Neuer Ordner')}
-                  className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                >
-                  <FolderPlus className="w-4 h-4" />
-                </button>
-              </div>
-              <DocumentFolderTree
-                folders={mockFolders as any || []}
-                selectedFolder={selectedFolder}
-                onFolderSelect={setSelectedFolder}
-              />
-            </div>
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle>Ordner</CardTitle>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleFolderCreate('Neuer Ordner')}
+                  >
+                    <FolderPlus className="w-4 h-4" />
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <DocumentFolderTree
+                  folders={mockFolders as any || []}
+                  selectedFolder={selectedFolder}
+                  onFolderSelect={setSelectedFolder}
+                />
+              </CardContent>
+            </Card>
 
             {/* Filters */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Filter
-                </h3>
-                <button
-                  onClick={() => setShowFilters(!showFilters)}
-                  className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                >
-                  <Filter className="w-4 h-4" />
-                </button>
-              </div>
-              {showFilters && (
-                <div className="p-4">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle>Filter</CardTitle>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setShowFilters(!showFilters)}
+                  >
+                    <Filter className="w-4 h-4" />
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {showFilters && (
                   <DocumentAdvancedFilters
                     filters={filters as any}
                     tags={[]}
                     onFiltersChange={handleFiltersChange}
                   />
-                </div>
-              )}
-            </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
 
           {/* Main Content Area */}

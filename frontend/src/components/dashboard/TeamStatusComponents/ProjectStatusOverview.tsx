@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { useProperties, useDashboardAnalytics } from '../../../hooks/useApi';
-import { ProjectTimeRange } from 'api';
+import { ProjectTimeRange } from '../../../api';
 import { 
   TrendingUp, 
   CheckCircle, 

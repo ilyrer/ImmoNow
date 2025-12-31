@@ -7,7 +7,9 @@ import {
   Activity,
   Building2,
 } from 'lucide-react';
-import { GlassCard } from './GlassUI';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import EmployeesTab from './tabs/EmployeesTab';
 import RolesTab from './tabs/RolesTab';
 import PayrollTab from './tabs/PayrollTab';
@@ -129,7 +131,7 @@ const AdminConsole: React.FC = () => {
       </div>
 
       {/* Tab Navigation */}
-      <GlassCard className="p-2 mb-6">
+      <Card className="p-2 mb-6">
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
           {TABS.map((tab) => {
             const Icon = tab.icon;
@@ -157,7 +159,7 @@ const AdminConsole: React.FC = () => {
             );
           })}
         </div>
-      </GlassCard>
+      </Card>
 
       {/* Tab Content */}
       <div className="animate-fadeIn">{renderTabContent()}</div>

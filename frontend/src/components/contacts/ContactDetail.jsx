@@ -6,6 +6,16 @@ import apiService from '../../services/api.service';
 import toast from 'react-hot-toast';
 import { getRecommendations, getContactOverview } from '../../api/crm/api';
 import { listMyCompanyUsers } from '../../api/users/api';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const ContactDetail = () => {
   const { id } = useParams();
@@ -822,34 +832,32 @@ const ContactDetail = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="relative">
-          <div className="animate-spin rounded-full h-16 w-16 border-4 border-indigo-200 dark:border-indigo-800"></div>
-          <div className="animate-spin rounded-full h-16 w-16 border-4 border-indigo-600 border-t-transparent absolute top-0 left-0"></div>
-        </div>
+        <Skeleton className="h-16 w-16 rounded-full" />
       </div>
     );
   }
 
   if (error || !contact) {
     return (
-      <div className="text-center py-12">
-        <div className="mx-auto w-24 h-24 bg-gradient-to-br from-gray-400 to-gray-600 rounded-2xl flex items-center justify-center mb-6">
-          <i className="ri-user-3-line text-3xl text-white"></i>
-        </div>
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-          {error ? 'Fehler beim Laden' : 'Kontakt nicht gefunden'}
-        </h2>
-        <p className="text-gray-600 dark:text-gray-400 mb-6">
-          {error || 'Der angeforderte Kontakt existiert nicht oder wurde entfernt.'}
-        </p>
-        <Link
-          to="/contacts"
-          className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
-        >
-          <i className="ri-arrow-left-line mr-2"></i>
-          Zurück zur Kontaktliste
-        </Link>
-      </div>
+      <Card className="text-center py-12">
+        <CardContent>
+          <div className="mx-auto w-24 h-24 bg-gradient-to-br from-gray-400 to-gray-600 rounded-2xl flex items-center justify-center mb-6">
+            <i className="ri-user-3-line text-3xl text-white"></i>
+          </div>
+          <CardTitle className="mb-2">
+            {error ? 'Fehler beim Laden' : 'Kontakt nicht gefunden'}
+          </CardTitle>
+          <p className="text-muted-foreground mb-6">
+            {error || 'Der angeforderte Kontakt existiert nicht oder wurde entfernt.'}
+          </p>
+          <Button asChild>
+            <Link to="/contacts">
+              <i className="ri-arrow-left-line mr-2"></i>
+              Zurück zur Kontaktliste
+            </Link>
+          </Button>
+        </CardContent>
+      </Card>
     );
   }
 
@@ -858,7 +866,8 @@ const ContactDetail = () => {
       {/* Hero Header mit Breadcrumb */}
       <div className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 opacity-10 dark:opacity-20"></div>
-        <div className="relative bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 dark:border-gray-700/50 p-8">
+        <Card className="p-8">
+          <CardContent>
           {/* Breadcrumb */}
           <div className="flex items-center text-sm text-gray-500 dark:text-gray-400 mb-6">
             <Link to="/contacts" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
@@ -896,9 +905,9 @@ const ContactDetail = () => {
                   <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
                     {contact.name}
                   </h1>
-                  <span className={`inline-flex px-3 py-1 text-sm font-bold rounded-full ${getStatusColor(contact.status)} transform hover:scale-105 transition-transform duration-200`}>
+                  <Badge className={`${getStatusColor(contact.status)} transform hover:scale-105 transition-transform duration-200`}>
                     {contact.status}
-                  </span>
+                  </Badge>
                 </div>
 
                 <div className="flex items-center gap-4 text-gray-600 dark:text-gray-400">
@@ -924,12 +933,13 @@ const ContactDetail = () => {
                 {contact.tags && contact.tags.length > 0 && (
                   <div className="flex flex-wrap gap-2 mt-3">
                     {contact.tags.map((tag, index) => (
-                      <span
+                      <Badge
                         key={index}
-                        className="inline-flex px-3 py-1 text-xs font-medium bg-gradient-to-r from-indigo-100 to-purple-100 text-indigo-800 dark:from-indigo-900/30 dark:to-purple-900/30 dark:text-indigo-300 rounded-full"
+                        variant="outline"
+                        className="bg-gradient-to-r from-indigo-100 to-purple-100 text-indigo-800 dark:from-indigo-900/30 dark:to-purple-900/30 dark:text-indigo-300"
                       >
                         {tag}
-                      </span>
+                      </Badge>
                     ))}
                   </div>
                 )}
@@ -1000,51 +1010,49 @@ const ContactDetail = () => {
 
           {/* Action Buttons */}
           <div className="flex flex-wrap items-center gap-3 mt-8 pt-6 border-t border-gray-200/50 dark:border-gray-700/50">
-            <button
+            <Button
               onClick={() => window.open(`tel:${contact.phone}`, '_self')}
-              className="group relative inline-flex items-center px-6 py-3 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white font-semibold rounded-xl hover:from-emerald-700 hover:to-emerald-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+              className="bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800"
             >
               <i className="ri-phone-line mr-2 text-lg"></i>
               Anrufen
-              <div className="absolute inset-0 bg-white/20 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
-            </button>
+            </Button>
 
-            <button
+            <Button
               onClick={() => window.open(`mailto:${contact.email}?subject=Kontakt zu ${contact.name}&body=Hallo ${contact.name},%0D%0A%0D%0AIch möchte mich bezüglich Ihrer Immobilienanfrage bei Ihnen melden.%0D%0A%0D%0AMit freundlichen Grüßen`, '_blank')}
-              className="group relative inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+              className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
             >
               <i className="ri-mail-line mr-2 text-lg"></i>
               E-Mail senden
-              <div className="absolute inset-0 bg-white/20 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
-            </button>
+            </Button>
 
-            <button
+            <Button
               onClick={() => setShowAppointmentModal(true)}
-              className="group relative inline-flex items-center px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-700 text-white font-semibold rounded-xl hover:from-purple-700 hover:to-purple-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+              className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800"
             >
               <i className="ri-calendar-line mr-2 text-lg"></i>
               Termin planen
-              <div className="absolute inset-0 bg-white/20 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
-            </button>
+            </Button>
 
-            <button
+            <Button
               onClick={handleEditContact}
-              className="inline-flex items-center px-6 py-3 bg-gray-800 dark:bg-gray-900 text-white font-semibold rounded-xl border-2 border-blue-500 hover:border-blue-400 hover:bg-gray-700 dark:hover:bg-gray-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+              variant="outline"
             >
               <i className="ri-edit-line mr-2 text-lg"></i>
               Bearbeiten
-            </button>
+            </Button>
 
-            <button
+            <Button
               onClick={() => navigate('/kontakte')}
+              variant="outline"
               className="inline-flex items-center px-4 py-3 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm text-gray-700 dark:text-gray-300 font-medium rounded-xl border border-gray-200/50 dark:border-gray-600/50 hover:bg-white dark:hover:bg-gray-800 transition-all duration-200 shadow-md hover:shadow-lg"
             >
               <i className="ri-arrow-left-line mr-2"></i>
               Zurück
-            </button>
+            </Button>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Tab Navigation mit modernem Design */}
       <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 dark:border-gray-700/50 overflow-hidden">
@@ -2486,6 +2494,7 @@ const ContactDetail = () => {
           </div>
         </div>
       )}
+    </div>
     </div>
   );
 };

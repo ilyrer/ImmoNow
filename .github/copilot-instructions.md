@@ -116,6 +116,29 @@ python manage.py migrate
 - **Backend**: `pytest` from `backend/` directory (config in `pytest.ini`)
 - **Frontend**: `npm test` from `frontend/` directory (Jest + React Testing Library)
 
+## UI/UX Architecture
+
+**Layout System**:
+- **GlobalSidebar** (`frontend/src/components/common/GlobalSidebar.tsx`): Collapsible Apple-style glassmorphism sidebar
+  - Toggle button positioned in middle-right with glassmorphism style
+  - Transitions between 300px (expanded) and 90px (collapsed)
+  - State managed via `onCollapsedChange` callback to parent Layout
+  - Uses Tailwind with backdrop-blur and transparency layers
+- **Layout** (`frontend/src/components/Layout/Layout.jsx`): Main wrapper with dynamic margin based on sidebar state
+  - `ml-80` when expanded, `ml-20` when collapsed
+  - Smooth 300ms transitions with `ease-in-out`
+- **Responsive Patterns**: 
+  - Use `flex-1 min-w-0` for flexible columns that never overflow horizontally
+  - Container must have `overflow-hidden` to prevent horizontal scroll
+  - Use `w-full` + `flex gap-2` instead of fixed widths for board columns
+
+**Kanban Board Specifics** (`frontend/src/components/dashboard/Kanban/ProfessionalKanbanBoard.tsx`):
+- Columns use `flex-1 min-w-0` to distribute evenly across viewport width
+- Board container has `overflow-hidden` - NO horizontal scrolling allowed
+- Vertical scrolling only within column content areas
+- Gap reduced to `gap-2` for tighter column spacing
+- Padding: `px-4 py-6` (less horizontal padding to maximize space)
+
 ## Coding Conventions
 
 ### Backend Patterns
@@ -183,6 +206,8 @@ export const useUpdateTask = () => {
 5. **Frontend Proxy**: `package.json` proxies to `http://localhost:8000`. Use relative URLs like `/api/v1/tasks`
 6. **Billing Checks**: Wrap premium features with `BillingGuard.check_feature()` to respect plan limits
 7. **Scope Guards**: Don't forget scope checks (`require_write_scope`) on write operations
+8. **Horizontal Scroll Prevention**: Always use `flex-1 min-w-0` for columns, never `flex-shrink-0` with fixed widths. Container needs `overflow-hidden`.
+9. **Sidebar State Management**: Layout component manages `sidebarCollapsed` state and passes to sidebar via `onCollapsedChange` callback
 
 ## AI & External Service Integrations
 

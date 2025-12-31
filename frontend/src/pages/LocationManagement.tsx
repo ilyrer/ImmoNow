@@ -6,12 +6,12 @@ import {
     MapPin, Plus, Edit2, Trash2, Search, Save, X,
     Building2, TrendingUp, Settings, AlertCircle
 } from 'lucide-react';
-import { locationService } from 'services/location';
+import { locationService } from '../services/location';
 import {
     LocationMarketData,
     LocationCreate,
     LocationUpdate
-} from 'types/location';
+} from '../types/location';
 
 const LocationManagement: React.FC = () => {
     const [locations, setLocations] = useState<LocationMarketData[]>([]);

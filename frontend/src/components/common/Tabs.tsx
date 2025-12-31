@@ -1,4 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { Tabs as ShadcnTabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { cn } from '@/lib/utils';
 
 interface Tab {
   id: string;
@@ -52,109 +54,19 @@ export const Tabs: React.FC<TabsProps> = ({
   };
 
   const renderDefaultTabs = () => (
-    <div className={`relative inline-flex rounded-lg bg-gray-100/50 dark:bg-gray-800/50 backdrop-blur-sm p-1 ${className}`}>
-      {tabs.map((tab, index) => (
-        <button
-          key={tab.id}
-          ref={el => tabsRef.current[index] = el}
-          onClick={() => !tab.disabled && onChange(tab.id)}
-          disabled={tab.disabled}
-          className={`
-            relative z-10 ${sizes[size]}
-            rounded-md font-medium
-            transition-all duration-200
-            disabled:opacity-50 disabled:cursor-not-allowed
-            ${activeTab === tab.id
-              ? 'text-gray-900 dark:text-white'
-              : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-            }
-          `}
-          role="tab"
-          aria-selected={activeTab === tab.id}
-          aria-disabled={tab.disabled}
-        >
-          <span className="flex items-center gap-2">
-            {tab.icon}
-            {tab.label}
-            {tab.badge && (
-              <span className="ml-1 px-2 py-0.5 text-xs font-semibold rounded-full bg-blue-500 text-white">
-                {tab.badge}
-              </span>
-            )}
-          </span>
-        </button>
-      ))}
-      <div
-        className="absolute z-0 bg-white dark:bg-gray-700 rounded-md shadow-md transition-all duration-300 ease-out"
-        style={{
-          ...indicatorStyle,
-          top: '4px',
-          bottom: '4px'
-        }}
-      />
-    </div>
-  );
-
-  const renderPillTabs = () => (
-    <div className={`flex gap-2 ${className}`}>
-      {tabs.map((tab) => (
-        <button
-          key={tab.id}
-          onClick={() => !tab.disabled && onChange(tab.id)}
-          disabled={tab.disabled}
-          className={`
-            ${sizes[size]}
-            rounded-full font-medium
-            transition-all duration-200
-            disabled:opacity-50 disabled:cursor-not-allowed
-            ${activeTab === tab.id
-              ? 'bg-blue-600 text-white shadow-md'
-              : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-            }
-          `}
-          role="tab"
-          aria-selected={activeTab === tab.id}
-          aria-disabled={tab.disabled}
-        >
-          <span className="flex items-center gap-2">
-            {tab.icon}
-            {tab.label}
-            {tab.badge && (
-              <span className={`
-                ml-1 px-2 py-0.5 text-xs font-semibold rounded-full
-                ${activeTab === tab.id ? 'bg-white/20' : 'bg-blue-500 text-white'}
-              `}>
-                {tab.badge}
-              </span>
-            )}
-          </span>
-        </button>
-      ))}
-    </div>
-  );
-
-  const renderUnderlineTabs = () => (
-    <div className={`relative ${className}`}>
-      <div className="flex gap-6 border-b border-gray-200 dark:border-gray-700">
+    <ShadcnTabs value={activeTab} onValueChange={onChange} className={cn("w-full", className)}>
+      <TabsList className="relative inline-flex rounded-lg bg-gray-100/50 dark:bg-gray-800/50 backdrop-blur-sm p-1">
         {tabs.map((tab, index) => (
-          <button
+          <TabsTrigger
             key={tab.id}
-            ref={el => tabsRef.current[index] = el}
-            onClick={() => !tab.disabled && onChange(tab.id)}
+            value={tab.id}
             disabled={tab.disabled}
-            className={`
-              relative ${sizes[size]} pb-3
-              font-medium
-              transition-all duration-200
-              disabled:opacity-50 disabled:cursor-not-allowed
-              ${activeTab === tab.id
-                ? 'text-blue-600 dark:text-blue-400'
-                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-              }
-            `}
-            role="tab"
-            aria-selected={activeTab === tab.id}
-            aria-disabled={tab.disabled}
+            ref={(el: HTMLButtonElement | null) => { tabsRef.current[index] = el; }}
+            className={cn(
+              "relative z-10",
+              sizes[size],
+              "data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700"
+            )}
           >
             <span className="flex items-center gap-2">
               {tab.icon}
@@ -165,14 +77,76 @@ export const Tabs: React.FC<TabsProps> = ({
                 </span>
               )}
             </span>
-          </button>
+          </TabsTrigger>
         ))}
-      </div>
-      <div
-        className="absolute bottom-0 h-0.5 bg-blue-600 dark:bg-blue-400 transition-all duration-300 ease-out"
-        style={indicatorStyle}
-      />
-    </div>
+      </TabsList>
+    </ShadcnTabs>
+  );
+
+  const renderPillTabs = () => (
+    <ShadcnTabs value={activeTab} onValueChange={onChange} className={cn("w-full", className)}>
+      <TabsList className="flex gap-2 bg-transparent p-0">
+        {tabs.map((tab) => (
+          <TabsTrigger
+            key={tab.id}
+            value={tab.id}
+            disabled={tab.disabled}
+            className={cn(
+              sizes[size],
+              "rounded-full font-medium",
+              "data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-md",
+              "data-[state=inactive]:bg-gray-100 dark:data-[state=inactive]:bg-gray-800 data-[state=inactive]:text-gray-700 dark:data-[state=inactive]:text-gray-300"
+            )}
+          >
+            <span className="flex items-center gap-2">
+              {tab.icon}
+              {tab.label}
+              {tab.badge && (
+                <span className={cn(
+                  "ml-1 px-2 py-0.5 text-xs font-semibold rounded-full",
+                  activeTab === tab.id ? 'bg-white/20' : 'bg-blue-500 text-white'
+                )}>
+                  {tab.badge}
+                </span>
+              )}
+            </span>
+          </TabsTrigger>
+        ))}
+      </TabsList>
+    </ShadcnTabs>
+  );
+
+  const renderUnderlineTabs = () => (
+    <ShadcnTabs value={activeTab} onValueChange={onChange} className={cn("w-full", className)}>
+      <TabsList className="relative flex gap-6 border-b border-gray-200 dark:border-gray-700 bg-transparent p-0 h-auto">
+        {tabs.map((tab, index) => (
+          <TabsTrigger
+            key={tab.id}
+            value={tab.id}
+            disabled={tab.disabled}
+            ref={(el: HTMLButtonElement | null) => { tabsRef.current[index] = el; }}
+            className={cn(
+              "relative",
+              sizes[size],
+              "pb-3 font-medium rounded-none border-b-2 border-transparent",
+              "data-[state=active]:border-blue-600 dark:data-[state=active]:border-blue-400",
+              "data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400",
+              "data-[state=inactive]:text-gray-600 dark:data-[state=inactive]:text-gray-400"
+            )}
+          >
+            <span className="flex items-center gap-2">
+              {tab.icon}
+              {tab.label}
+              {tab.badge && (
+                <span className="ml-1 px-2 py-0.5 text-xs font-semibold rounded-full bg-blue-500 text-white">
+                  {tab.badge}
+                </span>
+              )}
+            </span>
+          </TabsTrigger>
+        ))}
+      </TabsList>
+    </ShadcnTabs>
   );
 
   switch (variant) {
@@ -202,15 +176,9 @@ export const TabPanel: React.FC<TabPanelProps> = ({
   activeTab,
   className = ''
 }) => {
-  if (tabId !== activeTab) return null;
-
   return (
-    <div
-      role="tabpanel"
-      aria-labelledby={tabId}
-      className={`animate-fadeIn ${className}`}
-    >
+    <TabsContent value={tabId} className={cn("animate-fadeIn", className)}>
       {children}
-    </div>
+    </TabsContent>
   );
 };

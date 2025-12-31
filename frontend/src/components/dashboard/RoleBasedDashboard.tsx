@@ -14,6 +14,7 @@ import { useEmployees } from '../../hooks/useTasks';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
 import WidgetManager from '../CIM/WidgetManager';
 import DashboardGrid from './DashboardGrid';
+import { getWidgetsForRole, getDefaultWidgetsForRole, isWidgetAvailableForRole, WIDGET_CONFIGS } from '../../config/dashboard-widgets';
 import {
   Settings,
   BarChart3,
@@ -181,6 +182,8 @@ const WidgetComponent: React.FC<WidgetComponentProps> = ({ widget, onRemove, onE
             <WeatherMarketWidget />
           </Suspense>
         );
+      case 'finance_overview':
+        return <FinanceOverviewWidget />;
       default:
         return <div className="p-6 flex items-center justify-center h-full text-gray-400">Widget nicht gefunden: {widget.type}</div>;
     }
@@ -241,6 +244,106 @@ const TeamPerformanceWidget: React.FC = () => {
             
             <div className="text-xs text-gray-500 dark:text-gray-400">
               {member.revenue.toLocaleString('de-DE')} € Umsatz
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// Finance Overview Widget
+const FinanceOverviewWidget: React.FC = () => {
+  const { data: analytics, isLoading: analyticsLoading } = useDashboardAnalytics();
+  const { data: propertiesData, isLoading: propertiesLoading } = useProperties({ page: 1, size: 50 });
+
+  const isLoading = analyticsLoading || propertiesLoading;
+
+  if (isLoading) {
+    return (
+      <div className="p-6 h-full flex flex-col">
+        <div className="flex items-center mb-6">
+          <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-xl animate-pulse"></div>
+          <div className="ml-3">
+            <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-32 animate-pulse"></div>
+            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-24 mt-1 animate-pulse"></div>
+          </div>
+        </div>
+        <div className="space-y-4 flex-1">
+          {[...Array(4)].map((_, index) => (
+            <div key={index} className="glass p-4 rounded-xl animate-pulse">
+              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded mb-2"></div>
+              <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded"></div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  const propertyItems = propertiesData?.items ?? [];
+  const totalValue = propertyItems.reduce((sum, property) => sum + (property.price || 0), 0);
+  const monthlyRevenue = analytics?.monthly_revenue ?? totalValue * 0.05;
+  const monthlyExpenses = analytics?.monthly_expenses ?? monthlyRevenue * 0.6;
+  const netIncome = monthlyRevenue - monthlyExpenses;
+  const profitMargin = monthlyRevenue > 0 ? (netIncome / monthlyRevenue) * 100 : 0;
+
+  const financeMetrics = [
+    {
+      label: 'Monatlicher Umsatz',
+      value: monthlyRevenue,
+      format: (v: number) => `€${Math.round(v).toLocaleString('de-DE')}`,
+      color: 'from-green-500 to-emerald-600',
+      icon: 'ri-arrow-up-line'
+    },
+    {
+      label: 'Monatliche Ausgaben',
+      value: monthlyExpenses,
+      format: (v: number) => `€${Math.round(v).toLocaleString('de-DE')}`,
+      color: 'from-red-500 to-rose-600',
+      icon: 'ri-arrow-down-line'
+    },
+    {
+      label: 'Nettoeinkommen',
+      value: netIncome,
+      format: (v: number) => `€${Math.round(v).toLocaleString('de-DE')}`,
+      color: netIncome >= 0 ? 'from-blue-500 to-cyan-600' : 'from-orange-500 to-red-600',
+      icon: netIncome >= 0 ? 'ri-trending-up-line' : 'ri-trending-down-line'
+    },
+    {
+      label: 'Gewinnmarge',
+      value: profitMargin,
+      format: (v: number) => `${v.toFixed(1)}%`,
+      color: profitMargin >= 20 ? 'from-purple-500 to-pink-600' : profitMargin >= 10 ? 'from-blue-500 to-indigo-600' : 'from-yellow-500 to-orange-600',
+      icon: 'ri-percent-line'
+    }
+  ];
+
+  return (
+    <div className="p-6 h-full flex flex-col">
+      <div className="flex items-center mb-6">
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center mr-3">
+          <DollarSign className="w-5 h-5 text-white" />
+        </div>
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Finanz-Übersicht</h3>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Finanzielle Kennzahlen</p>
+        </div>
+      </div>
+      
+      <div className="space-y-4 flex-1">
+        {financeMetrics.map((metric, index) => (
+          <div key={index} className="glass p-4 rounded-xl">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                {metric.label}
+              </span>
+              <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${metric.color} flex items-center justify-center`}>
+                <i className={`${metric.icon} text-white text-sm`}></i>
+              </div>
+            </div>
+            <div className="text-2xl font-bold text-gray-900 dark:text-white">
+              {metric.format(metric.value)}
             </div>
           </div>
         ))}
@@ -1339,21 +1442,60 @@ const RoleBasedDashboard: React.FC = () => {
       category: 'analytics',
       icon: MapPin,
       color: 'bg-gradient-to-br from-cyan-500 to-blue-600'
+    },
+    {
+      id: 'finance_overview',
+      type: 'finance_overview',
+      title: 'Finanz-Übersicht',
+      description: 'Finanzielle Kennzahlen',
+      position: { x: 0, y: 0, w: 6, h: 4 },
+      visible: false,
+      category: 'finance',
+      icon: DollarSign,
+      color: 'bg-gradient-to-br from-emerald-500 to-green-600'
     }
   ]), []);
 
   const filteredAvailableWidgets = useMemo(() => {
     if (!user) return availableWidgets;
-    if (user.role === 'customer') {
-      return availableWidgets.filter(w => w.category !== 'finance');
-    }
-    return availableWidgets;
+    
+    // Get user role - map frontend roles to backend roles if needed
+    const userRole = user.role || 'agent';
+    const roleMapping: Record<string, string> = {
+      'admin': 'admin',
+      'team_leader': 'manager',
+      'makler': 'agent',
+      'assistant': 'agent',
+      'customer': 'viewer'
+    };
+    const mappedRole = roleMapping[userRole] || userRole;
+    
+    // Filter widgets based on role configuration
+    return availableWidgets.filter(w => 
+      isWidgetAvailableForRole(w.type, mappedRole) || 
+      isWidgetAvailableForRole(w.type, userRole)
+    );
   }, [availableWidgets, user]);
 
-  // Load widgets from localStorage on component mount
+  // Get user role for localStorage key
+  const getUserRoleKey = useMemo(() => {
+    if (!user) return 'default';
+    const userRole = user.role || 'agent';
+    const roleMapping: Record<string, string> = {
+      'admin': 'admin',
+      'team_leader': 'manager',
+      'makler': 'agent',
+      'assistant': 'agent',
+      'customer': 'viewer'
+    };
+    return roleMapping[userRole] || userRole;
+  }, [user]);
+
+  // Load widgets from localStorage on component mount (pro Rolle)
   useEffect(() => {
     if (isLoading) return;
-    const savedWidgets = localStorage.getItem('dashboardWidgets');
+    const storageKey = `dashboardWidgets_${getUserRoleKey}`;
+    const savedWidgets = localStorage.getItem(storageKey);
     if (savedWidgets) {
       try {
         const parsed = JSON.parse(savedWidgets);
@@ -1361,6 +1503,10 @@ const RoleBasedDashboard: React.FC = () => {
           .map((widget: any) => {
             const template = filteredAvailableWidgets.find(aw => aw.type === widget.type);
             if (!template) return null;
+            // Prüfe ob Widget noch für Rolle verfügbar ist
+            if (!isWidgetAvailableForRole(widget.type, getUserRoleKey)) {
+              return null;
+            }
             return {
               ...widget,
               icon: template.icon || BarChart3,
@@ -1368,34 +1514,56 @@ const RoleBasedDashboard: React.FC = () => {
             };
           })
           .filter(Boolean) as DashboardWidget[];
-        setWidgets(restoredWidgets);
+        
+        if (restoredWidgets.length > 0) {
+          setWidgets(restoredWidgets);
+        } else {
+          setDefaultWidgets(filteredAvailableWidgets);
+        }
       } catch {
         setDefaultWidgets(filteredAvailableWidgets);
       }
     } else {
       setDefaultWidgets(filteredAvailableWidgets);
     }
-  }, [filteredAvailableWidgets, isLoading]);
+  }, [filteredAvailableWidgets, isLoading, getUserRoleKey]);
 
-  // Save widgets to localStorage whenever widgets change
+  // Save widgets to localStorage whenever widgets change (pro Rolle)
   useEffect(() => {
     if (widgets.length > 0) {
+      const storageKey = `dashboardWidgets_${getUserRoleKey}`;
       const serializableWidgets = widgets.map(({ icon, ...widget }) => widget);
-      localStorage.setItem('dashboardWidgets', JSON.stringify(serializableWidgets));
+      localStorage.setItem(storageKey, JSON.stringify(serializableWidgets));
     }
-  }, [widgets]);
+  }, [widgets, getUserRoleKey]);
 
   const setDefaultWidgets = (templates = filteredAvailableWidgets) => {
     const defaultWidgets = [];
     
-    // Versuche die 5 besten Widgets zu laden, fallback zu verfügbaren
-    const preferredWidgets = [
-      'overview_stats',
-      'revenue_chart', 
-      'property_performance',
-      'lead_conversion',
-      'task_progress'
-    ];
+    // Get user role for default widgets
+    const userRole = user?.role || 'agent';
+    const roleMapping: Record<string, string> = {
+      'admin': 'admin',
+      'team_leader': 'manager',
+      'makler': 'agent',
+      'assistant': 'agent',
+      'customer': 'viewer'
+    };
+    const mappedRole = roleMapping[userRole] || userRole;
+    
+    // Get default widgets for role from configuration
+    const roleDefaultWidgets = getDefaultWidgetsForRole(mappedRole);
+    
+    // Use configured default widgets or fallback to preferred widgets
+    const preferredWidgets = roleDefaultWidgets.length > 0
+      ? roleDefaultWidgets.map(w => w.type)
+      : [
+          'overview_stats',
+          'revenue_chart', 
+          'property_performance',
+          'lead_conversion',
+          'task_progress'
+        ];
     
     const fallbackWidgets = [
       'kpi_cards',
@@ -1481,8 +1649,9 @@ const RoleBasedDashboard: React.FC = () => {
   const generateId = () => Math.random().toString(36).substr(2, 9);
 
   const handleLoadDefaultLayout = () => {
-    // Lösche localStorage und lade Standard-Widgets
-    localStorage.removeItem('dashboardWidgets');
+    // Lösche localStorage für aktuelle Rolle und lade Standard-Widgets
+    const storageKey = `dashboardWidgets_${getUserRoleKey}`;
+    localStorage.removeItem(storageKey);
     setDefaultWidgets();
   };
 
@@ -1569,8 +1738,9 @@ const RoleBasedDashboard: React.FC = () => {
 
   const handleResetLayout = () => {
     if (window.confirm('Möchten Sie das Dashboard-Layout wirklich zurücksetzen? Alle Anpassungen gehen verloren.')) {
-      // Lösche localStorage und setze Standard-Widgets
-      localStorage.removeItem('dashboardWidgets');
+      // Lösche localStorage für aktuelle Rolle und setze Standard-Widgets
+      const storageKey = `dashboardWidgets_${getUserRoleKey}`;
+      localStorage.removeItem(storageKey);
       setDefaultWidgets();
       setIsWidgetManagerOpen(false);
     }

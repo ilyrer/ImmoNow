@@ -4,27 +4,29 @@ import { useAppointments } from '../../../../hooks/useAppointments';
 import { Calendar, Clock } from 'lucide-react';
 import { format, isToday, isBefore, startOfDay } from 'date-fns';
 import { de } from 'date-fns/locale';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
 
 const LoadingState = () => (
-  <div className="p-6 h-full flex flex-col space-y-4">
-    <div className="flex items-center space-x-3">
-      <div className="w-10 h-10 rounded-xl bg-gray-200 dark:bg-gray-700 animate-pulse" />
-      <div className="flex-1 space-y-2">
-        <div className="h-4 w-40 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
-        <div className="h-3 w-24 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+  <Card className="h-full">
+    <CardHeader>
+      <Skeleton className="h-6 w-40" />
+      <Skeleton className="h-4 w-32 mt-2" />
+    </CardHeader>
+    <CardContent>
+      <div className="grid grid-cols-3 gap-3 mb-4">
+        {[...Array(3)].map((_, idx) => (
+          <div key={idx} className="p-4 rounded-xl space-y-2">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-6 w-full" />
+            <Skeleton className="h-3 w-2/3" />
+          </div>
+        ))}
       </div>
-    </div>
-    <div className="grid grid-cols-3 gap-3">
-      {[...Array(3)].map((_, idx) => (
-        <div key={idx} className="glass p-4 rounded-xl animate-pulse space-y-2">
-          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded" />
-          <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded" />
-          <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded" />
-        </div>
-      ))}
-    </div>
-    <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-xl animate-pulse" />
-  </div>
+      <Skeleton className="h-48 w-full rounded-xl" />
+    </CardContent>
+  </Card>
 );
 
 const OpsTodayWidget: React.FC = () => {
@@ -50,21 +52,24 @@ const OpsTodayWidget: React.FC = () => {
   if (isLoading) return <LoadingState />;
 
   return (
-    <div className="p-6 h-full flex flex-col space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center">
-            <Clock className="w-5 h-5 text-white" />
+    <Card className="h-full">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center">
+              <Clock className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <CardTitle>Heute & Fälliges</CardTitle>
+              <CardDescription>Tasks & Termine in Echtzeit</CardDescription>
+            </div>
           </div>
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Heute & Fälliges</h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Tasks & Termine in Echtzeit</p>
-          </div>
+          <Badge variant="outline" className="bg-blue-500/10 text-blue-600 dark:text-blue-300 border-blue-500/20">
+            Live aktualisiert
+          </Badge>
         </div>
-        <div className="text-xs px-3 py-1.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-300 border border-blue-500/20">
-          Live aktualisiert
-        </div>
-      </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
 
       <div className="grid grid-cols-3 gap-3">
         <div className="glass p-4 rounded-xl">
@@ -117,7 +122,8 @@ const OpsTodayWidget: React.FC = () => {
           </div>
         )}
       </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 };
 

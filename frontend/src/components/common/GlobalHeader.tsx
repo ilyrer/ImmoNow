@@ -156,8 +156,6 @@ const GlobalHeader: React.FC = () => {
         return 'Kontakte';
       case '/finance':
         return 'Finanzierung';
-      case '/admin':
-        return 'Verwaltung';
       case '/dokumente':
       case '/documents':
         return 'Dokument-Management';

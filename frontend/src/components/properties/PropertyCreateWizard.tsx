@@ -6,6 +6,14 @@ import { ChevronLeft, ChevronRight, Trash2, GripVertical } from 'lucide-react';
 import { useCreateProperty } from '../../api/hooks';
 import api from '../../services/api.service';
 import { PropertyResponse } from '../../lib/api/types';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 type Step = 1 | 2 | 3 | 4;
 
@@ -220,32 +228,32 @@ const PropertyCreateWizard: React.FC = () => {
       <div className="max-w-5xl mx-auto p-6">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Neue Immobilie anlegen</h1>
-          <div className="relative">
-            <button type="button" onClick={() => setShowDrafts((s) => !s)} className="px-3 py-2 text-sm rounded-lg border hover:bg-gray-50 dark:hover:bg-gray-800 dark:border-gray-700">Entwürfe</button>
-            {showDrafts && (
-              <div className="absolute right-0 mt-2 w-80 bg-white/95 dark:bg-gray-800/95 backdrop-blur-md border dark:border-gray-700 rounded-lg shadow-2xl z-10">
-                <div className="p-3 border-b dark:border-gray-700 text-sm font-medium">Gespeicherte Entwürfe</div>
-                <div className="max-h-64 overflow-auto">
-                  {getDrafts().length === 0 ? (
-                    <div className="p-3 text-sm text-gray-500">Keine Entwürfe vorhanden.</div>
-                  ) : (
-                    getDrafts().map((d) => (
-                      <div key={d.id} className="p-3 border-b last:border-none dark:border-gray-700 text-sm flex items-center justify-between gap-2">
-                        <div>
-                          <div className="font-medium truncate">{d.title || 'Entwurf'}</div>
-                          <div className="text-xs text-gray-500">{new Date(d.savedAt).toLocaleString()}</div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button className="px-2 py-1 text-xs rounded border dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700" onClick={() => loadDraft(d.id)}>Laden</button>
-                          <button className="px-2 py-1 text-xs rounded border border-red-300 text-red-600 hover:bg-red-50 dark:border-red-700 dark:hover:bg-red-900/30" onClick={() => deleteDraft(d.id)}>Löschen</button>
-                        </div>
+          <Popover open={showDrafts} onOpenChange={setShowDrafts}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" type="button">Entwürfe</Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80" align="end">
+              <div className="p-3 border-b text-sm font-medium">Gespeicherte Entwürfe</div>
+              <div className="max-h-64 overflow-auto">
+                {getDrafts().length === 0 ? (
+                  <div className="p-3 text-sm text-muted-foreground">Keine Entwürfe vorhanden.</div>
+                ) : (
+                  getDrafts().map((d) => (
+                    <div key={d.id} className="p-3 border-b last:border-none text-sm flex items-center justify-between gap-2">
+                      <div>
+                        <div className="font-medium truncate">{d.title || 'Entwurf'}</div>
+                        <div className="text-xs text-muted-foreground">{new Date(d.savedAt).toLocaleString()}</div>
                       </div>
-                    ))
-                  )}
-                </div>
+                      <div className="flex items-center gap-2">
+                        <Button size="sm" variant="outline" onClick={() => loadDraft(d.id)}>Laden</Button>
+                        <Button size="sm" variant="destructive" onClick={() => deleteDraft(d.id)}>Löschen</Button>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
-            )}
-          </div>
+            </PopoverContent>
+          </Popover>
         </div>
 
         {/* stepper */}
@@ -263,62 +271,83 @@ const PropertyCreateWizard: React.FC = () => {
 
         {/* content */}
         <motion.div
-          className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-md border border-white/30 dark:border-gray-700/50 rounded-2xl shadow-2xl p-6"
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.25, ease: 'easeOut' }}
         >
+        <Card className="p-6">
+          <CardContent className="pt-6">
           {step === 1 && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium mb-2">Titel</label>
-                  <input className="w-full p-3 border rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition" value={form.title} onChange={(e)=>setForm({...form, title: e.target.value})} placeholder="z.B. Helles Einfamilienhaus" />
+                  <Label>Titel</Label>
+                  <Input value={form.title} onChange={(e)=>setForm({...form, title: e.target.value})} placeholder="z.B. Helles Einfamilienhaus" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-2">Beschreibung</label>
-                  <textarea className="w-full p-3 border rounded-lg dark:bg-gray-700 min-h-[110px] focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition" value={form.description} onChange={(e)=>setForm({...form, description: e.target.value})} />
+                  <Label>Beschreibung</Label>
+                  <Textarea className="min-h-[110px]" value={form.description} onChange={(e)=>setForm({...form, description: e.target.value})} />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium mb-2">Typ</label>
-                    <select className="w-full p-3 border rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition" value={form.property_type} onChange={(e)=>setForm({...form, property_type: e.target.value})}>
-                      <option value="house">Haus</option>
-                      <option value="apartment">Wohnung</option>
-                      <option value="commercial">Gewerbe</option>
-                      <option value="land">Grundstück</option>
-                    </select>
+                    <Label>Typ</Label>
+                    <Select value={form.property_type} onValueChange={(value)=>setForm({...form, property_type: value})}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="house">Haus</SelectItem>
+                        <SelectItem value="apartment">Wohnung</SelectItem>
+                        <SelectItem value="commercial">Gewerbe</SelectItem>
+                        <SelectItem value="land">Grundstück</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-2">Status</label>
-                    <select className="w-full p-3 border rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition" value={form.status} onChange={(e)=>setForm({...form, status: e.target.value})}>
-                      <option value="vorbereitung">Vorbereitung</option>
-                      <option value="aktiv">Aktiv</option>
-                      <option value="reserviert">Reserviert</option>
-                      <option value="verkauft">Verkauft</option>
-                      <option value="zurückgezogen">Zurückgezogen</option>
-                    </select>
+                    <Label>Status</Label>
+                    <Select value={form.status} onValueChange={(value)=>setForm({...form, status: value})}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="vorbereitung">Vorbereitung</SelectItem>
+                        <SelectItem value="aktiv">Aktiv</SelectItem>
+                        <SelectItem value="reserviert">Reserviert</SelectItem>
+                        <SelectItem value="verkauft">Verkauft</SelectItem>
+                        <SelectItem value="zurückgezogen">Zurückgezogen</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-sm font-medium mb-2">Preis (€)</label>
-                    <input type="number" className="w-full p-3 border rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition" value={form.price ?? ''} onChange={(e)=>setForm({...form, price: e.target.value? Number(e.target.value): undefined})} />
+                    <Label>Preis (€)</Label>
+                    <Input type="number" value={form.price ?? ''} onChange={(e)=>setForm({...form, price: e.target.value? Number(e.target.value): undefined})} />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-2">Preisart</label>
-                    <select className="w-full p-3 border rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition" value={form.price_type} onChange={(e)=>setForm({...form, price_type: e.target.value})}>
-                      <option value="sale">Kauf</option>
-                      <option value="rent">Miete</option>
-                    </select>
+                    <Label>Preisart</Label>
+                    <Select value={form.price_type} onValueChange={(value)=>setForm({...form, price_type: value})}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="sale">Kauf</SelectItem>
+                        <SelectItem value="rent">Miete</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-2">Währung</label>
-                    <select className="w-full p-3 border rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition" value={form.price_currency} onChange={(e)=>setForm({...form, price_currency: e.target.value})}>
-                      <option value="EUR">EUR</option>
-                      <option value="USD">USD</option>
-                      <option value="CHF">CHF</option>
-                    </select>
+                    <Label>Währung</Label>
+                    <Select value={form.price_currency} onValueChange={(value)=>setForm({...form, price_currency: value})}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="EUR">EUR</SelectItem>
+                        <SelectItem value="USD">USD</SelectItem>
+                        <SelectItem value="CHF">CHF</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               </div>
@@ -326,27 +355,27 @@ const PropertyCreateWizard: React.FC = () => {
               {/* address */}
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium mb-2">Straße</label>
-                  <input className="w-full p-3 border rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition" value={form.address.street} onChange={(e)=>setForm({...form, address: {...form.address, street: e.target.value}})} placeholder="Musterstraße 1"/>
+                  <Label>Straße</Label>
+                  <Input value={form.address.street} onChange={(e)=>setForm({...form, address: {...form.address, street: e.target.value}})} placeholder="Musterstraße 1"/>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium mb-2">PLZ</label>
-                    <input className="w-full p-3 border rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition" value={form.address.postal_code} onChange={(e)=>setForm({...form, address: {...form.address, postal_code: e.target.value}})} />
+                    <Label>PLZ</Label>
+                    <Input value={form.address.postal_code} onChange={(e)=>setForm({...form, address: {...form.address, postal_code: e.target.value}})} />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-2">Ort</label>
-                    <input className="w-full p-3 border rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition" value={form.address.city} onChange={(e)=>setForm({...form, address: {...form.address, city: e.target.value}})} />
+                    <Label>Ort</Label>
+                    <Input value={form.address.city} onChange={(e)=>setForm({...form, address: {...form.address, city: e.target.value}})} />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium mb-2">Bundesland</label>
-                    <input className="w-full p-3 border rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition" value={form.address.state} onChange={(e)=>setForm({...form, address: {...form.address, state: e.target.value}})} />
+                    <Label>Bundesland</Label>
+                    <Input value={form.address.state} onChange={(e)=>setForm({...form, address: {...form.address, state: e.target.value}})} />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-2">Land</label>
-                    <input className="w-full p-3 border rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition" value={form.address.country} onChange={(e)=>setForm({...form, address: {...form.address, country: e.target.value}})} />
+                    <Label>Land</Label>
+                    <Input value={form.address.country} onChange={(e)=>setForm({...form, address: {...form.address, country: e.target.value}})} />
                   </div>
                 </div>
               </div>
@@ -358,85 +387,85 @@ const PropertyCreateWizard: React.FC = () => {
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium mb-2">Wohnfläche (m²)</label>
-                    <input type="number" className="w-full p-3 border rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition" value={form.living_area ?? ''} onChange={(e)=>setForm({...form, living_area: e.target.value? Number(e.target.value): undefined})} />
+                    <Label>Wohnfläche (m²)</Label>
+                    <Input type="number" value={form.living_area ?? ''} onChange={(e)=>setForm({...form, living_area: e.target.value? Number(e.target.value): undefined})} />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-2">Gesamtfläche (m²)</label>
-                    <input type="number" className="w-full p-3 border rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition" value={form.total_area ?? ''} onChange={(e)=>setForm({...form, total_area: e.target.value? Number(e.target.value): undefined})} />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Grundstücksfläche (m²)</label>
-                    <input type="number" className="w-full p-3 border rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition" value={form.plot_area ?? ''} onChange={(e)=>setForm({...form, plot_area: e.target.value? Number(e.target.value): undefined})} />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Zimmer</label>
-                    <input type="number" className="w-full p-3 border rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition" value={form.rooms ?? ''} onChange={(e)=>setForm({...form, rooms: e.target.value? Number(e.target.value): undefined})} />
+                    <Label>Gesamtfläche (m²)</Label>
+                    <Input type="number" value={form.total_area ?? ''} onChange={(e)=>setForm({...form, total_area: e.target.value? Number(e.target.value): undefined})} />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium mb-2">Schlafzimmer</label>
-                    <input type="number" className="w-full p-3 border rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition" value={form.bedrooms ?? ''} onChange={(e)=>setForm({...form, bedrooms: e.target.value? Number(e.target.value): undefined})} />
+                    <Label>Grundstücksfläche (m²)</Label>
+                    <Input type="number" value={form.plot_area ?? ''} onChange={(e)=>setForm({...form, plot_area: e.target.value? Number(e.target.value): undefined})} />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-2">Bäder</label>
-                    <input type="number" className="w-full p-3 border rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition" value={form.bathrooms ?? ''} onChange={(e)=>setForm({...form, bathrooms: e.target.value? Number(e.target.value): undefined})} />
+                    <Label>Zimmer</Label>
+                    <Input type="number" value={form.rooms ?? ''} onChange={(e)=>setForm({...form, rooms: e.target.value? Number(e.target.value): undefined})} />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium mb-2">Etagen</label>
-                    <input type="number" className="w-full p-3 border rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition" value={form.floors ?? ''} onChange={(e)=>setForm({...form, floors: e.target.value? Number(e.target.value): undefined})} />
+                    <Label>Schlafzimmer</Label>
+                    <Input type="number" value={form.bedrooms ?? ''} onChange={(e)=>setForm({...form, bedrooms: e.target.value? Number(e.target.value): undefined})} />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-2">Baujahr</label>
-                    <input type="number" className="w-full p-3 border rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition" value={form.year_built ?? ''} onChange={(e)=>setForm({...form, year_built: e.target.value? Number(e.target.value): undefined})} />
+                    <Label>Bäder</Label>
+                    <Input type="number" value={form.bathrooms ?? ''} onChange={(e)=>setForm({...form, bathrooms: e.target.value? Number(e.target.value): undefined})} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Etagen</Label>
+                    <Input type="number" value={form.floors ?? ''} onChange={(e)=>setForm({...form, floors: e.target.value? Number(e.target.value): undefined})} />
+                  </div>
+                  <div>
+                    <Label>Baujahr</Label>
+                    <Input type="number" value={form.year_built ?? ''} onChange={(e)=>setForm({...form, year_built: e.target.value? Number(e.target.value): undefined})} />
                   </div>
                 </div>
               </div>
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium mb-2">Energieklasse</label>
-                    <input className="w-full p-3 border rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition" value={form.energy_class} onChange={(e)=>setForm({...form, energy_class: e.target.value})} />
+                    <Label>Energieklasse</Label>
+                    <Input value={form.energy_class} onChange={(e)=>setForm({...form, energy_class: e.target.value})} />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-2">Heizung</label>
-                    <input className="w-full p-3 border rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition" value={form.heating_type} onChange={(e)=>setForm({...form, heating_type: e.target.value})} />
+                    <Label>Heizung</Label>
+                    <Input value={form.heating_type} onChange={(e)=>setForm({...form, heating_type: e.target.value})} />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-2">Energieverbrauch (kWh/m²a)</label>
-                  <input type="number" className="w-full p-3 border rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition" value={form.energy_consumption ?? ''} onChange={(e)=>setForm({...form, energy_consumption: e.target.value? Number(e.target.value): undefined})} />
+                  <Label>Energieverbrauch (kWh/m²a)</Label>
+                  <Input type="number" value={form.energy_consumption ?? ''} onChange={(e)=>setForm({...form, energy_consumption: e.target.value? Number(e.target.value): undefined})} />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium mb-2">Breite (Lat)</label>
-                    <input type="number" step="0.000001" className="w-full p-3 border rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition" value={form.coordinates_lat ?? ''} onChange={(e)=>setForm({...form, coordinates_lat: e.target.value? Number(e.target.value): undefined})} />
+                    <Label>Breite (Lat)</Label>
+                    <Input type="number" step="0.000001" value={form.coordinates_lat ?? ''} onChange={(e)=>setForm({...form, coordinates_lat: e.target.value? Number(e.target.value): undefined})} />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-2">Länge (Lng)</label>
-                    <input type="number" step="0.000001" className="w-full p-3 border rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition" value={form.coordinates_lng ?? ''} onChange={(e)=>setForm({...form, coordinates_lng: e.target.value? Number(e.target.value): undefined})} />
+                    <Label>Länge (Lng)</Label>
+                    <Input type="number" step="0.000001" value={form.coordinates_lng ?? ''} onChange={(e)=>setForm({...form, coordinates_lng: e.target.value? Number(e.target.value): undefined})} />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-2">Ausstattung (Kommagetrennt)</label>
-                  <input className="w-full p-3 border rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition" value={(form.amenities||[]).join(', ')} onChange={(e)=>setForm({...form, amenities: e.target.value.split(',').map(s=>s.trim()).filter(Boolean)})} />
+                  <Label>Ausstattung (Kommagetrennt)</Label>
+                  <Input value={(form.amenities||[]).join(', ')} onChange={(e)=>setForm({...form, amenities: e.target.value.split(',').map(s=>s.trim()).filter(Boolean)})} />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-2">Tags (Kommagetrennt)</label>
-                  <input className="w-full p-3 border rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition" value={(form.tags||[]).join(', ')} onChange={(e)=>setForm({...form, tags: e.target.value.split(',').map(s=>s.trim()).filter(Boolean)})} />
+                  <Label>Tags (Kommagetrennt)</Label>
+                  <Input value={(form.tags||[]).join(', ')} onChange={(e)=>setForm({...form, tags: e.target.value.split(',').map(s=>s.trim()).filter(Boolean)})} />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-2">Ansprechpartner</label>
+                  <Label>Ansprechpartner</Label>
                   <div className="grid grid-cols-2 gap-4">
-                    <input className="p-3 border rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition" placeholder="Vorname" value={form.contact_person.first_name} onChange={(e)=>setForm({...form, contact_person: {...form.contact_person, first_name: e.target.value}})} />
-                    <input className="p-3 border rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition" placeholder="Nachname" value={form.contact_person.last_name} onChange={(e)=>setForm({...form, contact_person: {...form.contact_person, last_name: e.target.value}})} />
-                    <input className="p-3 border rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition" placeholder="E-Mail" value={form.contact_person.email} onChange={(e)=>setForm({...form, contact_person: {...form.contact_person, email: e.target.value}})} />
-                    <input className="p-3 border rounded-lg dark:bg-gray-700 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/60 transition" placeholder="Telefon" value={form.contact_person.phone} onChange={(e)=>setForm({...form, contact_person: {...form.contact_person, phone: e.target.value}})} />
+                    <Input placeholder="Vorname" value={form.contact_person.first_name} onChange={(e)=>setForm({...form, contact_person: {...form.contact_person, first_name: e.target.value}})} />
+                    <Input placeholder="Nachname" value={form.contact_person.last_name} onChange={(e)=>setForm({...form, contact_person: {...form.contact_person, last_name: e.target.value}})} />
+                    <Input placeholder="E-Mail" value={form.contact_person.email} onChange={(e)=>setForm({...form, contact_person: {...form.contact_person, email: e.target.value}})} />
+                    <Input placeholder="Telefon" value={form.contact_person.phone} onChange={(e)=>setForm({...form, contact_person: {...form.contact_person, phone: e.target.value}})} />
                   </div>
                 </div>
               </div>
@@ -450,15 +479,15 @@ const PropertyCreateWizard: React.FC = () => {
                   {messages.map((m, i) => (
                     <div key={i} className="text-xs px-3 py-2 rounded bg-yellow-50 border border-yellow-200 text-yellow-800 dark:bg-yellow-900/30 dark:border-yellow-800 dark:text-yellow-200 flex justify-between items-center">
                       <span className="truncate pr-2">{m}</span>
-                      <button className="text-xs" onClick={() => setMessages((prev) => prev.filter((_, idx) => idx !== i))}>✕</button>
+                      <Button size="sm" variant="ghost" className="h-auto p-0 text-xs" onClick={() => setMessages((prev) => prev.filter((_, idx) => idx !== i))}>✕</Button>
                     </div>
                   ))}
                 </div>
               )}
               <div>
-                <div className="flex items-center justify-between">
-                  <label className="block text-sm font-medium mb-2">Bilder hochladen</label>
-                  <span className="text-xs text-gray-500">Erlaubt: JPG, PNG, WEBP • Max. 15 MB pro Datei</span>
+                <div className="flex items-center justify-between mb-2">
+                  <Label>Bilder hochladen</Label>
+                  <span className="text-xs text-muted-foreground">Erlaubt: JPG, PNG, WEBP • Max. 15 MB pro Datei</span>
                 </div>
                 <div
                   ref={dropRefImg}
@@ -498,16 +527,18 @@ const PropertyCreateWizard: React.FC = () => {
                           </div>
                           <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs p-1 truncate flex items-center justify-between gap-2">
                             <span className="truncate">{f.name}</span>
-                            <button
+                            <Button
                               type="button"
-                              className={`px-2 py-0.5 rounded text-[10px] ${mainImageIndex===idx? 'bg-amber-400 text-black':'bg-white/80 text-black hover:bg-white'}`}
+                              size="sm"
+                              variant={mainImageIndex===idx ? "default" : "secondary"}
+                              className="text-[10px] h-auto py-0.5"
                               onClick={(e)=>{ e.stopPropagation(); setMainImageIndex(idx===mainImageIndex? null: idx); }}
                               title="Als Hauptbild markieren"
                             >
                               {mainImageIndex===idx? 'Hauptbild' : 'Als Hauptbild'}
-                            </button>
+                            </Button>
                           </div>
-                          <button type="button" onClick={()=>removeFile(idx, setImages, images)} className="absolute top-1 right-1 p-1 rounded bg-white/80 dark:bg-gray-800/80 hover:bg-white"><Trash2 className="h-4 w-4"/></button>
+                          <Button type="button" size="sm" variant="ghost" onClick={()=>removeFile(idx, setImages, images)} className="absolute top-1 right-1"><Trash2 className="h-4 w-4"/></Button>
                           {dragIdx !== null && (
                             <div className="absolute inset-0 border-2 border-indigo-400 pointer-events-none rounded-lg" />
                           )}
@@ -518,9 +549,9 @@ const PropertyCreateWizard: React.FC = () => {
                 )}
               </div>
               <div>
-                <div className="flex items-center justify-between">
-                  <label className="block text-sm font-medium mb-2">Dokumente hochladen</label>
-                  <span className="text-xs text-gray-500">PDF, DOCX • Max. 15 MB pro Datei</span>
+                <div className="flex items-center justify-between mb-2">
+                  <Label>Dokumente hochladen</Label>
+                  <span className="text-xs text-muted-foreground">PDF, DOCX • Max. 15 MB pro Datei</span>
                 </div>
                 <div
                   ref={dropRefDoc}
@@ -537,7 +568,7 @@ const PropertyCreateWizard: React.FC = () => {
                     {docs.map((f, idx) => (
                       <div key={idx} className="flex items-center justify-between border rounded-lg p-2 text-sm dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/70 transition-colors">
                         <span className="truncate mr-3">{f.name}</span>
-                        <button type="button" onClick={()=>removeFile(idx, setDocs, docs)} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"><Trash2 className="h-4 w-4"/></button>
+                        <Button type="button" size="sm" variant="ghost" onClick={()=>removeFile(idx, setDocs, docs)}><Trash2 className="h-4 w-4"/></Button>
                       </div>
                     ))}
                   </div>
@@ -582,24 +613,26 @@ const PropertyCreateWizard: React.FC = () => {
               )}
             </div>
           )}
-  </motion.div>
+          </CardContent>
+        </Card>
+        </motion.div>
 
         {/* footer */}
         <div className="flex justify-between mt-6">
-          <button onClick={prev} disabled={step===1} className={`px-4 py-2 rounded-lg border ${step===1? 'opacity-50 cursor-not-allowed':'hover:bg-gray-50 dark:hover:bg-gray-800'} dark:border-gray-700`}>
-            <ChevronLeft className="h-4 w-4 inline mr-1"/> Zurück
-          </button>
+          <Button onClick={prev} disabled={step===1} variant="outline">
+            <ChevronLeft className="h-4 w-4 mr-1"/> Zurück
+          </Button>
           <div className="flex items-center gap-3">
-            <button type="button" onClick={saveDraft} className="px-4 py-2 rounded-lg border hover:bg-gray-50 dark:hover:bg-gray-800 dark:border-gray-700">Entwurf speichern</button>
+            <Button type="button" onClick={saveDraft} variant="outline">Entwurf speichern</Button>
             {step < 4 && (
-              <button onClick={next} disabled={!canNext} className={`px-4 py-2 rounded-lg ${canNext? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md hover:shadow-lg transition-all':'bg-gray-300 dark:bg-gray-700 text-gray-600 cursor-not-allowed'}`}>
-                Weiter <ChevronRight className="h-4 w-4 inline ml-1"/>
-              </button>
+              <Button onClick={next} disabled={!canNext}>
+                Weiter <ChevronRight className="h-4 w-4 ml-1"/>
+              </Button>
             )}
             {step === 4 && (
-              <button onClick={submit} disabled={submitting || !canNext} className={`px-4 py-2 rounded-lg ${(!submitting && canNext)? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md hover:shadow-lg transition-all':'bg-gray-300 dark:bg-gray-700 text-gray-600 cursor-not-allowed'}`}>
+              <Button onClick={submit} disabled={submitting || !canNext}>
                 {submitting? 'Wird erstellt…' : 'Erstellen'}
-              </button>
+              </Button>
             )}
           </div>
         </div>

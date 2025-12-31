@@ -28,6 +28,10 @@ import {
   AlertCircle,
   Grid3X3
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const CIMOverview: React.FC = () => {
   const navigate = useNavigate();
@@ -93,12 +97,11 @@ const CIMOverview: React.FC = () => {
             </div>
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Fehler beim Laden</h3>
             <p className="text-gray-600 dark:text-gray-400 mb-6">{String(queryError)}</p>
-            <button
+            <Button
               onClick={() => refetch()}
-              className="px-6 py-3 bg-gradient-to-r from-blue-500/80 to-purple-600/80 hover:from-blue-600/90 hover:to-purple-700/90 text-white rounded-xl font-medium shadow-glass transition-all duration-200 backdrop-blur-sm border border-white/20"
             >
               Erneut versuchen
-            </button>
+            </Button>
           </div>
         </div>
       </div>

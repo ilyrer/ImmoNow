@@ -8,7 +8,9 @@ import {
   Key,
   Activity,
 } from 'lucide-react';
-import { GlassCard } from '../admin/GlassUI';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ProfileOverviewTab from './tabs/ProfileOverviewTab';
 import ProfilePersonalTab from './tabs/ProfilePersonalTab';
 import ProfileSecurityTab from './tabs/ProfileSecurityTab';
@@ -103,38 +105,39 @@ const ProfilePage: React.FC = () => {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as ProfileTab)} className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Sidebar Navigation */}
           <div className="lg:col-span-1">
-            <GlassCard className="p-4">
-              <nav className="space-y-1">
-                {TABS.map((tab) => {
-                  const Icon = tab.icon;
-                  const isActive = activeTab === tab.id;
-                  return (
-                    <button
-                      key={tab.id}
-                      onClick={() => setActiveTab(tab.id)}
-                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                        isActive
-                          ? 'bg-blue-500/20 text-blue-600 dark:text-blue-400 shadow-lg'
-                          : 'hover:bg-gray-100/50 dark:hover:bg-gray-700/50 text-gray-700 dark:text-gray-300'
-                      }`}
-                    >
-                      <Icon className="w-5 h-5" />
-                      <span className="font-medium">{tab.label}</span>
-                    </button>
-                  );
-                })}
-              </nav>
-            </GlassCard>
+            <Card>
+              <CardContent className="p-4">
+                <TabsList className="flex flex-col space-y-1 w-full">
+                  {TABS.map((tab) => {
+                    const Icon = tab.icon;
+                    return (
+                      <TabsTrigger
+                        key={tab.id}
+                        value={tab.id}
+                        className="w-full justify-start"
+                      >
+                        <Icon className="w-5 h-5 mr-3" />
+                        <span className="font-medium">{tab.label}</span>
+                      </TabsTrigger>
+                    );
+                  })}
+                </TabsList>
+              </CardContent>
+            </Card>
           </div>
 
           {/* Content */}
           <div className="lg:col-span-3">
-            {renderTabContent()}
+            {TABS.map((tab) => (
+              <TabsContent key={tab.id} value={tab.id}>
+                {renderTabContent()}
+              </TabsContent>
+            ))}
           </div>
-        </div>
+        </Tabs>
       </div>
     </div>
   );

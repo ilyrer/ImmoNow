@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Unauthentifizierter API Client für Registration
 const registrationApiClient = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:8000',
+  baseURL: import.meta.env.VITE_API_URL || process.env.REACT_APP_API_URL || 'http://localhost:8000',
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',

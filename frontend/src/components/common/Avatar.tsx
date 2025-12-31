@@ -1,4 +1,6 @@
 import React from 'react';
+import { Avatar as ShadcnAvatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { cn } from '@/lib/utils';
 
 interface AvatarProps {
   src?: string;
@@ -12,7 +14,7 @@ interface AvatarProps {
 
 /**
  * Avatar Component
- * Apple Glass Design Avatar with status indicators
+ * Apple Glass Design Avatar with status indicators using shadcn/ui
  * Supports image or initials fallback
  */
 export const Avatar: React.FC<AvatarProps> = ({ 
@@ -57,49 +59,30 @@ export const Avatar: React.FC<AvatarProps> = ({
   };
 
   return (
-    <div className={`relative inline-block ${className}`}>
-      <div 
-        className={`
-          ${sizes[size]} 
-          rounded-full 
-          overflow-hidden 
-          bg-gradient-to-br from-blue-500 to-purple-600
-          dark:from-blue-600 dark:to-purple-700
-          flex items-center justify-center
-          text-white font-semibold
-          backdrop-blur-sm
-          border-2 border-white/20 dark:border-white/10
-          shadow-soft
-          transition-all duration-200
-          hover:scale-105
-        `}
-        role="img"
-        aria-label={alt || name || 'Avatar'}
-      >
-        {src ? (
-          <img 
-            src={src} 
-            alt={alt || name} 
-            className="w-full h-full object-cover"
-            onError={(e) => {
-              e.currentTarget.style.display = 'none';
-            }}
-          />
-        ) : (
-          <span>{getInitials(name)}</span>
+    <div className={cn("relative inline-block", className)}>
+      <ShadcnAvatar
+        className={cn(
+          sizes[size],
+          "bg-gradient-to-br from-blue-500 to-purple-600 dark:from-blue-600 dark:to-purple-700",
+          "backdrop-blur-sm border-2 border-white/20 dark:border-white/10 shadow-soft",
+          "transition-all duration-200 hover:scale-105"
         )}
-      </div>
+      >
+        {src && <AvatarImage src={src} alt={alt || name} />}
+        <AvatarFallback className="text-white font-semibold">
+          {getInitials(name)}
+        </AvatarFallback>
+      </ShadcnAvatar>
       
       {showStatus && status && (
         <span 
-          className={`
-            absolute bottom-0 right-0 
-            ${statusSizes[size]} 
-            ${statusColors[status]}
-            rounded-full 
-            border-2 border-white dark:border-gray-800
-            ring-2 ring-white/50 dark:ring-gray-800/50
-          `}
+          className={cn(
+            "absolute bottom-0 right-0",
+            statusSizes[size],
+            statusColors[status],
+            "rounded-full border-2 border-white dark:border-gray-800",
+            "ring-2 ring-white/50 dark:ring-gray-800/50"
+          )}
           aria-label={`Status: ${status}`}
         />
       )}

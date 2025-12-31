@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import apiClient from '../../../../lib/api/client';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 
 interface CalendarEvent {
   id: number;
@@ -110,20 +114,19 @@ const CalendarWidget: React.FC = () => {
     .slice(0, 2);
 
   return (
-    <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 dark:border-gray-700/50 p-6 h-full">
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center">
-          <i className="ri-calendar-line mr-2 text-blue-600 dark:text-blue-400"></i>
-          Kalender
-        </h3>
-        <button className="text-xs text-blue-600 dark:text-blue-400 hover:underline">
-          Vollansicht
-        </button>
-      </div>
-
+    <Card className="h-full">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle>Kalender</CardTitle>
+          <Button variant="ghost" size="sm">
+            Vollansicht
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
       {isLoading ? (
         <div className="flex items-center justify-center h-32">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <Skeleton className="h-8 w-8 rounded-full" />
         </div>
       ) : (
         <>
@@ -201,7 +204,8 @@ const CalendarWidget: React.FC = () => {
           </div>
         </>
       )}
-    </div>
+      </CardContent>
+    </Card>
   );
 };
 

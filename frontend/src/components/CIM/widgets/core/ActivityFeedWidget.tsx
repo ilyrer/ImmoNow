@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import apiClient from '../../../../lib/api/client';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { AlertCircle } from 'lucide-react';
 
 interface Activity {
   id: number;
@@ -89,48 +92,47 @@ const ActivityFeedWidget: React.FC = () => {
   // Loading state
   if (isLoading) {
     return (
-      <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 dark:border-gray-700/50 p-6 h-full">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center">
-            <i className="ri-notification-line mr-2 text-blue-600 dark:text-blue-400"></i>
-            Aktivitäten
-          </h3>
-        </div>
-        <div className="flex items-center justify-center h-32">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        </div>
-      </div>
+      <Card className="h-full">
+        <CardHeader>
+          <Skeleton className="h-6 w-32" />
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center h-32">
+            <Skeleton className="h-8 w-8 rounded-full" />
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
   // Error state
   if (error) {
     return (
-      <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 dark:border-gray-700/50 p-6 h-full">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center">
-            <i className="ri-notification-line mr-2 text-blue-600 dark:text-blue-400"></i>
-            Aktivitäten
-          </h3>
-        </div>
-        <div className="text-center text-red-600 dark:text-red-400 py-8">
-          {error}
-        </div>
-      </div>
+      <Card className="h-full">
+        <CardHeader>
+          <CardTitle>Aktivitäten</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center text-red-600 dark:text-red-400 py-8">
+            <AlertCircle className="h-8 w-8 mx-auto mb-2" />
+            {error}
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 dark:border-gray-700/50 p-6 h-full">
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center">
-          <i className="ri-notification-line mr-2 text-blue-600 dark:text-blue-400"></i>
-          Aktivitäten
-        </h3>
-        <button className="text-xs text-blue-600 dark:text-blue-400 hover:underline">
-          Alle anzeigen
-        </button>
-      </div>
+    <Card className="h-full">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle>Aktivitäten</CardTitle>
+          <button className="text-xs text-blue-600 dark:text-blue-400 hover:underline">
+            Alle anzeigen
+          </button>
+        </div>
+      </CardHeader>
+      <CardContent>
 
       {activities.length > 0 ? (
         <>
@@ -188,7 +190,8 @@ const ActivityFeedWidget: React.FC = () => {
           <span>Aktualisiert: {new Date().toLocaleTimeString('de-DE')}</span>
         </div>
       </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 };
 

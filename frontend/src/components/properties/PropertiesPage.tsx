@@ -13,6 +13,14 @@ import {
   Clock, Trash2
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
 
 // Hooks & Services
 import { 
@@ -101,20 +109,61 @@ const PropertiesPage: React.FC<PropertiesPageProps> = ({ user }) => {
 
   // Memoized Properties
   const properties = useMemo(() => {
-    return propertiesData?.items || [];
+    if (!propertiesData) return [];
+    // Handle different response formats
+    if (Array.isArray(propertiesData)) {
+      return propertiesData;
+    }
+    // Check if it's a paginated response
+    if (propertiesData.items) {
+      return Array.isArray(propertiesData.items) ? propertiesData.items : [];
+    }
+    if (propertiesData.data) {
+      return Array.isArray(propertiesData.data) ? propertiesData.data : [];
+    }
+    return [];
   }, [propertiesData]);
+
+  // Debug logging
+  useEffect(() => {
+    console.log('🔍 PropertiesPage Debug:', {
+      isLoading,
+      hasError: !!error,
+      propertiesData,
+      propertiesCount: properties.length,
+      filters
+    });
+    if (error) {
+      console.error('❌ Properties Error:', error);
+    }
+  }, [isLoading, error, propertiesData, properties.length, filters]);
 
   const pagination = useMemo(() => {
     if (!propertiesData) return null;
+    // Handle different response formats
+    if (Array.isArray(propertiesData)) {
+      return {
+        total: propertiesData.length,
+        page: filters.page || 1,
+        size: filters.size || 20,
+        pages: Math.ceil(propertiesData.length / (filters.size || 20)),
+        hasNext: false,
+        hasPrev: false,
+      };
+    }
+    const total = propertiesData.total || 0;
+    const page = propertiesData.page || filters.page || 1;
+    const size = propertiesData.size || filters.size || 20;
+    const pages = propertiesData.pages || Math.ceil(total / size);
     return {
-      total: propertiesData.total,
-      page: propertiesData.page,
-      size: propertiesData.size,
-      pages: propertiesData.pages,
-      hasNext: propertiesData.hasNext,
-      hasPrev: propertiesData.hasPrev,
+      total,
+      page,
+      size,
+      pages,
+      hasNext: propertiesData.hasNext ?? (page < pages),
+      hasPrev: propertiesData.hasPrev ?? (page > 1),
     };
-  }, [propertiesData]);
+  }, [propertiesData, filters.page, filters.size]);
 
   // Handlers
   const handleFilterChange = (key: keyof PropertyListParams, value: any) => {
@@ -255,24 +304,8 @@ const PropertiesPage: React.FC<PropertiesPageProps> = ({ user }) => {
     );
   }, [filters]);
 
-  // Loading State
-  if (isLoading && !properties.length) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/20 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="text-center"
-        >
-          <Loader2 className="w-16 h-16 text-blue-500 animate-spin mx-auto mb-4" />
-          <p className="text-gray-600 dark:text-gray-400 text-lg">Immobilien werden geladen...</p>
-        </motion.div>
-      </div>
-    );
-  }
-
-  // Error State
-  if (error) {
+  // Error State - Zeige immer die Seite, auch bei Fehlern
+  if (error && !propertiesData) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/20 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center">
         <motion.div
@@ -287,12 +320,12 @@ const PropertiesPage: React.FC<PropertiesPageProps> = ({ user }) => {
           <p className="text-gray-600 dark:text-gray-400 mb-6">
             {(error as any)?.message || 'Die Immobilien konnten nicht geladen werden.'}
           </p>
-          <button
+          <Button
             onClick={() => refetch()}
             className="px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-xl hover:from-blue-600 hover:to-indigo-600 transition-all shadow-lg"
           >
             Erneut versuchen
-          </button>
+          </Button>
         </motion.div>
       </div>
     );
@@ -300,7 +333,19 @@ const PropertiesPage: React.FC<PropertiesPageProps> = ({ user }) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/20 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
-      <div className="max-w-[1800px] mx-auto px-6 py-8">
+      {/* Loading Overlay */}
+      {isLoading && !properties.length && (
+        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
+          <Card className="p-8 shadow-2xl">
+            <div className="text-center">
+              <Loader2 className="w-16 h-16 text-blue-500 animate-spin mx-auto mb-4" />
+              <p className="text-gray-600 dark:text-gray-400 text-lg font-medium">Immobilien werden geladen...</p>
+            </div>
+          </Card>
+        </div>
+      )}
+      
+      <div className="max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -318,13 +363,13 @@ const PropertiesPage: React.FC<PropertiesPageProps> = ({ user }) => {
               </p>
             </div>
             
-            <button
+            <Button
               onClick={() => navigate('/properties/create')}
-              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-xl hover:from-blue-600 hover:to-indigo-600 transition-all shadow-lg hover:shadow-xl"
+              className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white hover:from-blue-600 hover:to-indigo-600 shadow-lg hover:shadow-xl"
             >
               <Plus className="w-5 h-5" />
               <span className="font-semibold">Neue Immobilie</span>
-            </button>
+            </Button>
           </div>
 
           {/* Bulk Action Bar */}
@@ -350,33 +395,39 @@ const PropertiesPage: React.FC<PropertiesPageProps> = ({ user }) => {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <button
+                    <Button
                       onClick={handleBulkPublish}
                       disabled={bulkActionMutation.isPending}
-                      className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm rounded-lg transition-all disabled:opacity-50"
+                      variant="default"
+                      size="sm"
+                      className="bg-green-500 hover:bg-green-600 text-white"
                     >
                       Veröffentlichen
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       onClick={handleBulkArchive}
                       disabled={bulkActionMutation.isPending}
-                      className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white text-sm rounded-lg transition-all disabled:opacity-50"
+                      variant="default"
+                      size="sm"
+                      className="bg-gray-500 hover:bg-gray-600 text-white"
                     >
                       Archivieren
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       onClick={handleBulkDelete}
                       disabled={bulkActionMutation.isPending}
-                      className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm rounded-lg transition-all disabled:opacity-50"
+                      variant="destructive"
+                      size="sm"
                     >
                       {bulkActionMutation.isPending ? 'Wird gelöscht...' : 'Löschen'}
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       onClick={() => setSelectedProperties([])}
-                      className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-all"
+                      variant="ghost"
+                      size="icon"
                     >
                       <X className="w-4 h-4" />
-                    </button>
+                    </Button>
                   </div>
                 </div>
               </motion.div>
@@ -390,95 +441,110 @@ const PropertiesPage: React.FC<PropertiesPageProps> = ({ user }) => {
               <div className="flex-1">
                 <div className="relative">
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Immobilien durchsuchen..."
-                    value={filters.search || ''}
-                    onChange={(e) => handleSearch(e.target.value)}
-                    className="w-full pl-12 pr-4 py-3 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                  />
+                  <div className="relative">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 z-10" />
+                    <Input
+                      type="text"
+                      placeholder="Immobilien durchsuchen..."
+                      value={filters.search || ''}
+                      onChange={(e) => handleSearch(e.target.value)}
+                      className="pl-12 bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600"
+                    />
+                  </div>
                 </div>
               </div>
 
               {/* Quick Filters */}
               <div className="flex gap-3 flex-wrap lg:flex-nowrap">
                 {/* Type Filter */}
-                <select
-                  value={filters.property_type || ''}
-                  onChange={(e) => handleFilterChange('property_type', e.target.value || undefined)}
-                  className="px-4 py-3 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                <Select
+                  value={filters.property_type || 'all'}
+                  onValueChange={(value) => handleFilterChange('property_type', value === 'all' ? undefined : value)}
                 >
-                  <option value="">Alle Typen</option>
-                  <option value="apartment">Wohnung</option>
-                  <option value="house">Haus</option>
-                  <option value="commercial">Gewerbe</option>
-                  <option value="land">Grundstück</option>
-                </select>
+                  <SelectTrigger className="w-[180px] bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600">
+                    <SelectValue placeholder="Alle Typen" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Alle Typen</SelectItem>
+                    <SelectItem value="apartment">Wohnung</SelectItem>
+                    <SelectItem value="house">Haus</SelectItem>
+                    <SelectItem value="commercial">Gewerbe</SelectItem>
+                    <SelectItem value="land">Grundstück</SelectItem>
+                  </SelectContent>
+                </Select>
 
                 {/* Status Filter */}
-                <select
-                  value={filters.status || ''}
-                  onChange={(e) => handleFilterChange('status', e.target.value || undefined)}
-                  className="px-4 py-3 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                <Select
+                  value={filters.status || 'all'}
+                  onValueChange={(value) => handleFilterChange('status', value === 'all' ? undefined : value)}
                 >
-                  <option value="">Alle Status</option>
-                  <option value="vorbereitung">Vorbereitung</option>
-                  <option value="aktiv">Aktiv</option>
-                  <option value="reserviert">Reserviert</option>
-                  <option value="verkauft">Verkauft</option>
-                </select>
+                  <SelectTrigger className="w-[180px] bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600">
+                    <SelectValue placeholder="Alle Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Alle Status</SelectItem>
+                    <SelectItem value="vorbereitung">Vorbereitung</SelectItem>
+                    <SelectItem value="aktiv">Aktiv</SelectItem>
+                    <SelectItem value="reserviert">Reserviert</SelectItem>
+                    <SelectItem value="verkauft">Verkauft</SelectItem>
+                  </SelectContent>
+                </Select>
 
                 {/* Sort */}
-                <select
+                <Select
                   value={`${filters.sort_by}-${filters.sort_order}`}
-                  onChange={(e) => {
-                    const [sort_by, sort_order] = e.target.value.split('-');
+                  onValueChange={(value) => {
+                    const [sort_by, sort_order] = value.split('-');
                     setFilters(prev => ({ ...prev, sort_by, sort_order: sort_order as 'asc' | 'desc' }));
                   }}
-                  className="px-4 py-3 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                 >
-                  <option value="created_at-desc">Neueste zuerst</option>
-                  <option value="created_at-asc">Älteste zuerst</option>
-                  <option value="price-asc">Preis aufsteigend</option>
-                  <option value="price-desc">Preis absteigend</option>
-                  <option value="living_area-desc">Größte zuerst</option>
-                </select>
+                  <SelectTrigger className="w-[180px] bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600">
+                    <SelectValue placeholder="Sortieren" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="created_at-desc">Neueste zuerst</SelectItem>
+                    <SelectItem value="created_at-asc">Älteste zuerst</SelectItem>
+                    <SelectItem value="price-asc">Preis aufsteigend</SelectItem>
+                    <SelectItem value="price-desc">Preis absteigend</SelectItem>
+                    <SelectItem value="living_area-desc">Größte zuerst</SelectItem>
+                  </SelectContent>
+                </Select>
 
                 {/* View Toggle */}
                 <div className="flex bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl overflow-hidden">
-                  <button
+                  <Button
                     onClick={() => setViewMode('grid')}
-                    className={`p-3 transition-all ${
-                      viewMode === 'grid'
-                        ? 'bg-blue-500 text-white'
-                        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-600'
-                    }`}
+                    variant={viewMode === 'grid' ? 'default' : 'ghost'}
+                    size="icon"
+                    className={cn(
+                      viewMode === 'grid' && 'bg-blue-500 text-white hover:bg-blue-600'
+                    )}
                   >
                     <Grid className="w-5 h-5" />
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     onClick={() => setViewMode('list')}
-                    className={`p-3 transition-all ${
-                      viewMode === 'list'
-                        ? 'bg-blue-500 text-white'
-                        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-600'
-                    }`}
+                    variant={viewMode === 'list' ? 'default' : 'ghost'}
+                    size="icon"
+                    className={cn(
+                      viewMode === 'list' && 'bg-blue-500 text-white hover:bg-blue-600'
+                    )}
                   >
                     <List className="w-5 h-5" />
-                  </button>
+                  </Button>
                 </div>
 
                 {/* Advanced Filters Toggle */}
-                <button
+                <Button
                   onClick={() => setShowFilters(!showFilters)}
-                  className={`p-3 rounded-xl transition-all ${
-                    showFilters
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-600'
-                  }`}
+                  variant={showFilters ? 'default' : 'outline'}
+                  size="icon"
+                  className={cn(
+                    showFilters && 'bg-blue-500 text-white hover:bg-blue-600'
+                  )}
                 >
                   <Filter className="w-5 h-5" />
-                </button>
+                </Button>
               </div>
             </div>
 
@@ -494,234 +560,206 @@ const PropertiesPage: React.FC<PropertiesPageProps> = ({ user }) => {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     {/* Price Min */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Preis von
-                      </label>
-                      <input
+                      <Label className="mb-2">Preis von</Label>
+                      <Input
                         type="number"
                         placeholder="Min. Preis"
                         value={filters.price_min || ''}
                         onChange={(e) => handleFilterChange('price_min', e.target.value ? Number(e.target.value) : undefined)}
-                        className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                        className="bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600"
                       />
                     </div>
 
                     {/* Price Max */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Preis bis
-                      </label>
-                      <input
+                      <Label className="mb-2">Preis bis</Label>
+                      <Input
                         type="number"
                         placeholder="Max. Preis"
                         value={filters.price_max || ''}
                         onChange={(e) => handleFilterChange('price_max', e.target.value ? Number(e.target.value) : undefined)}
-                        className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                        className="bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600"
                       />
                     </div>
 
                     {/* Rooms Min */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Min. Zimmer
-                      </label>
-                      <input
+                      <Label className="mb-2">Min. Zimmer</Label>
+                      <Input
                         type="number"
                         placeholder="Min. Zimmer"
                         value={filters.rooms_min || ''}
                         onChange={(e) => handleFilterChange('rooms_min', e.target.value ? Number(e.target.value) : undefined)}
-                        className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                        className="bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600"
                       />
                     </div>
 
                     {/* Rooms Max */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Max. Zimmer
-                      </label>
-                      <input
+                      <Label className="mb-2">Max. Zimmer</Label>
+                      <Input
                         type="number"
                         placeholder="Max. Zimmer"
                         value={filters.rooms_max || ''}
                         onChange={(e) => handleFilterChange('rooms_max', e.target.value ? Number(e.target.value) : undefined)}
-                        className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                        className="bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600"
                       />
                     </div>
 
                     {/* Living Area Min */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Min. Wohnfläche (m²)
-                      </label>
-                      <input
+                      <Label className="mb-2">Min. Wohnfläche (m²)</Label>
+                      <Input
                         type="number"
                         placeholder="Min. Wohnfläche"
                         value={filters.living_area_min || ''}
                         onChange={(e) => handleFilterChange('living_area_min', e.target.value ? Number(e.target.value) : undefined)}
-                        className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                        className="bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600"
                       />
                     </div>
 
                     {/* Living Area Max */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Max. Wohnfläche (m²)
-                      </label>
-                      <input
+                      <Label className="mb-2">Max. Wohnfläche (m²)</Label>
+                      <Input
                         type="number"
                         placeholder="Max. Wohnfläche"
                         value={filters.living_area_max || ''}
                         onChange={(e) => handleFilterChange('living_area_max', e.target.value ? Number(e.target.value) : undefined)}
-                        className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                        className="bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600"
                       />
                     </div>
 
                     {/* Bedrooms Min */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Min. Schlafzimmer
-                      </label>
-                      <input
+                      <Label className="mb-2">Min. Schlafzimmer</Label>
+                      <Input
                         type="number"
                         placeholder="Min. Schlafzimmer"
                         value={filters.bedrooms_min || ''}
                         onChange={(e) => handleFilterChange('bedrooms_min', e.target.value ? Number(e.target.value) : undefined)}
-                        className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                        className="bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600"
                       />
                     </div>
 
                     {/* Bedrooms Max */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Max. Schlafzimmer
-                      </label>
-                      <input
+                      <Label className="mb-2">Max. Schlafzimmer</Label>
+                      <Input
                         type="number"
                         placeholder="Max. Schlafzimmer"
                         value={filters.bedrooms_max || ''}
                         onChange={(e) => handleFilterChange('bedrooms_max', e.target.value ? Number(e.target.value) : undefined)}
-                        className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                        className="bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600"
                       />
                     </div>
 
                     {/* Bathrooms Min */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Min. Badezimmer
-                      </label>
-                      <input
+                      <Label className="mb-2">Min. Badezimmer</Label>
+                      <Input
                         type="number"
                         placeholder="Min. Badezimmer"
                         value={filters.bathrooms_min || ''}
                         onChange={(e) => handleFilterChange('bathrooms_min', e.target.value ? Number(e.target.value) : undefined)}
-                        className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                        className="bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600"
                       />
                     </div>
 
                     {/* Bathrooms Max */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Max. Badezimmer
-                      </label>
-                      <input
+                      <Label className="mb-2">Max. Badezimmer</Label>
+                      <Input
                         type="number"
                         placeholder="Max. Badezimmer"
                         value={filters.bathrooms_max || ''}
                         onChange={(e) => handleFilterChange('bathrooms_max', e.target.value ? Number(e.target.value) : undefined)}
-                        className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                        className="bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600"
                       />
                     </div>
 
                     {/* Year Built Min */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Baujahr von
-                      </label>
-                      <input
+                      <Label className="mb-2">Baujahr von</Label>
+                      <Input
                         type="number"
                         placeholder="Min. Baujahr"
                         value={filters.year_built_min || ''}
                         onChange={(e) => handleFilterChange('year_built_min', e.target.value ? Number(e.target.value) : undefined)}
-                        className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                        className="bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600"
                       />
                     </div>
 
                     {/* Year Built Max */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Baujahr bis
-                      </label>
-                      <input
+                      <Label className="mb-2">Baujahr bis</Label>
+                      <Input
                         type="number"
                         placeholder="Max. Baujahr"
                         value={filters.year_built_max || ''}
                         onChange={(e) => handleFilterChange('year_built_max', e.target.value ? Number(e.target.value) : undefined)}
-                        className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                        className="bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600"
                       />
                     </div>
 
                     {/* Plot Area Min */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Min. Grundstücksfläche (m²)
-                      </label>
-                      <input
+                      <Label className="mb-2">Min. Grundstücksfläche (m²)</Label>
+                      <Input
                         type="number"
                         placeholder="Min. Grundstück"
                         value={filters.plot_area_min || ''}
                         onChange={(e) => handleFilterChange('plot_area_min', e.target.value ? Number(e.target.value) : undefined)}
-                        className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                        className="bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600"
                       />
                     </div>
 
                     {/* Plot Area Max */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Max. Grundstücksfläche (m²)
-                      </label>
-                      <input
+                      <Label className="mb-2">Max. Grundstücksfläche (m²)</Label>
+                      <Input
                         type="number"
                         placeholder="Max. Grundstück"
                         value={filters.plot_area_max || ''}
                         onChange={(e) => handleFilterChange('plot_area_max', e.target.value ? Number(e.target.value) : undefined)}
-                        className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                        className="bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600"
                       />
                     </div>
 
                     {/* Energy Class */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Energieklasse
-                      </label>
-                      <select
-                        value={filters.energy_class || ''}
-                        onChange={(e) => handleFilterChange('energy_class', e.target.value || undefined)}
-                        className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                      <Label className="mb-2">Energieklasse</Label>
+                      <Select
+                        value={filters.energy_class || 'all'}
+                        onValueChange={(value) => handleFilterChange('energy_class', value === 'all' ? undefined : value)}
                       >
-                        <option value="">Alle Klassen</option>
-                        <option value="A+">A+</option>
-                        <option value="A">A</option>
-                        <option value="B">B</option>
-                        <option value="C">C</option>
-                        <option value="D">D</option>
-                        <option value="E">E</option>
-                        <option value="F">F</option>
-                        <option value="G">G</option>
-                        <option value="H">H</option>
-                      </select>
+                        <SelectTrigger className="bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600">
+                          <SelectValue placeholder="Alle Klassen" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Alle Klassen</SelectItem>
+                          <SelectItem value="A+">A+</SelectItem>
+                          <SelectItem value="A">A</SelectItem>
+                          <SelectItem value="B">B</SelectItem>
+                          <SelectItem value="C">C</SelectItem>
+                          <SelectItem value="D">D</SelectItem>
+                          <SelectItem value="E">E</SelectItem>
+                          <SelectItem value="F">F</SelectItem>
+                          <SelectItem value="G">G</SelectItem>
+                          <SelectItem value="H">H</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
 
                     {/* Heating Type */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Heizungsart
-                      </label>
-                      <input
+                      <Label className="mb-2">Heizungsart</Label>
+                      <Input
                         type="text"
                         placeholder="z.B. Gas, Öl, Wärmepumpe"
                         value={filters.heating_type || ''}
                         onChange={(e) => handleFilterChange('heating_type', e.target.value || undefined)}
-                        className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                        className="bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600"
                       />
                     </div>
                   </div>
@@ -748,19 +786,20 @@ const PropertiesPage: React.FC<PropertiesPageProps> = ({ user }) => {
                     Status: {filters.status}
                   </span>
                 )}
-                <button
+                <Button
                   onClick={handleResetFilters}
-                  className="px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm hover:bg-gray-200 dark:hover:bg-gray-600 transition-all"
+                  variant="outline"
+                  size="sm"
                 >
                   Alle zurücksetzen
-                </button>
+                </Button>
               </div>
             )}
           </div>
         </motion.div>
 
         {/* Properties Grid/List */}
-        {properties.length === 0 ? (
+        {properties.length === 0 && !isLoading ? (
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -770,19 +809,36 @@ const PropertiesPage: React.FC<PropertiesPageProps> = ({ user }) => {
               <Home className="w-10 h-10 text-gray-400" />
             </div>
             <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-              Keine Immobilien gefunden
+              {error ? 'Fehler beim Laden' : 'Keine Immobilien gefunden'}
             </h3>
             <p className="text-gray-600 dark:text-gray-400 mb-6">
-              {hasActiveFilters
-                ? 'Versuchen Sie, Ihre Filterkriterien anzupassen.'
-                : 'Erstellen Sie Ihre erste Immobilie, um loszulegen.'}
+              {error ? (
+                <span className="text-red-600 dark:text-red-400">
+                  {(error as any)?.message || 'Die Immobilien konnten nicht geladen werden.'}
+                </span>
+              ) : hasActiveFilters ? (
+                'Versuchen Sie, Ihre Filterkriterien anzupassen.'
+              ) : (
+                'Erstellen Sie Ihre erste Immobilie, um loszulegen.'
+              )}
             </p>
-            <button
-              onClick={() => navigate('/properties/create')}
-              className="px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-xl hover:from-blue-600 hover:to-indigo-600 transition-all shadow-lg"
-            >
-              Neue Immobilie erstellen
-            </button>
+            <div className="flex gap-3 justify-center">
+              {error && (
+                <Button
+                  onClick={() => refetch()}
+                  variant="outline"
+                  className="border-gray-300 dark:border-gray-600"
+                >
+                  Erneut versuchen
+                </Button>
+              )}
+              <Button
+                onClick={() => navigate('/properties/create')}
+                className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white hover:from-blue-600 hover:to-indigo-600 shadow-lg"
+              >
+                Neue Immobilie erstellen
+              </Button>
+            </div>
           </motion.div>
         ) : (
           <>
@@ -828,25 +884,28 @@ const PropertiesPage: React.FC<PropertiesPageProps> = ({ user }) => {
                         )}
                         
                         {/* Favorite Button - Glassmorphism */}
-                        <button
+                        <Button
                           onClick={(e) => {
                             e.stopPropagation();
                             handleToggleFavorite(property.id, property.isFavorite || false);
                           }}
-                          className={`absolute top-4 right-4 w-11 h-11 rounded-2xl backdrop-blur-xl flex items-center justify-center transition-all duration-300 shadow-lg ${
+                          variant="ghost"
+                          size="icon"
+                          className={cn(
+                            "absolute top-4 right-4 w-11 h-11 rounded-2xl backdrop-blur-xl shadow-lg",
                             property.isFavorite
                               ? 'bg-gradient-to-br from-red-500 to-pink-500 text-white scale-110'
-                              : 'bg-white/90 dark:bg-gray-900/90 text-gray-600 dark:text-gray-400 hover:scale-110 hover:bg-white dark:hover:bg-gray-800'
-                          }`}
+                              : 'bg-white/90 dark:bg-gray-900/90 text-gray-600 dark:text-gray-400 hover:scale-110'
+                          )}
                         >
-                          <Heart className={`w-5 h-5 ${property.isFavorite ? 'fill-current' : ''}`} />
-                        </button>
+                          <Heart className={cn("w-5 h-5", property.isFavorite && "fill-current")} />
+                        </Button>
 
                         {/* Status Badge - Modern Pills */}
                         <div className="absolute top-4 left-4">
-                          <span className={`px-4 py-2 rounded-full text-xs font-bold backdrop-blur-xl shadow-lg ${getPropertyStatusColor(property.status)}`}>
+                          <Badge className={cn("px-4 py-2 rounded-full text-xs font-bold backdrop-blur-xl shadow-lg", getPropertyStatusColor(property.status))}>
                             {cardData.statusLabel}
-                          </span>
+                          </Badge>
                         </div>
 
                         {/* Days on Market - Floating Badge */}
@@ -911,19 +970,21 @@ const PropertiesPage: React.FC<PropertiesPageProps> = ({ user }) => {
 
                         {/* Actions - Modern Buttons */}
                         <div className="flex gap-3">
-                          <button
+                          <Button
                             onClick={() => navigate(`/properties/${property.id}`)}
-                            className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl hover:from-blue-700 hover:to-indigo-700 transition-all text-sm font-bold shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 hover:-translate-y-0.5"
+                            className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 hover:-translate-y-0.5"
                           >
                             Details ansehen
-                          </button>
-                          <button
+                          </Button>
+                          <Button
                             onClick={() => handleDelete(property.id)}
                             disabled={deleteMutation.isPending}
-                            className="px-4 py-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-2xl hover:bg-red-100 dark:hover:bg-red-900/30 transition-all text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                            variant="ghost"
+                            size="icon"
+                            className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30"
                           >
                             <Trash2 className="w-4 h-4" />
-                          </button>
+                          </Button>
                         </div>
                       </div>
 

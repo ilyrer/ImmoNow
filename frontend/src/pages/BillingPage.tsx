@@ -1,6 +1,11 @@
 import React, { useState } from 'react';
 import { useBilling } from '../hooks/useBilling';
 import { Loader2, CreditCard, Users, Home, HardDrive, BarChart3, Settings, Shield } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
 
 const PLANS = {
   free: {
@@ -142,28 +147,29 @@ export const BillingPage: React.FC = () => {
       </div>
 
       {/* Aktueller Plan */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-8">
-        <div className="p-6 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+      <Card className="mb-8">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
             <CreditCard className="h-5 w-5" />
             Aktueller Plan
-          </h2>
-        </div>
-        <div className="p-6">
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-xl font-semibold">{PLANS[billingInfo.plan_key as keyof typeof PLANS]?.name}</h3>
-              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(billingInfo.status)}`}>
+              <Badge className={cn("mt-2", getStatusColor(billingInfo.status))}>
                 {getStatusText(billingInfo.status)}
-              </span>
+              </Badge>
             </div>
-            <button
+            <Button
               onClick={openCustomerPortal}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+              variant="outline"
+              className="flex items-center gap-2"
             >
               <Settings className="h-4 w-4" />
               Abo verwalten
-            </button>
+            </Button>
           </div>
 
           {billingInfo.current_period_end && (
@@ -171,18 +177,18 @@ export const BillingPage: React.FC = () => {
               Nächste Abrechnung: {new Date(billingInfo.current_period_end).toLocaleDateString('de-DE')}
             </p>
           )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Usage Overview */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-8">
-        <div className="p-6 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+      <Card className="mb-8">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
             <BarChart3 className="h-5 w-5" />
             Aktuelle Nutzung
-          </h2>
-        </div>
-        <div className="p-6">
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Benutzer */}
             <div className="space-y-2">
@@ -250,8 +256,8 @@ export const BillingPage: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Plan Upgrades */}
       <div className="mb-8">

@@ -2,27 +2,29 @@ import React from 'react';
 import { useDocumentAnalytics } from '../../../../api/hooks';
 import { FileText, Upload } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
 
 const LoadingState = () => (
-  <div className="p-6 h-full flex flex-col space-y-4">
-    <div className="flex items-center space-x-3">
-      <div className="w-10 h-10 rounded-xl bg-gray-200 dark:bg-gray-700 animate-pulse" />
-      <div className="flex-1 space-y-2">
-        <div className="h-4 w-44 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
-        <div className="h-3 w-24 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+  <Card className="h-full">
+    <CardHeader>
+      <Skeleton className="h-6 w-44" />
+      <Skeleton className="h-4 w-24 mt-2" />
+    </CardHeader>
+    <CardContent>
+      <div className="grid grid-cols-3 gap-3 mb-4">
+        {[...Array(3)].map((_, idx) => (
+          <div key={idx} className="p-4 rounded-xl space-y-2">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-6 w-full" />
+            <Skeleton className="h-3 w-2/3" />
+          </div>
+        ))}
       </div>
-    </div>
-    <div className="grid grid-cols-3 gap-3">
-      {[...Array(3)].map((_, idx) => (
-        <div key={idx} className="glass p-4 rounded-xl animate-pulse space-y-2">
-          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded" />
-          <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded" />
-          <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded" />
-        </div>
-      ))}
-    </div>
-    <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-xl animate-pulse" />
-  </div>
+      <Skeleton className="h-48 w-full rounded-xl" />
+    </CardContent>
+  </Card>
 );
 
 const DocumentActivityWidget: React.FC = () => {
@@ -35,22 +37,24 @@ const DocumentActivityWidget: React.FC = () => {
   const recentUploads = (analytics.recent_uploads ?? []).filter((u) => u.uploaded_at);
 
   return (
-    <div className="p-6 h-full flex flex-col space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center">
-            <FileText className="w-5 h-5 text-white" />
+    <Card className="h-full">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center">
+              <FileText className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <CardTitle>Dokument-Aktivität</CardTitle>
+              <CardDescription>Uploads, Typen & Status</CardDescription>
+            </div>
           </div>
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Dokument-Aktivität</h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Uploads, Typen & Status</p>
-          </div>
+          <Badge variant="outline" className="bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20">
+            {totalDocs} Dateien
+          </Badge>
         </div>
-        <div className="text-xs px-3 py-1.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20">
-          {totalDocs} Dateien
-        </div>
-      </div>
-
+      </CardHeader>
+      <CardContent className="space-y-4">
       <div className="grid grid-cols-3 gap-3">
         <div className="glass p-4 rounded-xl">
           <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Gesamt</div>
@@ -113,7 +117,8 @@ const DocumentActivityWidget: React.FC = () => {
           Keine gültigen Uploads mit Zeitstempel gefunden.
         </div>
       )}
-    </div>
+      </CardContent>
+    </Card>
   );
 };
 

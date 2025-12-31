@@ -1,0 +1,1151 @@
+# ImmoNow - Enterprise Real Estate Management Platform
+# Globale Cursor AI Konfiguration für autonome, exzellente Entwicklung
+
+## 🎯 PROJEKT-VISION & MISSION
+
+**ImmoNow** ist die führende Multi-Tenant SaaS-Plattform für Immobilienverwaltung in der DACH-Region.
+Wir bauen ein Enterprise-Level System, das ALLE Konkurrenten in den Schatten stellt.
+
+### Alleinstellungsmerkmale (USPs):
+- 🏢 **Multi-Tenant-Architektur**: Vollständige Datenisolierung pro Mandant
+- 🤖 **AI-First**: Intelligente Automatisierung in allen Bereichen
+- 💎 **Premium UX/UI**: Apple-inspiriertes, modernes Design
+- 🚀 **Performance**: Sub-200ms Response-Zeiten, optimierte Queries
+- 🔒 **Enterprise Security**: JWT, RBAC, Audit-Trails, DSGVO-konform
+- 💰 **Flexible Billing**: Stripe-Integration, Usage-based Pricing
+- 📊 **Analytics & KPIs**: Echtzeit-Dashboards, prädiktive Analysen
+
+---
+
+## 🏗️ ARCHITEKTUR-ÜBERSICHT
+
+### Backend Stack
+- **Framework**: FastAPI (moderne APIs) + Django ORM (Datenmodelle)
+- **Database**: SQLite (Dev), PostgreSQL (Production)
+- **Auth**: JWT + OAuth2, Multi-Tenant-Aware
+- **AI/LLM**: OpenRouter (DeepSeek R1), OpenAI, Azure OpenAI
+- **Storage**: AWS S3 (Production), Local (Dev)
+- **Cache/Queue**: Redis, Celery für Background Tasks
+- **Billing**: Stripe Subscriptions & Webhooks
+
+### Frontend Stack
+- **Framework**: React 18 + TypeScript
+- **Styling**: Tailwind CSS (Custom Design System)
+- **State Management**: React Query (Server State), Context API (Auth)
+- **Routing**: React Router v6
+- **Forms**: Native + Validation
+- **UI Components**: Custom Apple-inspired Design System
+- **Maps**: Google Maps API, Leaflet
+- **Charts**: Recharts
+- **Notifications**: React Hot Toast
+
+### Deployment
+- **Containerization**: Docker + Docker Compose
+- **Reverse Proxy**: Nginx
+- **CI/CD**: GitHub Actions (geplant)
+- **Monitoring**: Custom Analytics + Error Tracking
+
+---
+
+## 📁 PROJEKT-STRUKTUR
+
+```
+ImmoNow/
+├── backend/                    # FastAPI + Django Backend
+│   ├── app/
+│   │   ├── api/v1/            # API Endpoints (34 Module)
+│   │   │   ├── auth.py        # Authentication & Registration
+│   │   │   ├── properties.py  # Immobilienverwaltung
+│   │   │   ├── contacts.py    # CRM & Kontakte
+│   │   │   ├── tasks.py       # Task Management & Kanban
+│   │   │   ├── documents.py   # Dokumentenverwaltung
+│   │   │   ├── avm.py         # Automatische Wertermittlung
+│   │   │   ├── cim.py         # Central Information Model
+│   │   │   ├── ai_chat.py     # AI Assistant
+│   │   │   ├── billing.py     # Stripe Billing
+│   │   │   ├── social.py      # Social Media Integration
+│   │   │   ├── investor.py    # Investor Portal
+│   │   │   └── ...
+│   │   ├── core/              # Core Funktionalität
+│   │   │   ├── settings.py    # Pydantic Settings
+│   │   │   ├── auth.py        # JWT & Security
+│   │   │   ├── tenancy.py     # Multi-Tenant Logic
+│   │   │   ├── middleware.py  # Custom Middleware
+│   │   │   └── billing_guard.py
+│   │   ├── db/models/         # Django ORM Models
+│   │   ├── schemas/           # Pydantic Schemas (22 Module)
+│   │   ├── services/          # Business Logic (43 Services)
+│   │   ├── tasks/             # Celery Tasks
+│   │   └── tools/             # AI Agent Tools
+│   ├── tests/                 # Pytest Tests
+│   └── migrations/            # Django Migrations
+│
+├── frontend/                   # React TypeScript Frontend
+│   ├── src/
+│   │   ├── components/        # React Components
+│   │   │   ├── dashboard/    # Dashboard & Analytics
+│   │   │   ├── properties/   # Immobilien-UI
+│   │   │   ├── contacts/     # CRM-UI
+│   │   │   ├── documents/    # Dokument-Management
+│   │   │   ├── finance/      # Finanzrechner
+│   │   │   ├── CIM/          # Central Info Model
+│   │   │   ├── AI/           # AI Assistant
+│   │   │   ├── Auth/         # Login/Register
+│   │   │   └── ...
+│   │   ├── api/              # React Query Hooks
+│   │   ├── hooks/            # Custom React Hooks
+│   │   ├── services/         # API Services
+│   │   ├── types/            # TypeScript Types
+│   │   ├── pages/            # Page Components
+│   │   └── contexts/         # React Contexts
+│   └── public/
+│
+├── deployment/                 # Docker & Deployment
+├── DOCS/                      # Dokumentation
+│   ├── architecture-overview.md
+│   ├── ai/                    # AI System Docs
+│   └── ...
+└── scripts/                   # Setup Scripts
+```
+
+---
+
+## 🎨 CODE-STANDARDS & BEST PRACTICES
+
+### Python Backend Standards
+
+#### 1. Code Style
+- **Formatter**: Black (line length: 100)
+- **Linter**: Flake8, isort
+- **Type Hints**: Immer verwenden (mypy-kompatibel)
+- **Docstrings**: Google Style für alle öffentlichen Funktionen
+
+```python
+# ✅ GOOD
+async def get_properties(
+    tenant_id: str,
+    skip: int = 0,
+    limit: int = 100,
+    status: Optional[PropertyStatus] = None
+) -> List[PropertyResponse]:
+    """
+    Retrieve properties for a tenant with pagination.
+    
+    Args:
+        tenant_id: Unique tenant identifier
+        skip: Number of records to skip
+        limit: Maximum records to return
+        status: Optional status filter
+        
+    Returns:
+        List of property objects
+        
+    Raises:
+        NotFoundError: If tenant doesn't exist
+    """
+    pass
+
+# ❌ BAD
+def get_props(tid, s=0, l=100):
+    pass
+```
+
+#### 2. Architektur-Patterns
+
+**Service Layer Pattern**: Alle Business-Logik in Services
+```python
+# Route (API Layer) - Nur Request/Response Handling
+@router.get("/properties")
+async def list_properties(
+    user: User = Depends(get_current_user),
+    service: PropertyService = Depends()
+):
+    return await service.get_properties(user.tenant_id)
+
+# Service Layer - Business-Logik
+class PropertyService:
+    async def get_properties(self, tenant_id: str):
+        # Validierung, Caching, Business Rules
+        properties = await Property.objects.filter(tenant_id=tenant_id)
+        return [PropertyResponse.from_orm(p) for p in properties]
+```
+
+**Repository Pattern**: Für komplexe Queries
+```python
+class PropertyRepository:
+    async def find_by_location(
+        self, 
+        tenant_id: str, 
+        lat: float, 
+        lon: float, 
+        radius_km: float
+    ) -> List[Property]:
+        # Komplexe Query-Logik
+        pass
+```
+
+#### 3. Multi-Tenant Best Practices
+
+**IMMER** Tenant-Isolation sicherstellen:
+```python
+# ✅ GOOD - Tenant wird immer geprüft
+async def get_property(property_id: str, user: User = Depends(get_current_user)):
+    property = await Property.objects.filter(
+        id=property_id,
+        tenant_id=user.tenant_id  # ⚠️ KRITISCH: Immer tenant_id prüfen
+    ).first()
+    if not property:
+        raise NotFoundError("Property not found")
+    return property
+
+# ❌ BAD - Security-Lücke!
+async def get_property(property_id: str):
+    return await Property.objects.get(id=property_id)
+```
+
+#### 4. Error Handling
+
+Nutze Custom Exceptions:
+```python
+from app.core.errors import NotFoundError, ValidationError, ForbiddenError
+
+# ✅ GOOD
+if not property:
+    raise NotFoundError("Property not found")
+
+if property.tenant_id != user.tenant_id:
+    raise ForbiddenError("Access denied")
+
+# ❌ BAD
+if not property:
+    raise HTTPException(status_code=404, detail="Not found")
+```
+
+#### 5. Performance
+
+- **Eager Loading**: Nutze `select_related()` und `prefetch_related()`
+- **Pagination**: IMMER bei Listen
+- **Caching**: Redis für teure Queries
+- **Async**: Nutze `async`/`await` für I/O-Operationen
+
+```python
+# ✅ GOOD
+properties = await Property.objects.select_related(
+    'contact', 'location'
+).prefetch_related(
+    'documents', 'tasks'
+).filter(tenant_id=tenant_id)[:100]
+
+# ❌ BAD - N+1 Query Problem
+properties = await Property.objects.filter(tenant_id=tenant_id)
+for prop in properties:
+    contact = await prop.contact.get()  # ❌ Extra Query!
+```
+
+### TypeScript Frontend Standards
+
+#### 1. Code Style
+- **Strict Mode**: `"strict": true` in tsconfig
+- **Naming Conventions**:
+  - Components: PascalCase (`PropertyCard.tsx`)
+  - Hooks: camelCase with `use` prefix (`useProperties.ts`)
+  - Types: PascalCase with `Type` suffix (`PropertyType`)
+  - Interfaces: PascalCase (`PropertyResponse`)
+- **File Structure**: One component per file
+
+#### 2. Component Standards
+
+**Functional Components + Hooks**:
+```typescript
+// ✅ GOOD
+interface PropertyCardProps {
+  property: PropertyResponse;
+  onEdit?: (id: string) => void;
+  className?: string;
+}
+
+export const PropertyCard: React.FC<PropertyCardProps> = ({ 
+  property, 
+  onEdit,
+  className = '' 
+}) => {
+  const { mutate: updateProperty } = useUpdateProperty();
+  
+  const handleEdit = () => {
+    if (onEdit) onEdit(property.id);
+  };
+  
+  return (
+    <div className={`property-card ${className}`}>
+      {/* ... */}
+    </div>
+  );
+};
+
+// ❌ BAD - Class Components sind veraltet
+class PropertyCard extends React.Component {
+  render() { /* ... */ }
+}
+```
+
+#### 3. State Management
+
+**Server State**: React Query
+```typescript
+// ✅ GOOD
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+
+export const useProperties = (filters?: PropertyFilters) => {
+  return useQuery({
+    queryKey: ['properties', filters],
+    queryFn: () => propertyService.getProperties(filters),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+};
+
+export const useUpdateProperty = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (data: UpdatePropertyRequest) => propertyService.update(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['properties'] });
+      toast.success('Property updated');
+    },
+  });
+};
+```
+
+**Client State**: Context API (nur für Auth/Theme)
+```typescript
+// ✅ GOOD - Minimales Context für Auth
+interface AuthContextType {
+  token: string | null;
+  tenantId: string | null;
+  isAuthenticated: boolean;
+  setAuth: (token: string, tenantId: string) => void;
+  clearAuth: () => void;
+}
+```
+
+#### 4. API Integration
+
+**Typed API Client**:
+```typescript
+// api/services/propertyService.ts
+class PropertyService {
+  async getProperties(filters?: PropertyFilters): Promise<PropertyResponse[]> {
+    const response = await apiClient.get<PropertyResponse[]>('/properties', {
+      params: filters
+    });
+    return response.data;
+  }
+  
+  async create(data: CreatePropertyRequest): Promise<PropertyResponse> {
+    const response = await apiClient.post<PropertyResponse>('/properties', data);
+    return response.data;
+  }
+}
+
+export const propertyService = new PropertyService();
+```
+
+#### 5. UI/UX Standards
+
+**Design System**:
+```typescript
+// ✅ GOOD - Konsistente Design Tokens
+const Button = ({ variant = 'primary', size = 'md', ...props }) => {
+  const variants = {
+    primary: 'bg-primary-600 hover:bg-primary-700 text-white',
+    secondary: 'bg-neutral-200 hover:bg-neutral-300 text-neutral-900',
+    ghost: 'bg-transparent hover:bg-neutral-100 text-neutral-700',
+  };
+  
+  const sizes = {
+    sm: 'px-3 py-1.5 text-sm',
+    md: 'px-4 py-2 text-base',
+    lg: 'px-6 py-3 text-lg',
+  };
+  
+  return (
+    <button 
+      className={`
+        rounded-lg font-medium transition-colors duration-200
+        ${variants[variant]} ${sizes[size]}
+      `}
+      {...props}
+    />
+  );
+};
+```
+
+**Responsive Design**:
+```tsx
+// ✅ GOOD - Mobile First
+<div className="
+  grid grid-cols-1           // Mobile
+  sm:grid-cols-2             // Tablet
+  lg:grid-cols-3             // Desktop
+  xl:grid-cols-4             // Large Desktop
+  gap-4 sm:gap-6 lg:gap-8
+">
+```
+
+**Dark Mode**:
+```tsx
+// ✅ GOOD - Dark Mode Support
+<div className="
+  bg-white dark:bg-dark-300
+  text-neutral-900 dark:text-dark-text-primary
+  border border-neutral-200 dark:border-dark-200
+">
+```
+
+---
+
+## 🤖 AI/LLM INTEGRATION GUIDELINES
+
+### AI Provider Configuration
+
+**Priority Order**:
+1. **OpenRouter** (Default): `deepseek/deepseek-chat-v3.1:free`
+2. **OpenAI**: `gpt-4-turbo-preview`
+3. **Azure OpenAI**: Custom deployment
+
+**Provider Switching**:
+```python
+# ENV: AI_PROVIDER=openrouter|openai|azure
+from app.core.ai_config import get_ai_client
+
+client = await get_ai_client()  # Auto-selects based on ENV
+response = await client.chat.completions.create(
+    model=settings.OPENROUTER_MODEL,
+    messages=[{"role": "user", "content": prompt}],
+    temperature=0.7,
+    max_tokens=4096
+)
+```
+
+### AI Use Cases
+
+1. **Property Descriptions**: Auto-generate exposé texts
+2. **Document Analysis**: Extract data from PDFs/images
+3. **Smart Matching**: Contact-Property matching
+4. **Chatbot**: AI Assistant für User-Fragen
+5. **Market Analysis**: Prädiktive Analytics für AVM
+6. **Task Suggestions**: Intelligente Aufgaben-Empfehlungen
+
+### Best Practices
+
+- **Fallback**: Immer Fallback-Logik bei API-Fehlern
+- **Rate Limiting**: Max 60 Requests/min pro Tenant
+- **Caching**: Cache AI-Responses wenn möglich
+- **Streaming**: Nutze Streaming für lange Responses
+- **Context**: Begrenze Context auf relevante Daten
+
+---
+
+## 🔐 SECURITY & COMPLIANCE
+
+### Security Checklist
+
+#### Authentication & Authorization
+- ✅ JWT mit Expiration (8h Access, 7d Refresh)
+- ✅ Secure Password Hashing (bcrypt)
+- ✅ OAuth2 für Social Login
+- ✅ RBAC (Role-Based Access Control)
+- ✅ Multi-Tenant-Isolation auf DB-Ebene
+
+#### Data Protection
+- ✅ DSGVO-konforme Datenspeicherung
+- ✅ Verschlüsselung im Transit (HTTPS)
+- ✅ Verschlüsselung at Rest (für sensible Daten)
+- ✅ Audit Logs für alle kritischen Aktionen
+- ✅ Data Retention Policies
+
+#### API Security
+- ✅ Rate Limiting (100 req/min pro User)
+- ✅ Input Validation (Pydantic)
+- ✅ SQL Injection Protection (ORM)
+- ✅ XSS Protection (React auto-escaping)
+- ✅ CORS konfiguriert
+
+### DSGVO Compliance
+
+**User Rights**:
+```python
+# Data Export
+@router.get("/me/export")
+async def export_user_data(user: User = Depends(get_current_user)):
+    """DSGVO Art. 20: Recht auf Datenportabilität"""
+    data = await export_service.export_all_user_data(user.id)
+    return JSONResponse(content=data)
+
+# Data Deletion
+@router.delete("/me")
+async def delete_account(user: User = Depends(get_current_user)):
+    """DSGVO Art. 17: Recht auf Löschung"""
+    await user_service.anonymize_or_delete(user.id)
+    return {"status": "deleted"}
+```
+
+---
+
+## 💰 BILLING & SUBSCRIPTION SYSTEM
+
+### Plan Structure
+
+```python
+PLANS = {
+    "free": {
+        "price": 0,
+        "properties": 5,
+        "users": 1,
+        "storage_gb": 1,
+        "ai_requests_monthly": 100,
+    },
+    "starter": {
+        "price": 29,  # EUR/month
+        "properties": 50,
+        "users": 3,
+        "storage_gb": 10,
+        "ai_requests_monthly": 1000,
+    },
+    "pro": {
+        "price": 99,
+        "properties": 500,
+        "users": 10,
+        "storage_gb": 100,
+        "ai_requests_monthly": 10000,
+    },
+    "enterprise": {
+        "price": 299,
+        "properties": -1,  # Unlimited
+        "users": -1,
+        "storage_gb": 1000,
+        "ai_requests_monthly": 100000,
+    }
+}
+```
+
+### Billing Guards
+
+**Feature Gating**:
+```python
+from app.core.billing_guard import check_feature_access, FeatureLimitError
+
+@router.post("/properties")
+async def create_property(
+    data: CreatePropertyRequest,
+    user: User = Depends(get_current_user)
+):
+    # Check if user can create more properties
+    await check_feature_access(
+        tenant_id=user.tenant_id,
+        feature="properties",
+        increment=1
+    )
+    
+    property = await property_service.create(data, user.tenant_id)
+    return property
+```
+
+### Stripe Integration
+
+**Webhook Handling**:
+```python
+@router.post("/webhooks/stripe")
+async def stripe_webhook(request: Request):
+    payload = await request.body()
+    sig_header = request.headers.get('stripe-signature')
+    
+    event = stripe.Webhook.construct_event(
+        payload, sig_header, settings.STRIPE_WEBHOOK_SECRET
+    )
+    
+    if event.type == 'customer.subscription.updated':
+        await billing_service.handle_subscription_update(event.data.object)
+    elif event.type == 'invoice.payment_failed':
+        await billing_service.handle_payment_failure(event.data.object)
+    
+    return {"status": "success"}
+```
+
+---
+
+## 📊 MONITORING & ANALYTICS
+
+### Logging Strategy
+
+```python
+import logging
+
+logger = logging.getLogger(__name__)
+
+# Info: Normal operations
+logger.info(f"Property {property_id} created by user {user.id}")
+
+# Warning: Non-critical issues
+logger.warning(f"AI request failed, using fallback for tenant {tenant_id}")
+
+# Error: Critical issues
+logger.error(f"Payment processing failed: {error}", exc_info=True)
+
+# Debug: Development only
+logger.debug(f"Query params: {params}")
+```
+
+### Performance Monitoring
+
+**Query Performance**:
+```python
+import time
+from functools import wraps
+
+def monitor_query_time(func):
+    @wraps(func)
+    async def wrapper(*args, **kwargs):
+        start = time.time()
+        result = await func(*args, **kwargs)
+        duration = time.time() - start
+        
+        if duration > 1.0:  # Slow query threshold
+            logger.warning(f"Slow query in {func.__name__}: {duration:.2f}s")
+        
+        return result
+    return wrapper
+```
+
+### Custom Analytics
+
+**Track Key Metrics**:
+- User Activity (DAU, MAU, Retention)
+- Feature Usage (Properties created, AI requests)
+- Performance (API response times, error rates)
+- Business Metrics (MRR, Churn, LTV)
+
+---
+
+## 🧪 TESTING STRATEGY
+
+### Backend Testing
+
+```python
+# tests/test_properties.py
+import pytest
+from httpx import AsyncClient
+
+@pytest.mark.asyncio
+async def test_create_property_success(
+    client: AsyncClient,
+    auth_headers: dict,
+    test_tenant: Tenant
+):
+    """Test successful property creation"""
+    payload = {
+        "title": "Test Property",
+        "address": "Test Street 1",
+        "price": 250000,
+    }
+    
+    response = await client.post(
+        "/api/v1/properties",
+        json=payload,
+        headers=auth_headers
+    )
+    
+    assert response.status_code == 201
+    data = response.json()
+    assert data["title"] == payload["title"]
+    assert data["tenant_id"] == test_tenant.id
+
+@pytest.mark.asyncio
+async def test_tenant_isolation(
+    client: AsyncClient,
+    user_a_headers: dict,
+    user_b_headers: dict,
+    property_from_tenant_a: Property
+):
+    """Test that users can't access other tenants' data"""
+    response = await client.get(
+        f"/api/v1/properties/{property_from_tenant_a.id}",
+        headers=user_b_headers  # User from different tenant
+    )
+    
+    assert response.status_code == 404  # Not found (not 403!)
+```
+
+### Frontend Testing
+
+```typescript
+// components/properties/__tests__/PropertyCard.test.tsx
+import { render, screen, fireEvent } from '@testing-library/react';
+import { PropertyCard } from '../PropertyCard';
+
+describe('PropertyCard', () => {
+  const mockProperty = {
+    id: '1',
+    title: 'Test Property',
+    price: 250000,
+  };
+  
+  it('renders property information', () => {
+    render(<PropertyCard property={mockProperty} />);
+    
+    expect(screen.getByText('Test Property')).toBeInTheDocument();
+    expect(screen.getByText('€ 250,000')).toBeInTheDocument();
+  });
+  
+  it('calls onEdit when edit button is clicked', () => {
+    const onEdit = jest.fn();
+    render(<PropertyCard property={mockProperty} onEdit={onEdit} />);
+    
+    fireEvent.click(screen.getByRole('button', { name: /edit/i }));
+    
+    expect(onEdit).toHaveBeenCalledWith('1');
+  });
+});
+```
+
+---
+
+## 🚀 DEVELOPMENT WORKFLOW
+
+### Git Workflow
+
+**Branch Strategy**:
+```
+main              # Production
+├── develop       # Staging
+│   ├── feature/property-gallery
+│   ├── feature/ai-assistant-v2
+│   ├── bugfix/authentication-issue
+│   └── hotfix/critical-security-patch
+```
+
+**Commit Messages**:
+```bash
+# Format: <type>(<scope>): <subject>
+
+feat(properties): Add gallery view for property images
+fix(auth): Resolve JWT token expiration issue
+docs(api): Update property endpoint documentation
+refactor(services): Extract billing logic to separate service
+perf(queries): Optimize property list query with indexes
+test(contacts): Add integration tests for CRM module
+chore(deps): Update React to 18.2.0
+```
+
+### Development Commands
+
+**Backend**:
+```bash
+# Start dev server
+cd backend
+uvicorn app.main:app --reload --port 8000
+
+# Run migrations
+python manage.py migrate
+
+# Create migration
+python manage.py makemigrations
+
+# Run tests
+pytest
+
+# Code formatting
+black app/
+isort app/
+flake8 app/
+```
+
+**Frontend**:
+```bash
+# Start dev server
+cd frontend
+npm start
+
+# Build for production
+npm run build
+
+# Type checking
+tsc --noEmit
+
+# Run tests
+npm test
+```
+
+**Docker**:
+```bash
+# Start all services
+docker-compose up -d
+
+# View logs
+docker-compose logs -f backend
+
+# Rebuild
+docker-compose up -d --build
+```
+
+---
+
+## 🎯 AUTONOME ENTWICKLUNG - CURSOR AI RICHTLINIEN
+
+### Grundprinzipien
+
+Als Cursor AI sollst du **autonom** und **proaktiv** arbeiten:
+
+1. **Initiative ergreifen**: Verbesserungen vorschlagen UND implementieren
+2. **Best Practices**: Immer Enterprise-Standards einhalten
+3. **Vollständigkeit**: Features vollständig implementieren (Backend + Frontend + Tests)
+4. **Dokumentation**: Code ist selbstdokumentierend + Kommentare wo nötig
+5. **Security First**: Sicherheit hat höchste Priorität
+6. **Performance**: Optimierungen immer mitdenken
+
+### Entscheidungs-Framework
+
+**Du DARFST ohne Rückfrage**:
+- ✅ Code refactoring (unter Beibehaltung der Funktionalität)
+- ✅ Performance-Optimierungen
+- ✅ Bug-Fixes
+- ✅ UI/UX-Verbesserungen (innerhalb des Design-Systems)
+- ✅ Tests hinzufügen
+- ✅ Dokumentation verbessern
+- ✅ Type Safety verbessern
+- ✅ Error Handling verbessern
+- ✅ Logging hinzufügen
+- ✅ Code-Duplikation reduzieren
+
+**Du SOLLTEST fragen bei**:
+- ⚠️ Breaking Changes an APIs
+- ⚠️ Änderungen am Datenmodell (neue Felder OK, Löschen/Umbenennen fragen)
+- ⚠️ Neuen Dependencies
+- ⚠️ Architektur-Änderungen
+- ⚠️ Änderungen an Billing-Logik
+- ⚠️ Änderungen an Security-relevanten Komponenten
+
+### Code-Generierung Guidelines
+
+**Bei neuen Features IMMER erstellen**:
+1. **Backend**:
+   - Django Model (wenn neue Entität)
+   - Pydantic Schemas (Request/Response)
+   - Service Layer (Business Logic)
+   - API Router (FastAPI Endpoints)
+   - Tests (min. 80% Coverage)
+
+2. **Frontend**:
+   - TypeScript Types (sync mit Backend)
+   - API Service (React Query Hooks)
+   - React Components (mit Props Typing)
+   - Page Integration
+   - Responsive Design (Mobile + Desktop)
+
+3. **Documentation**:
+   - Inline Code Comments (für komplexe Logik)
+   - API Docstrings (Google Style)
+   - README Updates (wenn neue Module)
+
+### Quality Checklist
+
+Vor jeder Code-Einreichung prüfen:
+
+**Backend**:
+- [ ] Type Hints für alle Parameter/Returns
+- [ ] Tenant Isolation (Multi-Tenant-Check)
+- [ ] Error Handling mit Custom Exceptions
+- [ ] Logging für wichtige Aktionen
+- [ ] Input Validation (Pydantic)
+- [ ] Async/Await korrekt verwendet
+- [ ] Tests geschrieben
+- [ ] Migration erstellt (bei Model-Änderungen)
+
+**Frontend**:
+- [ ] TypeScript Strict Mode ohne Errors
+- [ ] React Query für Server State
+- [ ] Error Boundaries für robuste UI
+- [ ] Loading States
+- [ ] Empty States
+- [ ] Responsive Design (Mobile + Desktop)
+- [ ] Dark Mode Support
+- [ ] Accessibility (ARIA labels)
+- [ ] Toast Notifications für User-Feedback
+
+**Performance**:
+- [ ] Query Optimization (N+1 vermieden)
+- [ ] Pagination bei Listen
+- [ ] Lazy Loading für große Komponenten
+- [ ] Image Optimization
+- [ ] Caching wo sinnvoll
+
+**Security**:
+- [ ] Tenant Isolation geprüft
+- [ ] Input Sanitization
+- [ ] SQL Injection unmöglich (ORM)
+- [ ] XSS unmöglich (React)
+- [ ] CSRF Protection
+- [ ] Rate Limiting
+
+---
+
+## 🏆 KONKURRENZ-ANALYSE & DIFFERENZIERUNG
+
+### Hauptkonkurrenten (DACH)
+
+1. **ImmoScout24 Business**: Marktführer, aber veraltet
+2. **Flowfact**: Enterprise, aber kompliziert
+3. **Onoffice**: Solide, aber langsam
+4. **PlanRadar**: Modern, aber nur Bauprojekte
+
+### Wie wir sie schlagen
+
+**Technologie**:
+- 🚀 Moderne Tech-Stack (React 18, FastAPI)
+- 🤖 AI-First Approach (echte Innovation)
+- ⚡ 10x schnellere Performance
+- 📱 Mobile-First Design
+
+**User Experience**:
+- 💎 Apple-inspiriertes Design
+- 🎯 Intuitive Navigation
+- 🔄 Real-time Updates
+- 🌙 Dark Mode (oft vergessen!)
+
+**Features**:
+- 🤖 AI Assistant (Alleinstellungsmerkmal)
+- 📊 Prädiktive Analytics
+- 💰 Transparente Pricing
+- 🔗 Offene API für Integrationen
+
+**Business Model**:
+- 💵 Flexible Pläne (Free bis Enterprise)
+- 📈 Usage-based Pricing (fair!)
+- 🎁 Generous Free Tier
+- 🚀 Schnelles Onboarding
+
+---
+
+## 📚 WICHTIGE KONVENTIONEN
+
+### Naming Conventions
+
+**Backend**:
+```python
+# Models: Singular, PascalCase
+class Property(models.Model):
+    pass
+
+# Services: ServiceSuffix
+class PropertyService:
+    pass
+
+# Schemas: Request/Response suffix
+class CreatePropertyRequest(BaseModel):
+    pass
+
+class PropertyResponse(BaseModel):
+    pass
+
+# Variables: snake_case
+tenant_id = "abc-123"
+user_properties = []
+
+# Constants: UPPER_SNAKE_CASE
+MAX_FILE_SIZE = 50 * 1024 * 1024
+```
+
+**Frontend**:
+```typescript
+// Components: PascalCase
+export const PropertyCard = () => {};
+
+// Hooks: camelCase with 'use'
+export const useProperties = () => {};
+
+// Types: PascalCase
+export interface PropertyResponse {}
+
+// Services: camelCase + Service suffix
+export const propertyService = {};
+
+// Variables: camelCase
+const tenantId = "abc-123";
+const userProperties = [];
+
+// Constants: UPPER_SNAKE_CASE
+const MAX_FILE_SIZE = 50 * 1024 * 1024;
+```
+
+### API Conventions
+
+**Endpoints**:
+```
+GET    /api/v1/properties          # List
+POST   /api/v1/properties          # Create
+GET    /api/v1/properties/{id}     # Detail
+PATCH  /api/v1/properties/{id}     # Update
+DELETE /api/v1/properties/{id}     # Delete
+POST   /api/v1/properties/{id}/publish  # Action
+```
+
+**Response Format**:
+```json
+{
+  "id": "uuid",
+  "created_at": "2024-01-01T00:00:00Z",
+  "updated_at": "2024-01-01T00:00:00Z",
+  "data": {}
+}
+```
+
+**Error Format**:
+```json
+{
+  "detail": "Error message",
+  "code": "error_code",
+  "timestamp": "2024-01-01T00:00:00Z"
+}
+```
+
+**Pagination**:
+```json
+{
+  "items": [],
+  "total": 100,
+  "page": 1,
+  "page_size": 20,
+  "pages": 5
+}
+```
+
+---
+
+## 🎓 LERNRESSOURCEN & REFERENZEN
+
+### Technologie-Dokumentation
+- FastAPI: https://fastapi.tiangolo.com/
+- Django ORM: https://docs.djangoproject.com/en/4.2/
+- React: https://react.dev/
+- React Query: https://tanstack.com/query/latest
+- Tailwind CSS: https://tailwindcss.com/
+- TypeScript: https://www.typescriptlang.org/
+
+### Best Practices
+- Clean Code (Robert C. Martin)
+- Domain-Driven Design (Eric Evans)
+- API Design (REST Best Practices)
+- Security (OWASP Top 10)
+
+---
+
+## 🚀 ROADMAP & NÄCHSTE SCHRITTE
+
+### Phase 1: Foundation (DONE ✅)
+- Multi-Tenant-Architektur
+- Auth System (JWT + OAuth)
+- Basic CRUD für Properties/Contacts
+- Billing Integration (Stripe)
+
+### Phase 2: AI & Automation (IN PROGRESS 🔄)
+- AI Assistant Integration
+- Automatische Wertermittlung (AVM)
+- Document Analysis
+- Smart Matching
+
+### Phase 3: Advanced Features (NEXT 📅)
+- Advanced Analytics & Dashboards
+- Mobile App (React Native)
+- API Marketplace
+- White Label Solution
+
+### Phase 4: Scale (FUTURE 🚀)
+- International Expansion
+- Enterprise Features (SSO, Custom SLAs)
+- AI-Powered Predictive Analytics
+- Blockchain Integration für Verträge
+
+---
+
+## 📝 WICHTIGE HINWEISE FÜR CURSOR AI
+
+### Bei Fehlern/Problemen
+1. **Logs checken**: Immer zuerst Logs analysieren
+2. **Tenant-Isolation**: Bei 404 prüfen ob Tenant-ID korrekt
+3. **Migrations**: Bei Model-Änderungen Migration erstellen
+4. **React Query**: Cache invalidieren bei Updates
+5. **Types**: Bei TS-Errors Types neu generieren
+
+### Performance-Optimierung
+- Immer an **N+1 Query Problem** denken
+- **Pagination** ist PFLICHT bei Listen
+- **Lazy Loading** für große Komponenten
+- **Caching** für teure Operationen
+- **Indexes** für häufige Queries
+
+### Code-Review Selbstcheck
+- "Würde ich diesen Code in Production deployen?"
+- "Ist dieser Code wartbar in 6 Monaten?"
+- "Ist dieser Code sicher gegen Angriffe?"
+- "Ist dieser Code performant bei 10.000 Users?"
+- "Ist dieser Code getestet?"
+
+---
+
+## 🎯 MISSION STATEMENT
+
+**"Wir bauen die beste Immobilien-Management-Plattform Europas."**
+
+Jede Zeile Code, die du schreibst, sollte dieses Ziel unterstützen.
+Enterprise-Qualität. Keine Kompromisse. Jedes Feature durchdacht.
+Wir sind hier, um zu gewinnen. 🏆
+
+---
+
+## 📞 QUICK REFERENCE
+
+### Wichtige Befehle
+```bash
+# Backend starten
+cd backend && uvicorn app.main:app --reload
+
+# Frontend starten
+cd frontend && npm start
+
+# Tests
+pytest                    # Backend
+npm test                  # Frontend
+
+# Migrations
+python manage.py makemigrations
+python manage.py migrate
+
+# Docker
+docker-compose up -d
+```
+
+### Wichtige Dateien
+- Backend Config: `backend/app/core/settings.py`
+- Backend Entry: `backend/app/main.py`
+- Frontend Entry: `frontend/src/App.jsx`
+- Auth Context: `frontend/src/contexts/AuthContext.tsx`
+- API Config: `frontend/src/api/config.ts`
+- ENV Template: `backend/env.example`
+
+### Wichtige URLs (Dev)
+- Frontend: http://localhost:3000
+- Backend API: http://localhost:8000
+- API Docs: http://localhost:8000/docs
+- Redoc: http://localhost:8000/redoc
+
+---
+
+**Version**: 1.0.0
+**Last Updated**: 2024-12-29
+**Maintained by**: ImmoNow Development Team + Cursor AI
+
+Diese Konfiguration wird kontinuierlich erweitert und verbessert.
+Jede Iteration macht uns stärker. Jedes Feature bringt uns näher zum Ziel.
+
+**LET'S BUILD THE FUTURE! 🚀**
+

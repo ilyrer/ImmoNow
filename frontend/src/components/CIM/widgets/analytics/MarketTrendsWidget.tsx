@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { dashboardAnalyticsService } from '../../../../api/services';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
 
 interface MarketData {
   month: string;
@@ -94,13 +98,10 @@ const MarketTrendsWidget: React.FC = () => {
   };
 
   return (
-    <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 dark:border-gray-700/50 p-6 h-full">
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center">
-          <i className="ri-line-chart-line mr-2 text-blue-600 dark:text-blue-400"></i>
-          Marktanalyse
-        </h3>
-        <div className="flex items-center space-x-2">
+    <Card className="h-full">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle>Marktanalyse</CardTitle>
           <select
             value={timeframe}
             onChange={(e) => setTimeframe(e.target.value as any)}
@@ -111,33 +112,18 @@ const MarketTrendsWidget: React.FC = () => {
             <option value="2y">2 Jahre</option>
           </select>
         </div>
-      </div>
-
-      {/* Tab Navigation */}
-      <div className="flex space-x-1 mb-6 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
-        {[
-          { key: 'trends', label: 'Trends', icon: 'ri-line-chart-line' },
-          { key: 'regional', label: 'Regional', icon: 'ri-map-pin-line' },
-          { key: 'types', label: 'Objekttypen', icon: 'ri-building-line' }
-        ].map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key as any)}
-            className={`flex-1 px-3 py-2 text-xs font-medium rounded-md transition-colors flex items-center justify-center ${
-              activeTab === tab.key
-                ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
-                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-            }`}
-          >
-            <i className={`${tab.icon} mr-1`}></i>
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      </CardHeader>
+      <CardContent>
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
+        <TabsList className="grid w-full grid-cols-3 mb-6">
+          <TabsTrigger value="trends">Trends</TabsTrigger>
+          <TabsTrigger value="regional">Regional</TabsTrigger>
+          <TabsTrigger value="types">Objekttypen</TabsTrigger>
+        </TabsList>
 
       {/* Content */}
       <div className="h-80">
-        {activeTab === 'trends' && (
+        <TabsContent value="trends" className="mt-0">
           <div className="space-y-4">
             {/* Key Metrics */}
             <div className="grid grid-cols-3 gap-3 mb-4">
@@ -212,9 +198,9 @@ const MarketTrendsWidget: React.FC = () => {
               </ResponsiveContainer>
             </div>
           </div>
-        )}
+        </TabsContent>
 
-        {activeTab === 'regional' && (
+        <TabsContent value="regional" className="mt-0">
           <div className="space-y-3 max-h-80 overflow-y-auto">
             {regionalData.map((region, index) => (
               <div key={region.region} className="p-4 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
@@ -244,9 +230,9 @@ const MarketTrendsWidget: React.FC = () => {
               </div>
             ))}
           </div>
-        )}
+        </TabsContent>
 
-        {activeTab === 'types' && (
+        <TabsContent value="types" className="mt-0">
           <div className="space-y-3 max-h-80 overflow-y-auto">
             {propertyTypeData.map((type) => {
               const ratio = getDemandSupplyRatio(type.demand, type.supply);
@@ -292,7 +278,7 @@ const MarketTrendsWidget: React.FC = () => {
               );
             })}
           </div>
-        )}
+        </TabsContent>
       </div>
 
       {/* Market Insights */}
@@ -311,7 +297,9 @@ const MarketTrendsWidget: React.FC = () => {
           </div>
         </div>
       </div>
-    </div>
+      </Tabs>
+      </CardContent>
+    </Card>
   );
 };
 
