@@ -10,6 +10,10 @@ from app.api.v1 import (
     documents,
     tasks,
     boards,
+    automations,
+    workflows,
+    slas,
+    custom_fields,
     ai,
     ai_chat,
     employees,
@@ -50,6 +54,10 @@ api_router.include_router(profile.router, tags=["Profile"])
 api_router.include_router(documents.router, prefix="/documents", tags=["documents"])
 api_router.include_router(tasks.router, prefix="/tasks", tags=["tasks"])
 api_router.include_router(boards.router, prefix="/boards", tags=["boards"])
+api_router.include_router(automations.router, prefix="/automations", tags=["automations"])
+api_router.include_router(workflows.router, prefix="/workflows", tags=["workflows"])
+api_router.include_router(slas.router, prefix="/slas", tags=["slas"])
+api_router.include_router(custom_fields.router, prefix="/custom-fields", tags=["custom-fields"])
 api_router.include_router(ai.router, prefix="/ai", tags=["ai"])
 api_router.include_router(ai_chat.router, prefix="/ai", tags=["ai-chat"])
 api_router.include_router(employees.router, prefix="/employees", tags=["employees"])

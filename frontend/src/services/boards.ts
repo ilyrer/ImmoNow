@@ -23,11 +23,26 @@ export interface BoardResponse {
   updated_at: string;
 }
 
+export interface WipStatus {
+  current: number;
+  limit: number;
+  is_over_limit: boolean;
+}
+
+export interface BoardWipStatus {
+  [statusKey: string]: WipStatus;
+}
+
 class BoardsService {
   async listBoards(projectId?: string): Promise<BoardResponse[]> {
     const response = await apiClient.get<BoardResponse[]>('/api/v1/boards', {
       params: projectId ? { project_id: projectId } : undefined,
     });
+    return response;
+  }
+
+  async getBoardWipStatus(boardId: string): Promise<BoardWipStatus> {
+    const response = await apiClient.get<BoardWipStatus>(`/api/v1/boards/${boardId}/wip-status`);
     return response;
   }
 }

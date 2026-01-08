@@ -87,7 +87,7 @@ module.exports = {
                     "light-border": "rgba(255, 255, 255, 0.18)",
                     dark: "rgba(28, 28, 30, 0.5)",
                     "dark-hover": "rgba(28, 28, 30, 0.6)",
-                    "dark-border": "rgba(255, 255, 255, 0.1)",
+                    "dark-border": "rgba(0, 0, 0, 0.3)",
                     "dark-intense": "rgba(28, 28, 30, 0.7)",
                     blue: "rgba(10, 132, 255, 0.1)",
                     "blue-hover": "rgba(10, 132, 255, 0.2)",

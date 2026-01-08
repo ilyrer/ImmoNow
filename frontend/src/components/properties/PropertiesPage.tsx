@@ -435,7 +435,7 @@ const PropertiesPage: React.FC<PropertiesPageProps> = ({ user }) => {
           </AnimatePresence>
 
           {/* Search & Filters */}
-          <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl shadow-lg border border-white/20 dark:border-gray-700/50 p-6">
+          <div className="bg-white/80 dark:bg-gray-950/90 backdrop-blur-xl rounded-2xl shadow-lg border border-white/20 dark:border-gray-800 p-6">
             <div className="flex flex-col lg:flex-row gap-4">
               {/* Search */}
               <div className="flex-1">
@@ -448,7 +448,7 @@ const PropertiesPage: React.FC<PropertiesPageProps> = ({ user }) => {
                       placeholder="Immobilien durchsuchen..."
                       value={filters.search || ''}
                       onChange={(e) => handleSearch(e.target.value)}
-                      className="pl-12 bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600"
+                      className="pl-12 bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-800"
                     />
                   </div>
                 </div>
@@ -461,7 +461,7 @@ const PropertiesPage: React.FC<PropertiesPageProps> = ({ user }) => {
                   value={filters.property_type || 'all'}
                   onValueChange={(value) => handleFilterChange('property_type', value === 'all' ? undefined : value)}
                 >
-                  <SelectTrigger className="w-[180px] bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600">
+                  <SelectTrigger className="w-[180px] bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-800">
                     <SelectValue placeholder="Alle Typen" />
                   </SelectTrigger>
                   <SelectContent>
@@ -478,7 +478,7 @@ const PropertiesPage: React.FC<PropertiesPageProps> = ({ user }) => {
                   value={filters.status || 'all'}
                   onValueChange={(value) => handleFilterChange('status', value === 'all' ? undefined : value)}
                 >
-                  <SelectTrigger className="w-[180px] bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600">
+                  <SelectTrigger className="w-[180px] bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-800">
                     <SelectValue placeholder="Alle Status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -498,7 +498,7 @@ const PropertiesPage: React.FC<PropertiesPageProps> = ({ user }) => {
                     setFilters(prev => ({ ...prev, sort_by, sort_order: sort_order as 'asc' | 'desc' }));
                   }}
                 >
-                  <SelectTrigger className="w-[180px] bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600">
+                  <SelectTrigger className="w-[180px] bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-800">
                     <SelectValue placeholder="Sortieren" />
                   </SelectTrigger>
                   <SelectContent>
@@ -511,7 +511,7 @@ const PropertiesPage: React.FC<PropertiesPageProps> = ({ user }) => {
                 </Select>
 
                 {/* View Toggle */}
-                <div className="flex bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl overflow-hidden">
+                <div className="flex bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden">
                   <Button
                     onClick={() => setViewMode('grid')}
                     variant={viewMode === 'grid' ? 'default' : 'ghost'}
@@ -566,7 +566,7 @@ const PropertiesPage: React.FC<PropertiesPageProps> = ({ user }) => {
                         placeholder="Min. Preis"
                         value={filters.price_min || ''}
                         onChange={(e) => handleFilterChange('price_min', e.target.value ? Number(e.target.value) : undefined)}
-                        className="bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600"
+                        className="bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-800"
                       />
                     </div>
 
@@ -578,7 +578,7 @@ const PropertiesPage: React.FC<PropertiesPageProps> = ({ user }) => {
                         placeholder="Max. Preis"
                         value={filters.price_max || ''}
                         onChange={(e) => handleFilterChange('price_max', e.target.value ? Number(e.target.value) : undefined)}
-                        className="bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600"
+                        className="bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-800"
                       />
                     </div>
 
@@ -590,7 +590,7 @@ const PropertiesPage: React.FC<PropertiesPageProps> = ({ user }) => {
                         placeholder="Min. Zimmer"
                         value={filters.rooms_min || ''}
                         onChange={(e) => handleFilterChange('rooms_min', e.target.value ? Number(e.target.value) : undefined)}
-                        className="bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600"
+                        className="bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-800"
                       />
                     </div>
 
@@ -602,7 +602,7 @@ const PropertiesPage: React.FC<PropertiesPageProps> = ({ user }) => {
                         placeholder="Max. Zimmer"
                         value={filters.rooms_max || ''}
                         onChange={(e) => handleFilterChange('rooms_max', e.target.value ? Number(e.target.value) : undefined)}
-                        className="bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600"
+                        className="bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-800"
                       />
                     </div>
 
@@ -614,7 +614,7 @@ const PropertiesPage: React.FC<PropertiesPageProps> = ({ user }) => {
                         placeholder="Min. Wohnfläche"
                         value={filters.living_area_min || ''}
                         onChange={(e) => handleFilterChange('living_area_min', e.target.value ? Number(e.target.value) : undefined)}
-                        className="bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600"
+                        className="bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-800"
                       />
                     </div>
 
@@ -626,7 +626,7 @@ const PropertiesPage: React.FC<PropertiesPageProps> = ({ user }) => {
                         placeholder="Max. Wohnfläche"
                         value={filters.living_area_max || ''}
                         onChange={(e) => handleFilterChange('living_area_max', e.target.value ? Number(e.target.value) : undefined)}
-                        className="bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600"
+                        className="bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-800"
                       />
                     </div>
 
@@ -638,7 +638,7 @@ const PropertiesPage: React.FC<PropertiesPageProps> = ({ user }) => {
                         placeholder="Min. Schlafzimmer"
                         value={filters.bedrooms_min || ''}
                         onChange={(e) => handleFilterChange('bedrooms_min', e.target.value ? Number(e.target.value) : undefined)}
-                        className="bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600"
+                        className="bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-800"
                       />
                     </div>
 
@@ -650,7 +650,7 @@ const PropertiesPage: React.FC<PropertiesPageProps> = ({ user }) => {
                         placeholder="Max. Schlafzimmer"
                         value={filters.bedrooms_max || ''}
                         onChange={(e) => handleFilterChange('bedrooms_max', e.target.value ? Number(e.target.value) : undefined)}
-                        className="bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600"
+                        className="bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-800"
                       />
                     </div>
 
@@ -662,7 +662,7 @@ const PropertiesPage: React.FC<PropertiesPageProps> = ({ user }) => {
                         placeholder="Min. Badezimmer"
                         value={filters.bathrooms_min || ''}
                         onChange={(e) => handleFilterChange('bathrooms_min', e.target.value ? Number(e.target.value) : undefined)}
-                        className="bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600"
+                        className="bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-800"
                       />
                     </div>
 
@@ -674,7 +674,7 @@ const PropertiesPage: React.FC<PropertiesPageProps> = ({ user }) => {
                         placeholder="Max. Badezimmer"
                         value={filters.bathrooms_max || ''}
                         onChange={(e) => handleFilterChange('bathrooms_max', e.target.value ? Number(e.target.value) : undefined)}
-                        className="bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600"
+                        className="bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-800"
                       />
                     </div>
 
@@ -686,7 +686,7 @@ const PropertiesPage: React.FC<PropertiesPageProps> = ({ user }) => {
                         placeholder="Min. Baujahr"
                         value={filters.year_built_min || ''}
                         onChange={(e) => handleFilterChange('year_built_min', e.target.value ? Number(e.target.value) : undefined)}
-                        className="bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600"
+                        className="bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-800"
                       />
                     </div>
 
@@ -698,7 +698,7 @@ const PropertiesPage: React.FC<PropertiesPageProps> = ({ user }) => {
                         placeholder="Max. Baujahr"
                         value={filters.year_built_max || ''}
                         onChange={(e) => handleFilterChange('year_built_max', e.target.value ? Number(e.target.value) : undefined)}
-                        className="bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600"
+                        className="bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-800"
                       />
                     </div>
 
@@ -710,7 +710,7 @@ const PropertiesPage: React.FC<PropertiesPageProps> = ({ user }) => {
                         placeholder="Min. Grundstück"
                         value={filters.plot_area_min || ''}
                         onChange={(e) => handleFilterChange('plot_area_min', e.target.value ? Number(e.target.value) : undefined)}
-                        className="bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600"
+                        className="bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-800"
                       />
                     </div>
 
@@ -722,7 +722,7 @@ const PropertiesPage: React.FC<PropertiesPageProps> = ({ user }) => {
                         placeholder="Max. Grundstück"
                         value={filters.plot_area_max || ''}
                         onChange={(e) => handleFilterChange('plot_area_max', e.target.value ? Number(e.target.value) : undefined)}
-                        className="bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600"
+                        className="bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-800"
                       />
                     </div>
 
@@ -733,7 +733,7 @@ const PropertiesPage: React.FC<PropertiesPageProps> = ({ user }) => {
                         value={filters.energy_class || 'all'}
                         onValueChange={(value) => handleFilterChange('energy_class', value === 'all' ? undefined : value)}
                       >
-                        <SelectTrigger className="bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600">
+                        <SelectTrigger className="bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-800">
                           <SelectValue placeholder="Alle Klassen" />
                         </SelectTrigger>
                         <SelectContent>
@@ -759,7 +759,7 @@ const PropertiesPage: React.FC<PropertiesPageProps> = ({ user }) => {
                         placeholder="z.B. Gas, Öl, Wärmepumpe"
                         value={filters.heating_type || ''}
                         onChange={(e) => handleFilterChange('heating_type', e.target.value || undefined)}
-                        className="bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600"
+                        className="bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-800"
                       />
                     </div>
                   </div>
@@ -803,7 +803,7 @@ const PropertiesPage: React.FC<PropertiesPageProps> = ({ user }) => {
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl shadow-lg border border-white/20 dark:border-gray-700/50 p-12 text-center"
+            className="bg-white/80 dark:bg-gray-950/90 backdrop-blur-xl rounded-2xl shadow-lg border border-white/20 dark:border-gray-800 p-12 text-center"
           >
             <div className="w-20 h-20 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
               <Home className="w-10 h-10 text-gray-400" />
@@ -860,7 +860,7 @@ const PropertiesPage: React.FC<PropertiesPageProps> = ({ user }) => {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.05 }}
                       onMouseEnter={() => prefetchProperty(property.id)}
-                      className="group relative bg-white dark:bg-gray-800 rounded-3xl shadow-xl border border-gray-100 dark:border-gray-700 overflow-hidden hover:shadow-2xl transition-all duration-500 hover:-translate-y-2"
+                      className="group relative bg-white dark:bg-gray-900 rounded-3xl shadow-xl border border-gray-100 dark:border-gray-800 overflow-hidden hover:shadow-2xl transition-all duration-500 hover:-translate-y-2"
                     >
                       {/* Image Container with Overlay */}
                       <div 
@@ -1010,7 +1010,7 @@ const PropertiesPage: React.FC<PropertiesPageProps> = ({ user }) => {
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: index * 0.03 }}
                       onMouseEnter={() => prefetchProperty(property.id)}
-                      className="group relative bg-white dark:bg-gray-800 rounded-3xl shadow-lg border border-gray-100 dark:border-gray-700 p-6 hover:shadow-2xl transition-all duration-500 hover:-translate-y-1"
+                      className="group relative bg-white dark:bg-gray-900 rounded-3xl shadow-lg border border-gray-100 dark:border-gray-800 p-6 hover:shadow-2xl transition-all duration-500 hover:-translate-y-1"
                     >
                       <div className="flex gap-6">
                         {/* Image - Larger & Better */}
@@ -1146,7 +1146,7 @@ const PropertiesPage: React.FC<PropertiesPageProps> = ({ user }) => {
                 <button
                   onClick={() => handlePageChange(pagination.page - 1)}
                   disabled={!pagination.hasPrev}
-                  className="px-4 py-2 bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl border border-white/20 dark:border-gray-700/50 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
+                  className="px-4 py-2 bg-white/80 dark:bg-gray-950/90 backdrop-blur-xl border border-white/20 dark:border-gray-800 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-900 transition-all"
                 >
                   Zurück
                 </button>
@@ -1173,7 +1173,7 @@ const PropertiesPage: React.FC<PropertiesPageProps> = ({ user }) => {
                 <button
                   onClick={() => handlePageChange(pagination.page + 1)}
                   disabled={!pagination.hasNext}
-                  className="px-4 py-2 bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl border border-white/20 dark:border-gray-700/50 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
+                  className="px-4 py-2 bg-white/80 dark:bg-gray-950/90 backdrop-blur-xl border border-white/20 dark:border-gray-800 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-900 transition-all"
                 >
                   Weiter
                 </button>
@@ -1185,7 +1185,7 @@ const PropertiesPage: React.FC<PropertiesPageProps> = ({ user }) => {
         {/* Loading Overlay */}
         {isLoading && properties.length > 0 && (
           <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-2xl">
+            <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-2xl">
               <Loader2 className="w-8 h-8 text-blue-500 animate-spin mx-auto" />
             </div>
           </div>

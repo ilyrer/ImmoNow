@@ -31,6 +31,10 @@ from .investor import (
     InvestmentType,
     InvestmentStatus,
 )
+from .automation import AutomationRule, AutomationLog
+from .workflow import Workflow, WorkflowInstance
+from .sla import SLA, SLAInstance
+from .custom_fields import CustomField, CustomFieldValue
 
 # Export all models
 __all__ = [
@@ -95,6 +99,14 @@ __all__ = [
     "PackageReservation",
     "InvestmentType",
     "InvestmentStatus",
+    "AutomationRule",
+    "AutomationLog",
+    "Workflow",
+    "WorkflowInstance",
+    "SLA",
+    "SLAInstance",
+    "CustomField",
+    "CustomFieldValue",
 ]
 
 

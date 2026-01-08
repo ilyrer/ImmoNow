@@ -15,7 +15,7 @@ from app.core.security import TokenData
 from app.core.errors import ValidationError, NotFoundError
 from app.schemas.tasks import (
     TaskResponse, CreateTaskRequest, UpdateTaskRequest, MoveTaskRequest,
-    EmployeeResponse, TaskStatisticsResponse
+    EmployeeResponse, TaskStatisticsResponse, BulkUpdateRequest, BulkUpdateResponse
 )
 from app.schemas.common import PaginatedResponse
 from app.core.pagination import PaginationParams, get_pagination_offset, validate_sort_field
@@ -201,6 +201,43 @@ async def move_task(
         raise NotFoundError("Task not found")
     
     return task
+
+
+@router.get("/{task_id}/transitions", response_model=List[str])
+async def get_task_transitions(
+    task_id: str,
+    current_user: TokenData = Depends(require_read_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Gibt erlaubte nächste Status für Task zurück"""
+    
+    tasks_service = TasksService(tenant_id)
+    task = await tasks_service.get_task(task_id)
+    
+    if not task:
+        raise NotFoundError("Task not found")
+    
+    # Hole erlaubte Transitions
+    transitions = await tasks_service.get_available_transitions(task_id)
+    return transitions
+
+
+@router.post("/bulk-update", response_model=BulkUpdateResponse)
+async def bulk_update_tasks(
+    payload: BulkUpdateRequest,
+    current_user: TokenData = Depends(require_write_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Bulk-Update für mehrere Tasks"""
+    
+    tasks_service = TasksService(tenant_id)
+    result = await tasks_service.bulk_update_tasks(
+        payload.task_ids,
+        payload.updates,
+        current_user.user_id
+    )
+    
+    return BulkUpdateResponse(**result)
 
 
 @router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)

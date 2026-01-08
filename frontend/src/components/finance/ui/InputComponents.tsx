@@ -180,7 +180,7 @@ export const MoneyInput: React.FC<InputFieldProps> = ({
                     disabled={disabled}
                     className={`
             w-full ${prefix ? 'pl-8' : 'pl-4'} ${suffix ? 'pr-24' : 'pr-4'} py-3
-            bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm
+            bg-white/50 dark:bg-gray-900 backdrop-blur-sm
             border-2 ${borderColor}
             rounded-xl
             text-right font-mono text-base

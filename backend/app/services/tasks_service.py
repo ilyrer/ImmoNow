@@ -16,6 +16,7 @@ from app.db.models import (
     TaskAttachment,
     TaskActivity,
     Board,
+    BoardStatus,
     Project,
     UserProfile,
     User,
@@ -38,6 +39,7 @@ from app.schemas.tasks import (
 )
 from app.core.errors import NotFoundError, ValidationError
 from app.services.audit import AuditService
+from app.core.event_bus import event_bus
 
 
 class TasksService:
@@ -203,6 +205,25 @@ class TasksService:
             return task
 
         task = await create_task_sync()
+        
+        # Publish event
+        task_data_dict = {
+            "id": str(task.id),
+            "title": task.title,
+            "status": task.status,
+            "priority": task.priority,
+            "assignee_id": str(task.assignee_id) if task.assignee_id else None,
+            "board_id": str(task.board_id) if task.board_id else None,
+            "project_id": str(task.project_id) if task.project_id else None,
+        }
+        
+        await event_bus.publish("task.created", {
+            "task_id": str(task.id),
+            "tenant_id": self.tenant_id,
+            "user_id": created_by_id,
+            "task_data": task_data_dict,
+        })
+        
         return await self._build_task_response(task)
 
     async def update_task(
@@ -226,6 +247,8 @@ class TasksService:
                 "priority": task.priority,
                 "assignee_id": str(task.assignee_id),
             }
+            
+            old_assignee_id = str(task.assignee_id) if task.assignee_id else None
 
             # Update fields
             update_data = task_data.model_dump(exclude_unset=True)
@@ -236,6 +259,10 @@ class TasksService:
                 setattr(task, field, value)
 
             task.save()
+            
+            # Check if assignee changed
+            new_assignee_id = str(task.assignee_id) if task.assignee_id else None
+            assignee_changed = "assignee_id" in update_data and old_assignee_id != new_assignee_id
 
             # Update labels if provided
             if label_ids is not None:
@@ -266,12 +293,220 @@ class TasksService:
                 new_values=update_data,
             )
 
-            return task
+            return task, assignee_changed, old_assignee_id, new_assignee_id
 
-        task = await update_task_sync()
-        if task:
+        result = await update_task_sync()
+        if result:
+            task, assignee_changed, old_assignee_id, new_assignee_id = result
+            
+            # Publish event if assignee changed
+            if assignee_changed:
+                await event_bus.publish("task.assigned", {
+                    "task_id": str(task.id),
+                    "tenant_id": self.tenant_id,
+                    "user_id": updated_by_id,
+                    "assignee_id": new_assignee_id,
+                    "old_assignee_id": old_assignee_id,
+                    "task_data": {
+                        "id": str(task.id),
+                        "title": task.title,
+                        "status": task.status,
+                    },
+                })
+            
             return await self._build_task_response(task)
         return None
+
+    async def validate_transition(
+        self, 
+        task: Task, 
+        new_status: str
+    ) -> None:
+        """Validiert Status-Transition gegen BoardStatus.allow_from und Workflow"""
+        
+        # Prüfe zuerst Workflow (hat Priorität)
+        @sync_to_async
+        def check_workflow_instance():
+            try:
+                from app.db.models import WorkflowInstance
+                return WorkflowInstance.objects.get(task_id=task.id, tenant_id=self.tenant_id)
+            except WorkflowInstance.DoesNotExist:
+                return None
+        
+        workflow_instance = await check_workflow_instance()
+        
+        if workflow_instance:
+            # Task hat Workflow → validiere gegen Workflow
+            workflow = workflow_instance.workflow
+            current_stage = None
+            
+            # Finde Current Stage
+            for stage in workflow.stages:
+                if stage.get("id") == workflow_instance.current_stage_id:
+                    current_stage = stage
+                    break
+            
+            if current_stage:
+                # Prüfe ob new_status einem erlaubten Stage entspricht
+                allowed_transitions = current_stage.get("transitions", [])
+                
+                # Finde Stage mit status_mapping = new_status
+                target_stage = None
+                for stage in workflow.stages:
+                    if stage.get("status_mapping") == new_status:
+                        target_stage = stage
+                        break
+                
+                if target_stage:
+                    # Prüfe ob Transition erlaubt
+                    if target_stage.get("id") not in allowed_transitions:
+                        raise ValidationError(
+                            f"Workflow-Transition zu Stage '{target_stage.get('name')}' ist nicht erlaubt. "
+                            f"Erlaubte Transitions: {', '.join([s.get('name', s.get('id')) for s in workflow.stages if s.get('id') in allowed_transitions])}"
+                        )
+                # Wenn kein status_mapping gefunden, erlaube (Backward Compatible)
+        
+        # Wenn Task kein Board hat → alle Transitions erlaubt (Backward Compatible)
+        if not task.board_id:
+            return
+        
+        # Hole BoardStatus für neuen Status
+        @sync_to_async
+        def get_board_status_sync():
+            try:
+                return BoardStatus.objects.get(board_id=task.board_id, key=new_status)
+            except BoardStatus.DoesNotExist:
+                return None
+        
+        board_status = await get_board_status_sync()
+        
+        # Wenn BoardStatus nicht existiert → Fehler
+        if not board_status:
+            raise ValidationError(f"Status '{new_status}' existiert nicht für dieses Board")
+        
+        # Wenn allow_from leer → alle Transitions erlaubt (Backward Compatible)
+        if not board_status.allow_from:
+            return
+        
+        # Prüfe Transition
+        if task.status not in board_status.allow_from:
+            raise ValidationError(
+                f"Transition von '{task.status}' zu '{new_status}' ist nicht erlaubt. "
+                f"Erlaubte Vorgänger: {', '.join(board_status.allow_from)}"
+            )
+    
+    async def enforce_wip_limit(
+        self,
+        board_id: str,
+        status: str
+    ) -> None:
+        """Prüft WIP-Limit für Status und wirft Fehler bei Überschreitung"""
+        
+        # Hole BoardStatus
+        @sync_to_async
+        def get_board_status_sync():
+            try:
+                return BoardStatus.objects.get(board_id=board_id, key=status)
+            except BoardStatus.DoesNotExist:
+                return None
+        
+        board_status = await get_board_status_sync()
+        
+        if not board_status or not board_status.wip_limit:
+            # Kein Limit → erlaubt
+            return
+        
+        # Zähle Tasks im Status
+        @sync_to_async
+        def count_tasks():
+            return Task.objects.filter(
+                board_id=board_id,
+                status=status,
+                tenant_id=self.tenant_id,
+                archived=False
+            ).count()
+        
+        current_count = await count_tasks()
+        
+        # Prüfe Limit
+        if current_count >= board_status.wip_limit:
+            raise ValidationError(
+                f"WIP-Limit für Status '{status}' erreicht ({current_count}/{board_status.wip_limit}). "
+                f"Bitte andere Tasks abschließen oder Limit erhöhen."
+            )
+    
+    async def get_available_transitions(self, task_id: str) -> List[str]:
+        """Gibt erlaubte nächste Status zurück (berücksichtigt Workflow)"""
+        
+        task = await self.get_task(task_id)
+        if not task:
+            return []
+        
+        # Hole Task-Objekt für Board-ID
+        @sync_to_async
+        def get_task_obj():
+            try:
+                return Task.objects.get(id=task_id, tenant_id=self.tenant_id)
+            except Task.DoesNotExist:
+                return None
+        
+        task_obj = await get_task_obj()
+        if not task_obj:
+            return []
+        
+        # Prüfe zuerst Workflow (hat Priorität)
+        @sync_to_async
+        def check_workflow_instance():
+            try:
+                from app.db.models import WorkflowInstance
+                return WorkflowInstance.objects.get(task_id=task_id, tenant_id=self.tenant_id)
+            except WorkflowInstance.DoesNotExist:
+                return None
+        
+        workflow_instance = await check_workflow_instance()
+        
+        if workflow_instance:
+            # Task hat Workflow → hole erlaubte Stages
+            workflow = workflow_instance.workflow
+            current_stage = None
+            
+            for stage in workflow.stages:
+                if stage.get("id") == workflow_instance.current_stage_id:
+                    current_stage = stage
+                    break
+            
+            if current_stage:
+                allowed_stage_ids = current_stage.get("transitions", [])
+                # Konvertiere Stage-IDs zu Status (via status_mapping)
+                available = []
+                for stage in workflow.stages:
+                    if stage.get("id") in allowed_stage_ids:
+                        status_mapping = stage.get("status_mapping")
+                        if status_mapping:
+                            available.append(status_mapping)
+                return available
+        
+        # Fallback: BoardStatus-basierte Transitions
+        if not task_obj.board_id:
+            # Kein Board → alle Status erlaubt
+            return [status.value for status in TaskStatus]
+        
+        # Hole alle BoardStatuses für Board
+        @sync_to_async
+        def get_board_statuses():
+            return list(
+                BoardStatus.objects.filter(board_id=task_obj.board_id).order_by("order")
+            )
+        
+        board_statuses = await get_board_statuses()
+        
+        # Filtere nach allow_from
+        available = []
+        for board_status in board_statuses:
+            if not board_status.allow_from or task_obj.status in board_status.allow_from:
+                available.append(board_status.key)
+        
+        return available
 
     async def move_task(
         self, task_id: str, move_data: MoveTaskRequest, moved_by_id: str
@@ -292,9 +527,13 @@ class TasksService:
                 "status": task.status,
                 "position": getattr(task, "position", None),
             }
+            
+            old_status = task.status
 
             # Update status if provided
             if move_data.new_status:
+                # VALIDIERUNG HINZUFÜGEN
+                # Note: validate_transition wird vor dem sync_to_async aufgerufen
                 task.status = move_data.new_status
 
             task.save()
@@ -309,10 +548,83 @@ class TasksService:
                 new_values={"status": task.status},
             )
 
-            return task
+            return task, old_status, task.status
 
-        task = await move_task_sync()
-        if task:
+        # Validiere Transition VOR dem Update
+        @sync_to_async
+        def get_task_for_validation():
+            try:
+                return Task.objects.get(id=task_id, tenant_id=self.tenant_id)
+            except Task.DoesNotExist:
+                return None
+        
+        task_for_validation = await get_task_for_validation()
+        if not task_for_validation:
+            return None
+        
+        if move_data.new_status:
+            # VALIDIERUNG HINZUFÜGEN
+            await self.validate_transition(task_for_validation, move_data.new_status)
+            
+            # WIP-ENFORCEMENT HINZUFÜGEN
+            if task_for_validation.board_id:
+                await self.enforce_wip_limit(task_for_validation.board_id, move_data.new_status)
+            
+            # WORKFLOW-ADVANCE (wenn Task Workflow hat)
+            @sync_to_async
+            def check_workflow_instance():
+                try:
+                    from app.db.models import WorkflowInstance
+                    return WorkflowInstance.objects.get(task_id=task_id, tenant_id=self.tenant_id)
+                except WorkflowInstance.DoesNotExist:
+                    return None
+            
+            workflow_instance = await check_workflow_instance()
+            if workflow_instance:
+                # Finde Stage mit status_mapping = new_status
+                workflow = workflow_instance.workflow
+                target_stage = None
+                for stage in workflow.stages:
+                    if stage.get("status_mapping") == move_data.new_status:
+                        target_stage = stage
+                        break
+                
+                if target_stage:
+                    # Führe Workflow-Transition aus
+                    from app.services.workflow import WorkflowEngine
+                    workflow_engine = WorkflowEngine(self.tenant_id)
+                    try:
+                        await workflow_engine.advance_workflow(
+                            task_id, 
+                            target_stage.get("id"), 
+                            moved_by_id
+                        )
+                    except ValidationError as e:
+                        # Workflow-Transition fehlgeschlagen → Fehler weiterwerfen
+                        raise
+        
+        result = await move_task_sync()
+        if result:
+            task, old_status, new_status = result
+            
+            # Publish event if status changed
+            if old_status != new_status:
+                await event_bus.publish("task.status_changed", {
+                    "task_id": str(task.id),
+                    "tenant_id": self.tenant_id,
+                    "user_id": moved_by_id,
+                    "old_status": old_status,
+                    "new_status": new_status,
+                    "task_data": {
+                        "id": str(task.id),
+                        "title": task.title,
+                        "status": new_status,
+                    },
+                })
+                
+                # Start relevante SLAs
+                await self._start_relevant_slas(task, new_status)
+            
             return await self._build_task_response(task)
         return None
 
@@ -640,3 +952,122 @@ class TasksService:
             )
 
         return await build_response_sync()
+    
+    async def bulk_update_tasks(
+        self,
+        task_ids: List[str],
+        updates: UpdateTaskRequest,
+        updated_by_id: str
+    ) -> Dict[str, Any]:
+        """Bulk-Update für mehrere Tasks"""
+        
+        updated_count = 0
+        failed_count = 0
+        errors = []
+        
+        # Atomic Transaction
+        @sync_to_async
+        def bulk_update_sync():
+            from django.db import transaction
+            
+            with transaction.atomic():
+                for task_id in task_ids:
+                    try:
+                        # Validiere Task existiert
+                        task = Task.objects.get(id=task_id, tenant_id=self.tenant_id)
+                        
+                        # Validiere Transition (wenn Status geändert)
+                        if updates.status:
+                            # Prüfe Transition
+                            board_status = None
+                            if task.board_id:
+                                try:
+                                    board_status = BoardStatus.objects.get(
+                                        board_id=task.board_id,
+                                        key=updates.status
+                                    )
+                                except BoardStatus.DoesNotExist:
+                                    pass
+                            
+                            if board_status and board_status.allow_from:
+                                if task.status not in board_status.allow_from:
+                                    errors.append({
+                                        "task_id": task_id,
+                                        "error": f"Transition nicht erlaubt"
+                                    })
+                                    failed_count += 1
+                                    continue
+                            
+                            # Prüfe WIP-Limit
+                            if task.board_id and board_status and board_status.wip_limit:
+                                current_count = Task.objects.filter(
+                                    board_id=task.board_id,
+                                    status=updates.status,
+                                    tenant_id=self.tenant_id,
+                                    archived=False
+                                ).count()
+                                
+                                if current_count >= board_status.wip_limit:
+                                    errors.append({
+                                        "task_id": task_id,
+                                        "error": f"WIP-Limit erreicht"
+                                    })
+                                    failed_count += 1
+                                    continue
+                        
+                        # Update Task
+                        update_data = updates.model_dump(exclude_unset=True)
+                        for field, value in update_data.items():
+                            setattr(task, field, value)
+                        task.save()
+                        
+                        updated_count += 1
+                        
+                    except Task.DoesNotExist:
+                        errors.append({
+                            "task_id": task_id,
+                            "error": "Task nicht gefunden"
+                        })
+                        failed_count += 1
+                    except ValidationError as e:
+                        errors.append({
+                            "task_id": task_id,
+                            "error": str(e)
+                        })
+                        failed_count += 1
+                    except Exception as e:
+                        errors.append({
+                            "task_id": task_id,
+                            "error": f"Unerwarteter Fehler: {str(e)}"
+                        })
+                        failed_count += 1
+            
+            return {
+                "updated_count": updated_count,
+                "failed_count": failed_count,
+                "errors": errors
+            }
+        
+        result = await bulk_update_sync()
+        
+        # Publish Events für erfolgreiche Updates
+        if result["updated_count"] > 0 and updates.status:
+            for task_id in task_ids:
+                # Prüfe ob Task erfolgreich aktualisiert wurde
+                if not any(e.get("task_id") == task_id for e in result["errors"]):
+                    task = await self.get_task(task_id)
+                    if task:
+                        await event_bus.publish("task.status_changed", {
+                            "task_id": task_id,
+                            "tenant_id": self.tenant_id,
+                            "user_id": updated_by_id,
+                            "old_status": None,  # Bei Bulk-Update nicht verfügbar
+                            "new_status": updates.status,
+                            "task_data": {
+                                "id": task_id,
+                                "title": task.title if hasattr(task, 'title') else "",
+                                "status": updates.status,
+                            },
+                        })
+        
+        return result

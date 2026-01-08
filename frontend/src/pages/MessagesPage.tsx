@@ -158,7 +158,7 @@ const MessagesPage: React.FC = () => {
 
   return (
     <div className="bg-gray-50 dark:bg-gray-900 min-h-screen">
-      <div className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+      <div className="bg-white dark:bg-gray-900 shadow-sm border-b border-gray-200 dark:border-gray-800">
         <div className="px-6 py-4">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">Nachrichten</h1>
           <p className="text-gray-600 dark:text-gray-400">Kommunizieren Sie direkt mit Interessenten und Kunden</p>
@@ -167,7 +167,7 @@ const MessagesPage: React.FC = () => {
       
       <div className="flex h-screen">
         {/* Konversationsliste */}
-        <div className="w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700">
+        <div className="w-80 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800">
           <div className="p-4 border-b border-gray-200 dark:border-gray-700">
             <div className="relative">
               <input
@@ -175,7 +175,7 @@ const MessagesPage: React.FC = () => {
                 placeholder="Nachrichten durchsuchen..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-800 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               />
               <i className="ri-search-line absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
             </div>
@@ -241,7 +241,7 @@ const MessagesPage: React.FC = () => {
           {selectedConversation ? (
             <>
               {/* Chat-Header */}
-              <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4">
+              <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 p-4">
                 <div className="flex items-center space-x-3">
                   <div className="w-10 h-10 bg-indigo-500 rounded-full flex items-center justify-center">
                     <span className="text-white text-sm font-medium">
@@ -291,7 +291,7 @@ const MessagesPage: React.FC = () => {
               </div>
 
               {/* Nachricht schreiben */}
-              <div className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-4">
+              <div className="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 p-4">
                 <div className="flex space-x-4">
                   <div className="flex-1">
                     <input
@@ -300,7 +300,7 @@ const MessagesPage: React.FC = () => {
                       value={newMessage}
                       onChange={(e) => setNewMessage(e.target.value)}
                       onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-800 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                     />
                   </div>
                   <button

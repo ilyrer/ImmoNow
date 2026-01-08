@@ -7,11 +7,16 @@ import {
   useTaskAnalytics,
   useProperties,
   useTasks,
-  useContacts
+  useContacts,
+  useDocuments,
+  useDocumentAnalytics,
+  useSocialAnalytics,
+  useSocialHubDashboard,
+  useFinancingScenarios
 } from '../../api/hooks';
 import { useAppointments } from '../../hooks/useAppointments';
 import { useEmployees } from '../../hooks/useTasks';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, LineChart, Line, Legend, RadialBarChart, RadialBar } from 'recharts';
 import WidgetManager from '../CIM/WidgetManager';
 import DashboardGrid from './DashboardGrid';
 import { getWidgetsForRole, getDefaultWidgetsForRole, isWidgetAvailableForRole, WIDGET_CONFIGS } from '../../config/dashboard-widgets';
@@ -31,7 +36,13 @@ import {
   Home,
   Eye,
   Plus,
-  RotateCcw
+  RotateCcw,
+  FolderOpen,
+  Share2,
+  TrendingDown,
+  AlertCircle,
+  CheckCircle2,
+  Zap
 } from 'lucide-react';
 
 // Lazy-loaded widgets (must be declared after all import statements per eslint import/first)
@@ -252,12 +263,13 @@ const TeamPerformanceWidget: React.FC = () => {
   );
 };
 
-// Finance Overview Widget
+// Finance Overview Widget - Erweitert mit Financing Scenarios
 const FinanceOverviewWidget: React.FC = () => {
   const { data: analytics, isLoading: analyticsLoading } = useDashboardAnalytics();
   const { data: propertiesData, isLoading: propertiesLoading } = useProperties({ page: 1, size: 50 });
+  const { data: financingScenarios, isLoading: scenariosLoading } = useFinancingScenarios({ page: 1, size: 10 });
 
-  const isLoading = analyticsLoading || propertiesLoading;
+  const isLoading = analyticsLoading || propertiesLoading || scenariosLoading;
 
   if (isLoading) {
     return (
@@ -281,72 +293,120 @@ const FinanceOverviewWidget: React.FC = () => {
     );
   }
 
-  const propertyItems = propertiesData?.items ?? [];
-  const totalValue = propertyItems.reduce((sum, property) => sum + (property.price || 0), 0);
-  const monthlyRevenue = analytics?.monthly_revenue ?? totalValue * 0.05;
-  const monthlyExpenses = analytics?.monthly_expenses ?? monthlyRevenue * 0.6;
-  const netIncome = monthlyRevenue - monthlyExpenses;
-  const profitMargin = monthlyRevenue > 0 ? (netIncome / monthlyRevenue) * 100 : 0;
+  // Nur echte API-Daten - keine Fallbacks
+  const propertyItems = propertiesData?.items || [];
+  const totalValue = propertyItems.reduce((sum, property) => {
+    return sum + (property.price ? Number(property.price) : 0);
+  }, 0);
+  
+  const monthlyRevenue = analytics?.monthly_revenue;
+  const monthlyExpenses = analytics?.monthly_expenses;
+  const netIncome = monthlyRevenue !== undefined && monthlyExpenses !== undefined ? monthlyRevenue - monthlyExpenses : undefined;
+  const profitMargin = monthlyRevenue && monthlyRevenue > 0 && netIncome !== undefined ? (netIncome / monthlyRevenue) * 100 : undefined;
+  const totalScenarios = financingScenarios?.total || (financingScenarios?.items ? financingScenarios.items.length : undefined);
 
-  const financeMetrics = [
-    {
+  // Finance Metrics nur mit echten Daten
+  const financeMetrics = [];
+  
+  if (monthlyRevenue !== undefined && monthlyRevenue !== null) {
+    financeMetrics.push({
       label: 'Monatlicher Umsatz',
       value: monthlyRevenue,
       format: (v: number) => `€${Math.round(v).toLocaleString('de-DE')}`,
       color: 'from-green-500 to-emerald-600',
-      icon: 'ri-arrow-up-line'
-    },
-    {
+      icon: TrendingUp
+    });
+  }
+  
+  if (monthlyExpenses !== undefined && monthlyExpenses !== null) {
+    financeMetrics.push({
       label: 'Monatliche Ausgaben',
       value: monthlyExpenses,
       format: (v: number) => `€${Math.round(v).toLocaleString('de-DE')}`,
       color: 'from-red-500 to-rose-600',
-      icon: 'ri-arrow-down-line'
-    },
-    {
+      icon: TrendingDown
+    });
+  }
+  
+  if (netIncome !== undefined && netIncome !== null) {
+    financeMetrics.push({
       label: 'Nettoeinkommen',
       value: netIncome,
       format: (v: number) => `€${Math.round(v).toLocaleString('de-DE')}`,
       color: netIncome >= 0 ? 'from-blue-500 to-cyan-600' : 'from-orange-500 to-red-600',
-      icon: netIncome >= 0 ? 'ri-trending-up-line' : 'ri-trending-down-line'
-    },
-    {
+      icon: DollarSign
+    });
+  }
+  
+  if (profitMargin !== undefined && profitMargin !== null) {
+    financeMetrics.push({
       label: 'Gewinnmarge',
       value: profitMargin,
       format: (v: number) => `${v.toFixed(1)}%`,
       color: profitMargin >= 20 ? 'from-purple-500 to-pink-600' : profitMargin >= 10 ? 'from-blue-500 to-indigo-600' : 'from-yellow-500 to-orange-600',
-      icon: 'ri-percent-line'
-    }
-  ];
+      icon: PieChartIcon
+    });
+  }
+  
+  if (totalValue > 0) {
+    financeMetrics.push({
+      label: 'Portfolio Wert',
+      value: totalValue,
+      format: (v: number) => `€${(v / 1_000_000).toFixed(1)}M`,
+      color: 'from-amber-500 to-amber-600',
+      icon: Home
+    });
+  }
+  
+  if (totalScenarios !== undefined && totalScenarios !== null && totalScenarios > 0) {
+    financeMetrics.push({
+      label: 'Finanzierungsszenarien',
+      value: totalScenarios,
+      format: (v: number) => `${v} Szenarien`,
+      color: 'from-indigo-500 to-indigo-600',
+      icon: FileText
+    });
+  }
+
+  if (financeMetrics.length === 0) {
+    return (
+      <div className="p-6 text-center text-gray-500 dark:text-gray-400">
+        Keine Finanzdaten verfügbar
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 h-full flex flex-col">
       <div className="flex items-center mb-6">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center mr-3">
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center mr-3 shadow-lg">
           <DollarSign className="w-5 h-5 text-white" />
         </div>
         <div>
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Finanz-Übersicht</h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Finanzielle Kennzahlen</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Finanzielle Kennzahlen & Szenarien</p>
         </div>
       </div>
       
-      <div className="space-y-4 flex-1">
-        {financeMetrics.map((metric, index) => (
-          <div key={index} className="glass p-4 rounded-xl">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                {metric.label}
-              </span>
-              <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${metric.color} flex items-center justify-center`}>
-                <i className={`${metric.icon} text-white text-sm`}></i>
+      <div className="space-y-4 flex-1 overflow-y-auto">
+        {financeMetrics.map((metric, index) => {
+          const IconComponent = metric.icon;
+          return (
+            <div key={index} className="glass p-4 rounded-xl border border-white/10 dark:border-white/5 hover:shadow-lg transition-all">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {metric.label}
+                </span>
+                <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${metric.color} flex items-center justify-center shadow-md`}>
+                  <IconComponent className="w-4 h-4 text-white" />
+                </div>
+              </div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                {metric.format(metric.value)}
               </div>
             </div>
-            <div className="text-2xl font-bold text-gray-900 dark:text-white">
-              {metric.format(metric.value)}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -360,22 +420,39 @@ const TrafficRevenueChartWidget: React.FC = () => {
   const isLoading = analyticsLoading || propertyAnalyticsLoading;
 
   const chartData = useMemo(() => {
-    const monthly = propertyAnalytics?.monthly_listings ?? [];
-    if (monthly.length > 0) {
-      return monthly.map((entry: any, idx: number) => ({
-        date: entry.month || entry.label || `M${idx + 1}`,
-        traffic: Number(entry.count ?? entry.value ?? 0),
-        revenue: Math.max(0, (dashboardAnalytics?.monthly_revenue ?? 0) / Math.max(1, monthly.length))
-      }));
+    // Nur echte Daten - keine Fallbacks
+    const monthly = propertyAnalytics?.monthly_listings;
+    if (monthly && Array.isArray(monthly) && monthly.length > 0) {
+      return monthly.map((entry: any, idx: number) => {
+        const traffic = entry.count !== undefined ? Number(entry.count) : (entry.value !== undefined ? Number(entry.value) : undefined);
+        const revenue = dashboardAnalytics?.monthly_revenue && monthly.length > 0 
+          ? dashboardAnalytics.monthly_revenue / monthly.length 
+          : undefined;
+        
+        if (traffic === undefined && revenue === undefined) return null;
+        
+        return {
+          date: entry.month || entry.label || `M${idx + 1}`,
+          traffic: traffic || 0,
+          revenue: revenue || 0
+        };
+      }).filter(Boolean);
     }
 
-    const trend = dashboardAnalytics?.property_value_trend ?? [];
-    if (trend.length > 0) {
-      return trend.map((entry: any) => ({
-        date: entry.date || entry.label,
-        traffic: Number(entry.properties || entry.value || 0),
-        revenue: Number(entry.revenue || entry.amount || 0)
-      }));
+    const trend = dashboardAnalytics?.property_value_trend;
+    if (trend && Array.isArray(trend) && trend.length > 0) {
+      return trend.map((entry: any) => {
+        const traffic = entry.properties !== undefined ? Number(entry.properties) : (entry.value !== undefined ? Number(entry.value) : undefined);
+        const revenue = entry.revenue !== undefined ? Number(entry.revenue) : (entry.amount !== undefined ? Number(entry.amount) : undefined);
+        
+        if (traffic === undefined && revenue === undefined) return null;
+        
+        return {
+          date: entry.date || entry.label,
+          traffic: traffic || 0,
+          revenue: revenue || 0
+        };
+      }).filter(Boolean);
     }
 
     return [];
@@ -513,49 +590,64 @@ const ConversionFunnelWidget: React.FC = () => {
     );
   }
 
-  const contacts = contactsData?.items ?? [];
-  const properties = propertiesData?.items ?? [];
-  const tasks = tasksData?.items ?? [];
+  // Nur echte Daten - keine Fallbacks
+  const contacts = contactsData?.items || [];
+  const properties = propertiesData?.items || [];
+  const tasks = tasksData?.items || [];
+  const appointmentsArray = Array.isArray(appointments) ? appointments : [];
 
-  const totalContacts = contactAnalytics?.total_contacts ?? contactsData?.total ?? contacts.length;
-  const qualifiedContacts = contactAnalytics?.contacts_by_status?.qualified ?? Math.round(totalContacts * 0.6);
-  const totalProperties = propertiesData?.total ?? properties.length;
-  const totalAppointments = appointments?.length || 0;
-  const doneTasks = taskAnalytics?.tasks_by_status?.done ?? tasks.filter((t) => t.status === 'done').length;
+  const totalContacts = contactAnalytics?.total_contacts || contactsData?.total;
+  const qualifiedContacts = contactAnalytics?.contacts_by_status?.qualified;
+  const totalProperties = propertiesData?.total;
+  const totalAppointments = appointmentsArray.length;
+  const doneTasks = taskAnalytics?.tasks_by_status?.done;
 
-  // Conversion Funnel basierend auf echten Daten
-  const funnelData = [
-    { 
+  // Conversion Funnel nur mit echten Daten
+  const funnelData = [];
+  
+  if (totalContacts !== undefined && totalContacts !== null) {
+    funnelData.push({ 
       stage: 'Leads', 
       count: totalContacts, 
       color: '#3b82f6', 
       gradient: 'from-blue-500 to-blue-600' 
-    },
-    { 
+    });
+  }
+  
+  if (qualifiedContacts !== undefined && qualifiedContacts !== null) {
+    funnelData.push({ 
       stage: 'Qualifiziert', 
       count: qualifiedContacts, 
       color: '#10b981', 
       gradient: 'from-teal-500 to-teal-600' 
-    },
-    { 
+    });
+  }
+  
+  if (totalAppointments > 0) {
+    funnelData.push({ 
       stage: 'Besichtigung', 
       count: totalAppointments, 
       color: '#f59e0b', 
       gradient: 'from-amber-500 to-amber-600' 
-    },
-    { 
-      stage: 'Angebot', 
-      count: Math.floor(totalAppointments * 0.6), 
-      color: '#ef4444', 
-      gradient: 'from-red-500 to-red-600' 
-    },
-    { 
+    });
+  }
+  
+  if (doneTasks !== undefined && doneTasks !== null) {
+    funnelData.push({ 
       stage: 'Verkauf', 
       count: doneTasks, 
       color: '#8b5cf6', 
       gradient: 'from-purple-500 to-purple-600' 
-    }
-  ];
+    });
+  }
+
+  if (funnelData.length === 0) {
+    return (
+      <div className="p-6 text-center text-gray-500 dark:text-gray-400">
+        Keine Conversion-Daten verfügbar
+      </div>
+    );
+  }
 
   const maxCount = Math.max(...funnelData.map(stage => stage.count));
 
@@ -694,19 +786,34 @@ const PropertyMapWidget: React.FC = () => {
   );
 };
 
-// KPI Cards Widget - Revenue, Active Users, Conversion, Churn
+// KPI Cards Widget - Erweitert mit allen verfügbaren Metriken
 const KPICardsWidget: React.FC = () => {
   const { data: analytics, isLoading: analyticsLoading } = useDashboardAnalytics();
   const { data: propertiesData, isLoading: propertiesLoading } = useProperties({ page: 1, size: 50 });
   const { data: tasksData, isLoading: tasksLoading } = useTasks({ page: 1, size: 50 });
   const { data: contactsData, isLoading: contactsLoading } = useContacts({ page: 1, size: 50 });
   const { data: employeesData, isLoading: employeesLoading } = useEmployees();
+  const { data: documentsData, isLoading: documentsLoading } = useDocuments({ page: 1, size: 50 });
+  const { data: documentAnalytics, isLoading: documentAnalyticsLoading } = useDocumentAnalytics();
+  const { data: socialDashboard, isLoading: socialLoading } = useSocialHubDashboard();
+  const { data: taskAnalytics, isLoading: taskAnalyticsLoading } = useTaskAnalytics();
 
-  const [goals, setGoals] = useState<{ revenue: number; properties: number; conversion: number; value: number }>({
+  const [goals, setGoals] = useState<{ 
+    revenue: number; 
+    properties: number; 
+    conversion: number; 
+    value: number;
+    tasks: number;
+    documents: number;
+    contacts: number;
+  }>({
     revenue: 50000,
     properties: 10,
     conversion: 20,
-    value: 1_000_000
+    value: 1_000_000,
+    tasks: 100,
+    documents: 50,
+    contacts: 50
   });
 
   useEffect(() => {
@@ -729,7 +836,8 @@ const KPICardsWidget: React.FC = () => {
     });
   };
 
-  const isLoading = analyticsLoading || propertiesLoading || tasksLoading || contactsLoading || employeesLoading;
+  const isLoading = analyticsLoading || propertiesLoading || tasksLoading || contactsLoading || 
+                    employeesLoading || documentsLoading || documentAnalyticsLoading || socialLoading || taskAnalyticsLoading;
 
   if (isLoading) {
     return (
@@ -748,78 +856,147 @@ const KPICardsWidget: React.FC = () => {
     );
   }
 
-  const propertyItems = propertiesData?.items ?? [];
-  const contactItems = contactsData?.items ?? [];
-  const taskItems = tasksData?.items ?? [];
-  const employeeItems = employeesData ?? [];
+  // Nur echte API-Daten verwenden - keine Fallbacks
+  if (!analytics && !propertiesData && !tasksData && !contactsData && !employeesData && !documentsData && !documentAnalytics && !socialDashboard && !taskAnalytics) {
+    return (
+      <div className="p-6 text-center text-gray-500 dark:text-gray-400">
+        Keine Daten verfügbar
+      </div>
+    );
+  }
 
-  const totalProperties = analytics?.total_properties ?? propertiesData?.total ?? propertyItems.length;
-  const activeProperties = analytics?.active_properties ?? propertyItems.filter((p) => (p.status || '').toLowerCase() === 'active').length;
-  const totalContacts = analytics?.total_contacts ?? contactsData?.total ?? contactItems.length;
+  const propertyItems = propertiesData?.items || [];
+  const contactItems = contactsData?.items || [];
+  const taskItems = tasksData?.items || [];
+  const documentItems = documentsData?.items || [];
+  const employeeItems = Array.isArray(employeesData) ? employeesData : [];
+
+  // Nur echte API-Daten - keine Fallbacks
+  const totalProperties = analytics?.total_properties || propertiesData?.total;
+  const activeProperties = analytics?.active_properties;
+  const totalContacts = analytics?.total_contacts || contactsData?.total;
   const totalEmployees = employeeItems.length;
-  const completedTasks = analytics?.completed_tasks ?? taskItems.filter((t) => t.status === 'done').length;
-  const totalValue = propertyItems.reduce((sum, property) => sum + (property.price || 0), 0);
-  const monthlyRevenue = analytics?.monthly_revenue ?? totalValue * 0.05;
-  const conversionRate = analytics?.contact_conversion_rate ?? (totalContacts > 0 ? completedTasks / totalContacts : 0);
+  const completedTasks = taskAnalytics?.completed_tasks || analytics?.completed_tasks;
+  const totalTasks = taskAnalytics?.total_tasks || analytics?.total_tasks;
+  const totalDocuments = documentAnalytics?.totalDocuments || documentAnalytics?.counts?.total || documentsData?.total;
+  const monthlyRevenue = analytics?.monthly_revenue;
+  const conversionRate = analytics?.contact_conversion_rate || taskAnalytics?.conversion_rate;
+  const taskCompletionRate = totalTasks && completedTasks ? (completedTasks / totalTasks) * 100 : undefined;
+  const socialReach = socialDashboard?.stats?.total_reach;
+  const socialPosts = socialDashboard?.stats?.published_posts;
+  
+  // Portfolio Wert nur aus echten Property-Daten
+  const totalValue = propertyItems.reduce((sum, property) => {
+    return sum + (property.price ? Number(property.price) : 0);
+  }, 0);
 
-  const kpiData = [
-    {
+  // KPI Data nur mit echten Werten - keine Fallbacks
+  const kpiData = [];
+  
+  if (monthlyRevenue !== undefined && monthlyRevenue !== null) {
+    kpiData.push({
       key: 'revenue' as const,
-      label: 'Revenue',
+      label: 'Monatlicher Umsatz',
       rawValue: monthlyRevenue,
       value: `€${Math.round(monthlyRevenue).toLocaleString('de-DE')}`,
-      change: analytics?.monthly_expenses ? `${Math.round((monthlyRevenue / Math.max(1, analytics.monthly_expenses)) * 10) / 10}x` : '+12%',
-      trend: 'up',
-      icon: 'ri-money-dollar-circle-line',
+      change: analytics?.monthly_expenses ? `${Math.round((monthlyRevenue / analytics.monthly_expenses) * 10) / 10}x` : '',
+      trend: 'up' as const,
+      icon: DollarSign,
       color: 'from-blue-500 to-blue-600'
-    },
-    {
+    });
+  }
+  
+  if (totalProperties !== undefined && totalProperties !== null && activeProperties !== undefined && activeProperties !== null) {
+    kpiData.push({
       key: 'properties' as const,
-      label: 'Aktive Objekte',
+      label: 'Aktive Immobilien',
       rawValue: activeProperties,
-      value: activeProperties.toString(),
-      change: totalProperties ? `+${Math.round((activeProperties / totalProperties) * 100)}%` : '+0%',
-      trend: 'up',
-      icon: 'ri-home-line',
+      value: `${activeProperties} / ${totalProperties}`,
+      change: `${Math.round((activeProperties / totalProperties) * 100)}%`,
+      trend: 'up' as const,
+      icon: Home,
       color: 'from-green-500 to-green-600'
-    },
-    {
-      key: 'conversion' as const,
-      label: 'Conversion',
-      rawValue: conversionRate * 100,
-      value: `${(conversionRate * 100).toFixed(1)}%`,
-      change: '+5%',
-      trend: 'up',
-      icon: 'ri-trending-up-line',
+    });
+  }
+  
+  if (totalTasks !== undefined && totalTasks !== null && completedTasks !== undefined && completedTasks !== null && taskCompletionRate !== undefined) {
+    kpiData.push({
+      key: 'tasks' as const,
+      label: 'Aufgaben Fortschritt',
+      rawValue: taskCompletionRate,
+      value: `${completedTasks} / ${totalTasks}`,
+      change: `${taskCompletionRate.toFixed(0)}%`,
+      trend: taskCompletionRate > 70 ? 'up' as const : 'down' as const,
+      icon: CheckCircle2,
       color: 'from-purple-500 to-purple-600'
-    },
-    {
+    });
+  }
+  
+  if (totalContacts !== undefined && totalContacts !== null && conversionRate !== undefined && conversionRate !== null) {
+    kpiData.push({
+      key: 'contacts' as const,
+      label: 'Kontakte & Conversion',
+      rawValue: conversionRate * 100,
+      value: `${totalContacts} Kontakte`,
+      change: `${(conversionRate * 100).toFixed(1)}% Conversion`,
+      trend: conversionRate > 0.1 ? 'up' as const : 'down' as const,
+      icon: Users,
+      color: 'from-amber-500 to-amber-600'
+    });
+  }
+  
+  if (totalDocuments !== undefined && totalDocuments !== null) {
+    kpiData.push({
+      key: 'documents' as const,
+      label: 'Dokumente',
+      rawValue: totalDocuments,
+      value: totalDocuments.toString(),
+      change: documentAnalytics?.viewsThisMonth ? `${documentAnalytics.viewsThisMonth} Aufrufe/Monat` : '',
+      trend: 'up' as const,
+      icon: FileText,
+      color: 'from-cyan-500 to-cyan-600'
+    });
+  }
+  
+  if (totalValue > 0) {
+    kpiData.push({
       key: 'value' as const,
-      label: 'Total Value',
+      label: 'Portfolio Wert',
       rawValue: totalValue,
       value: `€${(totalValue / 1_000_000).toFixed(1)}M`,
-      change: totalEmployees ? `${totalEmployees} Mitarbeiter` : '-',
-      trend: 'up',
-      icon: 'ri-stack-line',
-      color: 'from-amber-500 to-amber-600'
-    }
-  ];
+      change: totalEmployees > 0 ? `${totalEmployees} Mitarbeiter` : '',
+      trend: 'up' as const,
+      icon: TrendingUp,
+      color: 'from-rose-500 to-rose-600'
+    });
+  }
+
+  if (kpiData.length === 0) {
+    return (
+      <div className="p-6 text-center text-gray-500 dark:text-gray-400">
+        Keine KPI-Daten verfügbar
+      </div>
+    );
+  }
+  
+  const visibleKPIs = kpiData;
 
   return (
-    <div className="grid grid-cols-4 gap-6 p-6">
-      {kpiData.map((kpi) => {
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 p-6">
+      {visibleKPIs.map((kpi) => {
         const goal = goals[kpi.key] || 0;
         const progress = goal > 0 ? Math.min(100, (kpi.rawValue / goal) * 100) : 0;
+        const IconComponent = kpi.icon;
         return (
-          <div key={kpi.key} className="glass p-6 rounded-xl hover:shadow-ambient transition-all duration-300 space-y-3">
+          <div key={kpi.key} className="glass p-6 rounded-xl hover:shadow-ambient transition-all duration-300 space-y-3 border border-white/10 dark:border-white/5">
             <div className="flex items-center justify-between">
-              <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${kpi.color} flex items-center justify-center`}>
-                <i className={`${kpi.icon} text-white text-lg`}></i>
+              <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${kpi.color} flex items-center justify-center shadow-lg`}>
+                <IconComponent className="w-6 h-6 text-white" />
               </div>
               <div className={`flex items-center space-x-1 text-sm font-medium ${
                 kpi.trend === 'up' ? 'text-green-500' : 'text-red-500'
               }`}>
-                <i className={`ri-arrow-${kpi.trend}-line`}></i>
+                {kpi.trend === 'up' ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
                 <span>{kpi.change}</span>
               </div>
             </div>
@@ -828,7 +1005,7 @@ const KPICardsWidget: React.FC = () => {
               <div className="text-3xl font-bold text-gray-900 dark:text-white leading-tight">
                 {kpi.value}
               </div>
-              <div className="text-sm text-gray-500 dark:text-gray-400">
+              <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                 {kpi.label}
               </div>
             </div>
@@ -840,12 +1017,12 @@ const KPICardsWidget: React.FC = () => {
                   type="number"
                   value={goal}
                   onChange={(e) => updateGoal(kpi.key, Number(e.target.value || 0))}
-                  className="w-24 px-2 py-1 bg-white/60 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700 rounded text-right text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="w-24 px-2 py-1 bg-white/60 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700 rounded text-right text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div className="w-full bg-gray-200/60 dark:bg-gray-700/60 rounded-full h-2">
                 <div
-                  className="h-2 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 transition-all duration-500"
+                  className={`h-2 rounded-full bg-gradient-to-r ${kpi.color} transition-all duration-500`}
                   style={{ width: `${progress}%` }}
                 />
               </div>
@@ -896,48 +1073,61 @@ const PerformanceWidget: React.FC = () => {
     );
   }
 
-  const properties = propertiesData?.items ?? [];
-  const totalProperties = propertyAnalytics?.total_properties ?? propertiesData?.total ?? properties.length;
-  const activeProperties = propertyAnalytics?.properties_by_status?.active ?? properties.filter((p) => (p.status || '').toLowerCase() === 'active').length;
-  const totalTasks = taskAnalytics?.total_tasks ?? dashboardAnalytics?.total_tasks ?? 0;
-  const completionRate = taskAnalytics?.completion_rate ?? dashboardAnalytics?.task_completion_rate ?? 0;
-  const overdueTasks = taskAnalytics?.overdue_tasks ?? dashboardAnalytics?.pending_tasks ?? 0;
-  const totalEmployees = employees?.length || 0;
-  const activeEmployees = employees?.filter((e: any) => e.is_active).length || 0;
-  const totalAppointments = appointments?.length || 0;
+  // Nur echte API-Daten - keine Fallbacks
+  const properties = propertiesData?.items || [];
+  const employeesArray = Array.isArray(employees) ? employees : [];
+  const appointmentsArray = Array.isArray(appointments) ? appointments : [];
+  
+  const totalProperties = propertyAnalytics?.total_properties || propertiesData?.total;
+  const activeProperties = propertyAnalytics?.properties_by_status?.active;
+  const totalTasks = taskAnalytics?.total_tasks || dashboardAnalytics?.total_tasks;
+  const completionRate = taskAnalytics?.completion_rate || dashboardAnalytics?.task_completion_rate;
+  const totalEmployees = employeesArray.length;
+  const activeEmployees = employeesArray.filter((e: any) => e?.is_active).length;
+  const totalAppointments = appointmentsArray.length;
 
-  // Performance-Metriken berechnen
-  const propertyUtilization = totalProperties > 0 ? (activeProperties / totalProperties) * 100 : 0;
-  const taskCompletionRate = completionRate * 100;
-  const employeeUtilization = totalEmployees > 0 ? (activeEmployees / totalEmployees) * 100 : 0;
-  const appointmentEfficiency = totalAppointments > 0 ? Math.min(100, (totalAppointments / Math.max(1, totalEmployees)) * 20) : 0;
+  // Performance-Metriken nur mit echten Daten
+  const propertyUtilization = totalProperties && activeProperties !== undefined ? (activeProperties / totalProperties) * 100 : undefined;
+  const taskCompletionRate = completionRate !== undefined ? completionRate * 100 : undefined;
+  const employeeUtilization = totalEmployees > 0 && activeEmployees !== undefined ? (activeEmployees / totalEmployees) * 100 : undefined;
 
-  const performanceData = [
-    { 
+  // Performance Data nur mit echten Werten
+  const performanceData = [];
+  
+  if (propertyUtilization !== undefined && propertyUtilization !== null) {
+    performanceData.push({ 
       label: 'Property Utilization', 
       value: Math.round(propertyUtilization), 
       max: 100, 
       color: 'from-green-500 to-green-600' 
-    },
-    { 
+    });
+  }
+  
+  if (taskCompletionRate !== undefined && taskCompletionRate !== null) {
+    performanceData.push({ 
       label: 'Task Completion', 
       value: Math.round(taskCompletionRate), 
       max: 100, 
       color: 'from-blue-500 to-blue-600' 
-    },
-    { 
+    });
+  }
+  
+  if (employeeUtilization !== undefined && employeeUtilization !== null) {
+    performanceData.push({ 
       label: 'Employee Utilization', 
       value: Math.round(employeeUtilization), 
       max: 100, 
       color: 'from-purple-500 to-purple-600' 
-    },
-    { 
-      label: 'Appointment Efficiency', 
-      value: Math.round(appointmentEfficiency), 
-      max: 100, 
-      color: 'from-teal-500 to-teal-600' 
-    }
-  ];
+    });
+  }
+
+  if (performanceData.length === 0) {
+    return (
+      <div className="p-6 text-center text-gray-500 dark:text-gray-400">
+        Keine Performance-Daten verfügbar
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 h-full flex flex-col">
@@ -1457,25 +1647,11 @@ const RoleBasedDashboard: React.FC = () => {
   ]), []);
 
   const filteredAvailableWidgets = useMemo(() => {
-    if (!user) return availableWidgets;
-    
-    // Get user role - map frontend roles to backend roles if needed
-    const userRole = user.role || 'agent';
-    const roleMapping: Record<string, string> = {
-      'admin': 'admin',
-      'team_leader': 'manager',
-      'makler': 'agent',
-      'assistant': 'agent',
-      'customer': 'viewer'
-    };
-    const mappedRole = roleMapping[userRole] || userRole;
-    
-    // Filter widgets based on role configuration
-    return availableWidgets.filter(w => 
-      isWidgetAvailableForRole(w.type, mappedRole) || 
-      isWidgetAvailableForRole(w.type, userRole)
-    );
-  }, [availableWidgets, user]);
+    // KEIN Filtering - zeige alle verfügbaren Widgets
+    // Die Widget-Verfügbarkeit wird bereits in availableWidgets definiert
+    console.log('📊 Available widgets (unfiltered):', availableWidgets.length);
+    return availableWidgets;
+  }, [availableWidgets]);
 
   // Get user role for localStorage key
   const getUserRoleKey = useMemo(() => {
@@ -1496,6 +1672,10 @@ const RoleBasedDashboard: React.FC = () => {
     if (isLoading) return;
     const storageKey = `dashboardWidgets_${getUserRoleKey}`;
     const savedWidgets = localStorage.getItem(storageKey);
+    
+    // FORCE NEW 5-WIDGET LAYOUT - Lösche alten localStorage
+    // localStorage.removeItem(storageKey); // Uncomment to force reset
+    
     if (savedWidgets) {
       try {
         const parsed = JSON.parse(savedWidgets);
@@ -1515,10 +1695,19 @@ const RoleBasedDashboard: React.FC = () => {
           })
           .filter(Boolean) as DashboardWidget[];
         
-        if (restoredWidgets.length > 0) {
-          setWidgets(restoredWidgets);
-        } else {
+        // Prüfe ob die 5 richtigen Widgets vorhanden sind
+        const requiredWidgetTypes = ['kpi_cards', 'traffic_revenue', 'conversion_funnel', 'performance', 'finance_overview'];
+        const hasRequiredWidgets = requiredWidgetTypes.every(type => 
+          restoredWidgets.some(w => w.type === type)
+        );
+        
+        // Wenn nicht genau 5 Widgets ODER nicht die richtigen Widgets, setze neue Defaults
+        if (restoredWidgets.length !== 5 || !hasRequiredWidgets) {
+          console.log('🔄 Dashboard: Alte Widget-Konfiguration gefunden, setze neue 5-Widget Layout');
+          localStorage.removeItem(storageKey);
           setDefaultWidgets(filteredAvailableWidgets);
+        } else {
+          setWidgets(restoredWidgets);
         }
       } catch {
         setDefaultWidgets(filteredAvailableWidgets);
@@ -1571,75 +1760,63 @@ const RoleBasedDashboard: React.FC = () => {
       'conversion_funnel', 
       'performance',
       'recent_activities',
-      'portfolio_snapshot'
+      'finance_overview'
     ];
 
-    // Reihe 1: Vergrößerte und breitere Übersicht Widgets
-    const widget1 = templates.find(w => w.type === preferredWidgets[0]) || 
-                   templates.find(w => w.type === fallbackWidgets[0]);
+    // PERFEKTES 5-WIDGET LAYOUT
+    // Widget 1: KPI Cards (oben, vollbreite) - Die wichtigsten Metriken
+    const widget1 = templates.find(w => w.type === 'kpi_cards');
     if (widget1) {
       defaultWidgets.push({
         ...widget1,
         id: generateId(),
-        visible: true,  // ✅ Widget sichtbar machen!
-        position: { x: 0, y: 0, w: 8, h: 7 } // Höher: 5 → 7
+        visible: true,
+        position: { x: 0, y: 0, w: 12, h: 3 }
       });
     }
     
-    const widget2 = templates.find(w => w.type === preferredWidgets[1]) || 
-                   templates.find(w => w.type === fallbackWidgets[1]);
+    // Widget 2: Traffic & Revenue Chart (links oben) - Umsatzentwicklung
+    const widget2 = templates.find(w => w.type === 'traffic_revenue') || 
+                   templates.find(w => w.type === 'revenue_chart');
     if (widget2) {
       defaultWidgets.push({
         ...widget2,
         id: generateId(),
-        visible: true,  // ✅ Widget sichtbar machen!
-        position: { x: 8, y: 0, w: 4, h: 7 } // Höher: 5 → 7 für bessere Box-Anzeige
+        visible: true,
+        position: { x: 0, y: 3, w: 8, h: 5 }
       });
     }
     
-    // Reihe 2: Angepasstes Layout (Y-Position wegen höherer Widgets)
-    const widget3 = templates.find(w => w.type === preferredWidgets[2]) || 
-                   templates.find(w => w.type === fallbackWidgets[2]);
+    // Widget 3: Conversion Funnel (rechts oben) - Lead-zu-Verkauf Pipeline
+    const widget3 = templates.find(w => w.type === 'conversion_funnel');
     if (widget3) {
       defaultWidgets.push({
         ...widget3,
         id: generateId(),
-        visible: true,  // ✅ Widget sichtbar machen!
-        position: { x: 0, y: 7, w: 6, h: 4 } // Y-Position: 5 → 7 wegen höherem Widget 1
+        visible: true,
+        position: { x: 8, y: 3, w: 4, h: 5 }
       });
     }
     
-    const widget4 = templates.find(w => w.type === preferredWidgets[3]) || 
-                   templates.find(w => w.type === fallbackWidgets[3]);
+    // Widget 4: Performance (links unten) - System-Performance Metriken
+    const widget4 = templates.find(w => w.type === 'performance');
     if (widget4) {
       defaultWidgets.push({
         ...widget4,
         id: generateId(),
-        visible: true,  // ✅ Widget sichtbar machen!
-        position: { x: 6, y: 7, w: 2, h: 4 } // Y-Position: 5 → 7
+        visible: true,
+        position: { x: 0, y: 8, w: 6, h: 5 }
       });
     }
     
-    // Widget 5 (Task Progress) unter alle anderen
-    const widget5 = templates.find(w => w.type === preferredWidgets[4]) || 
-                   templates.find(w => w.type === fallbackWidgets[4]);
+    // Widget 5: Finance Overview (rechts unten) - Finanzielle Kennzahlen
+    const widget5 = templates.find(w => w.type === 'finance_overview');
     if (widget5) {
       defaultWidgets.push({
         ...widget5,
         id: generateId(),
-        visible: true,  // ✅ Widget sichtbar machen!
-        position: { x: 0, y: 11, w: 12, h: 3 } // Y-Position: 9 → 11
-      });
-    }
-    
-    // Widget 6: Portfolio Snapshot, wenn vorhanden
-    const widget6 = templates.find(w => w.type === 'portfolio_snapshot');
-    if (widget6) {
-      defaultWidgets.push({
-        ...widget6,
-        id: generateId(),
         visible: true,
-        position: { x: 0, y: 14, w: 6, h: 4 }
+        position: { x: 6, y: 8, w: 6, h: 5 }
       });
     }
     
@@ -1737,13 +1914,24 @@ const RoleBasedDashboard: React.FC = () => {
   };
 
   const handleResetLayout = () => {
-    if (window.confirm('Möchten Sie das Dashboard-Layout wirklich zurücksetzen? Alle Anpassungen gehen verloren.')) {
-      // Lösche localStorage für aktuelle Rolle und setze Standard-Widgets
-      const storageKey = `dashboardWidgets_${getUserRoleKey}`;
-      localStorage.removeItem(storageKey);
-      setDefaultWidgets();
+    // Lösche localStorage für aktuelle Rolle und setze Standard-Widgets
+    const storageKey = `dashboardWidgets_${getUserRoleKey}`;
+    localStorage.removeItem(storageKey);
+    console.log('🔄 Layout wird zurückgesetzt...');
+    console.log('📊 Available widgets count:', availableWidgets.length);
+    console.log('📊 Filtered widgets count:', filteredAvailableWidgets.length);
+    
+    // Setze Widgets direkt - verwende availableWidgets als Fallback wenn filteredAvailableWidgets leer ist
+    const templatesToUse = filteredAvailableWidgets.length > 0 ? filteredAvailableWidgets : availableWidgets;
+    console.log('📊 Using templates count:', templatesToUse.length);
+    setDefaultWidgets(templatesToUse);
+    
+    // Schließe Widget Manager nach kurzer Verzögerung
+    setTimeout(() => {
       setIsWidgetManagerOpen(false);
-    }
+    }, 300);
+    
+    console.log('✅ Layout zurückgesetzt - 5 Widgets sollten jetzt angezeigt werden');
   };
 
   const handleEditWidget = (widgetId: string) => {

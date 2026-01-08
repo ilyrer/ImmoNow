@@ -76,12 +76,12 @@ const InvestorDashboard: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-blue-900/20 dark:to-purple-900/20">
+    <div className="h-[calc(100vh-140px)] bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-blue-900/20 dark:to-purple-900/20 overflow-hidden -m-6">
       {/* Background Effects */}
       <div className="fixed inset-0 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-blue-900/20 dark:to-purple-900/20" />
       <div className="fixed inset-0 backdrop-blur-3xl" />
 
-      <div className="relative z-10 p-6 max-w-[1600px] mx-auto">
+      <div className="relative z-10 h-full p-6 max-w-[1600px] mx-auto overflow-y-auto overflow-x-hidden">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -107,7 +107,7 @@ const InvestorDashboard: React.FC = () => {
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as Tab)}>
           <Card className="mb-6">
             <CardContent className="p-2">
-              <TabsList className="flex gap-2 overflow-x-auto">
+              <TabsList className="flex gap-2 overflow-x-auto overflow-y-hidden">
                 {tabs.map((tab) => {
                   const Icon = tab.icon;
                   return (

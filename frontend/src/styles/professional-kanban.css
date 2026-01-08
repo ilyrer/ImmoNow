@@ -5,39 +5,35 @@
 
 /* Custom Scrollbar */
 .custom-scrollbar::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
+  background: transparent;
+  border-radius: 3px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(59, 130, 246, 0.3);
-  border-radius: 10px;
-  transition: background 0.3s ease;
+  background: rgba(156, 163, 175, 0.3);
+  border-radius: 3px;
+  transition: background 0.2s ease;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(59, 130, 246, 0.5);
+  background: rgba(156, 163, 175, 0.5);
 }
 
 /* Dark mode scrollbar */
-.dark .custom-scrollbar::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.05);
-}
-
 .dark .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(139, 92, 246, 0.3);
+  background: rgba(107, 114, 128, 0.4);
 }
 
 .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(139, 92, 246, 0.5);
+  background: rgba(107, 114, 128, 0.6);
 }
 
-/* Shimmer Animation */
+/* Subtle Shimmer Animation - Only when needed */
 @keyframes shimmer {
   0% {
     transform: translateX(-100%);
@@ -51,93 +47,72 @@
   animation: shimmer 2s infinite;
 }
 
-/* Glass Morphism Shadows */
+/* Subtle Shadows - Enterprise Style */
 .shadow-glass {
-  box-shadow: 
-    0 4px 6px -1px rgba(0, 0, 0, 0.05),
-    0 2px 4px -1px rgba(0, 0, 0, 0.03),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
 }
 
 .shadow-glass-sm {
-  box-shadow: 
-    0 2px 4px -1px rgba(0, 0, 0, 0.04),
-    0 1px 2px -1px rgba(0, 0, 0, 0.02),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  box-shadow: 0 1px 1px 0 rgba(0, 0, 0, 0.05);
 }
 
 .shadow-glass-md {
-  box-shadow: 
-    0 6px 12px -2px rgba(0, 0, 0, 0.08),
-    0 3px 6px -2px rgba(0, 0, 0, 0.05),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+  box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.06);
 }
 
 .shadow-glass-lg {
-  box-shadow: 
-    0 10px 20px -5px rgba(0, 0, 0, 0.1),
-    0 5px 10px -5px rgba(0, 0, 0, 0.06),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.15);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
 .shadow-glass-xl {
-  box-shadow: 
-    0 20px 40px -10px rgba(0, 0, 0, 0.15),
-    0 10px 20px -10px rgba(0, 0, 0, 0.1),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
 }
 
 /* Task Card Hover Effect */
 .task-card {
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .task-card:hover {
-  transform: translateY(-2px);
+  transform: translateY(-1px);
 }
 
 .task-card:active {
   transform: translateY(0);
 }
 
-/* Drag & Drop Animations */
+/* Drag & Drop Animations - Subtle */
 .dragging {
-  opacity: 0.5;
-  transform: rotate(3deg) scale(1.05);
+  opacity: 0.6;
+  transform: scale(1.02);
 }
 
 .drag-ghost {
-  opacity: 0.8;
-  filter: brightness(1.1);
+  opacity: 0.7;
 }
 
-/* Smooth Transitions */
+/* Smooth Transitions - Faster for Enterprise feel */
 .transition-smooth {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Badge Pulse Animation */
+/* Badge Pulse Animation - Removed for calmer design */
 @keyframes badge-pulse {
   0%, 100% {
     opacity: 1;
-    transform: scale(1);
   }
   50% {
-    opacity: 0.8;
-    transform: scale(1.05);
+    opacity: 0.9;
   }
 }
 
 .badge-pulse {
-  animation: badge-pulse 2s ease-in-out infinite;
+  animation: badge-pulse 3s ease-in-out infinite;
 }
 
-/* Gradient Text */
+/* Gradient Text - Removed for cleaner typography */
 .gradient-text {
-  background: linear-gradient(to right, #3B82F6, #8B5CF6, #EC4899);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: inherit;
 }
 
 /* Focus Ring */
@@ -145,20 +120,12 @@
   @apply focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-2 focus:ring-offset-transparent;
 }
 
-/* Backdrop Blur Levels */
-.backdrop-blur-light {
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-}
-
-.backdrop-blur-medium {
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-}
-
+/* Backdrop Blur - Not used in enterprise design */
+.backdrop-blur-light,
+.backdrop-blur-medium,
 .backdrop-blur-heavy {
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 /* Skeleton Loading */
@@ -216,9 +183,7 @@ html {
   .shadow-glass-md,
   .shadow-glass-lg,
   .shadow-glass-xl {
-    box-shadow: 
-      0 2px 8px rgba(0, 0, 0, 0.1),
-      inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   }
 }
 
@@ -247,11 +212,11 @@ html {
 
 /* Dark Mode Enhancements */
 .dark .bg-glass {
-  background: rgba(17, 24, 39, 0.4);
+  background: rgb(17, 24, 39);
 }
 
 .dark .border-glass {
-  border-color: rgba(255, 255, 255, 0.1);
+  border-color: rgb(31, 41, 55);
 }
 
 /* Tooltip Styles */
@@ -297,16 +262,16 @@ html {
   animation: slide-in 0.3s ease-out;
 }
 
-/* Card Hover Effects */
+/* Card Hover Effects - Subtle */
 .card-hover {
-  @apply transition-all duration-300;
+  @apply transition-all duration-150;
 }
 
 .card-hover:hover {
-  @apply -translate-y-1 shadow-glass-lg;
+  @apply -translate-y-0.5 shadow-md;
 }
 
-/* Progress Bar Animation */
+/* Progress Bar Animation - Faster */
 @keyframes progress-bar {
   0% {
     width: 0;
@@ -314,27 +279,10 @@ html {
 }
 
 .progress-bar {
-  animation: progress-bar 1s ease-out;
+  animation: progress-bar 0.5s ease-out;
 }
 
-/* Pulse Animation for Notifications */
-@keyframes pulse-ring {
-  0% {
-    transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
-  }
-  
-  70% {
-    transform: scale(1);
-    box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
-  }
-  
-  100% {
-    transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
-  }
-}
-
+/* Pulse Animation - Removed for calmer design */
 .pulse-ring {
-  animation: pulse-ring 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  animation: none;
 }

@@ -441,7 +441,7 @@ const ContactsList = ({ user }) => {
       </div>
 
       {/* Erweiterte Filter und Suche */}
-      <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 dark:border-gray-700/50 p-6">
+      <div className="bg-white/80 dark:bg-gray-950/90 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 dark:border-gray-800 p-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           {/* Erweiterte Suchleiste */}
           <div className="lg:col-span-2 relative">

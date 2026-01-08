@@ -172,3 +172,31 @@ export const useTaskStatistics = () => {
     staleTime: 120_000, // 2 Minuten Cache
   });
 };
+
+/**
+ * Hook für erlaubte Task-Transitions
+ */
+export const useTaskTransitions = (taskId: string) => {
+  return useQuery({
+    queryKey: ['tasks', taskId, 'transitions'],
+    queryFn: () => tasksService.getTaskTransitions(taskId),
+    enabled: !!taskId,
+    staleTime: 60_000, // 1 Minute Cache
+  });
+};
+
+/**
+ * Hook für Bulk-Update von Tasks
+ */
+export const useBulkUpdateTasks = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ taskIds, updates }: { taskIds: string[]; updates: Partial<CreateTaskRequest> }) =>
+      tasksService.bulkUpdateTasks(taskIds, updates),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: taskKeys.all });
+      queryClient.invalidateQueries({ queryKey: taskKeys.statistics() });
+    },
+  });
+};

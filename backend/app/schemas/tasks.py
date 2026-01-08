@@ -303,3 +303,16 @@ class BoardSummaryResponse(BaseModel):
     risks: List[str] = Field(default_factory=list)
     blockers: List[str] = Field(default_factory=list)
     suggested_actions: List[str] = Field(default_factory=list)
+
+
+class BulkUpdateRequest(BaseModel):
+    """Bulk-Update Request"""
+    task_ids: List[str] = Field(..., min_length=1, max_length=100)
+    updates: UpdateTaskRequest  # Nutzt bestehendes UpdateTaskRequest
+
+
+class BulkUpdateResponse(BaseModel):
+    """Bulk-Update Response"""
+    updated_count: int
+    failed_count: int
+    errors: List[Dict[str, str]] = Field(default_factory=list)

@@ -11,7 +11,8 @@ import {
   useMoveTask,
   useDeleteTask,
   useEmployees,
-  useTaskStatistics
+  useTaskStatistics,
+  useBulkUpdateTasks
 } from '../hooks/useTasks';
 import { TaskListParams } from '../lib/api/types';
 import boardsService from '../services/boards';
@@ -56,6 +57,7 @@ export const KanbanPage: React.FC = () => {
   const updateTaskMutation = useUpdateTask();
   const moveTaskMutation = useMoveTask();
   const deleteTaskMutation = useDeleteTask();
+  const bulkUpdateMutation = useBulkUpdateTasks();
   const { data: taskStats } = useTaskStatistics();
 
   // Transform employees to assignees
@@ -294,23 +296,20 @@ export const KanbanPage: React.FC = () => {
 
   if (tasksLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50/50 via-purple-50/50 to-pink-50/50 
-        dark:from-gray-900 dark:via-gray-900 dark:to-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-600 
-            rounded-2xl flex items-center justify-center shadow-glass mb-4 animate-pulse mx-auto text-white font-bold">
+          <div className="w-12 h-12 bg-gray-900 dark:bg-white rounded-lg flex items-center justify-center mb-3 animate-pulse mx-auto text-white dark:text-gray-900 font-semibold">
             PT
           </div>
-          <p className="text-gray-600 dark:text-gray-400 font-medium">Lade Aufgaben...</p>
+          <p className="text-gray-600 dark:text-gray-400 font-medium text-sm">Lade Aufgaben...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gradient-to-br from-blue-50/50 via-purple-50/50 to-pink-50/50 
-      dark:from-gray-900 dark:via-gray-900 dark:to-gray-900 overflow-hidden">
-      <div className="px-6 pt-4 flex gap-3 flex-shrink-0">
+    <div className="h-screen flex flex-col bg-gray-50 dark:bg-gray-950 overflow-hidden">
+      <div className="px-6 pt-3 pb-2 flex gap-3 flex-shrink-0">
         {(() => {
           // Unterstützt snake_case (Backend) und camelCase (typings)
           const active = taskStats ? ((taskStats as any).active_tasks ?? (taskStats as any).activeTasks ?? 0) : 0;
@@ -319,14 +318,14 @@ export const KanbanPage: React.FC = () => {
           const completion = taskStats ? ((taskStats as any).completion_rate ?? (taskStats as any).completionRate ?? 0) : 0;
           return (
             <>
-              <div className="px-4 py-3 bg-white/60 dark:bg-white/10 rounded-xl border border-white/30 text-sm font-medium text-gray-700 dark:text-gray-300">
-                Aktiv: <span className="font-bold text-blue-600 dark:text-blue-400">{active}</span> • Überfällig: <span className="font-bold text-red-600 dark:text-red-400">{overdue}</span>
+              <div className="px-3 py-2 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300">
+                Aktiv: <span className="font-semibold text-blue-600 dark:text-blue-400">{active}</span> • Überfällig: <span className="font-semibold text-red-600 dark:text-red-400">{overdue}</span>
               </div>
-              <div className="px-4 py-3 bg-white/60 dark:bg-white/10 rounded-xl border border-white/30 text-sm font-medium text-gray-700 dark:text-gray-300">
-                Lead Time ø: <span className="font-bold">{Math.round(totalActual || 0)}h</span>
+              <div className="px-3 py-2 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300">
+                Lead Time ø: <span className="font-semibold">{Math.round(totalActual || 0)}h</span>
               </div>
-              <div className="px-4 py-3 bg-white/60 dark:bg-white/10 rounded-xl border border-white/30 text-sm font-medium text-gray-700 dark:text-gray-300">
-                Fertigstellung: <span className="font-bold text-green-600 dark:text-green-400">{Number(completion).toFixed(1)}%</span>
+              <div className="px-3 py-2 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300">
+                Fertigstellung: <span className="font-semibold text-green-600 dark:text-green-400">{Number(completion).toFixed(1)}%</span>
               </div>
             </>
           );
@@ -341,9 +340,19 @@ export const KanbanPage: React.FC = () => {
         onAiCreateTask={handleAiCreateTask}
         onSummarizeBoard={handleSummarizeBoard}
         onBulkUpdate={(taskIds, updates) => {
-          taskIds.forEach(taskId => {
-            updateTaskMutation.mutate({ id: taskId, payload: updates as any });
-          });
+          bulkUpdateMutation.mutate(
+            { taskIds, updates: updates as any },
+            {
+              onSuccess: (result) => {
+                if (result.failed_count > 0) {
+                  console.warn(`Bulk update: ${result.updated_count} erfolgreich, ${result.failed_count} fehlgeschlagen`, result.errors);
+                }
+              },
+              onError: (error) => {
+                console.error('Bulk update error:', error);
+              }
+            }
+          );
         }}
       />
 

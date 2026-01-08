@@ -5,9 +5,10 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, Query
 from asgiref.sync import sync_to_async
 
+from typing import Dict
 from app.api.deps import require_read_scope, require_write_scope, get_tenant_id
 from app.core.security import TokenData
-from app.db.models import Board, BoardStatus
+from app.db.models import Board, BoardStatus, Task
 from app.schemas.tasks import BoardResponse, BoardStatus as BoardStatusSchema
 
 router = APIRouter()
@@ -58,4 +59,40 @@ async def list_boards(
         return result
 
     return await fetch()
+
+
+@router.get("/{board_id}/wip-status", response_model=Dict[str, Dict[str, int]])
+async def get_board_wip_status(
+    board_id: str,
+    current_user: TokenData = Depends(require_read_scope),
+    tenant_id: str = Depends(get_tenant_id)
+):
+    """Gibt WIP-Status für alle Statuses eines Boards zurück"""
+    
+    @sync_to_async
+    def fetch_wip_status():
+        # Hole BoardStatuses
+        board_statuses = list(
+            BoardStatus.objects.filter(board_id=board_id).order_by("order")
+        )
+        
+        # Zähle Tasks pro Status
+        wip_status = {}
+        for board_status in board_statuses:
+            current_count = Task.objects.filter(
+                board_id=board_id,
+                status=board_status.key,
+                tenant_id=tenant_id,
+                archived=False
+            ).count()
+            
+            wip_status[board_status.key] = {
+                "current": current_count,
+                "limit": board_status.wip_limit or 0,
+                "is_over_limit": bool(board_status.wip_limit and current_count >= board_status.wip_limit)
+            }
+        
+        return wip_status
+    
+    return await fetch_wip_status()
 

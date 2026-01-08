@@ -417,65 +417,39 @@ export const ProfessionalKanbanBoard: React.FC<ProfessionalKanbanBoardProps> = (
   }, [selectedTasks, onBulkUpdate]);
 
   return (
-    <div className="h-full flex flex-col bg-gradient-to-br from-blue-50/50 via-purple-50/50 
-      to-pink-50/50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900 relative overflow-hidden">
-
-      {/* Glassmorphism Background Orbs */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <motion.div
-          animate={{
-            scale: [1, 1.2, 1],
-            opacity: [0.15, 0.25, 0.15],
-          }}
-          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute top-0 right-1/4 w-96 h-96 bg-blue-400 rounded-full blur-3xl"
-        />
-        <motion.div
-          animate={{
-            scale: [1, 1.3, 1],
-            opacity: [0.1, 0.2, 0.1],
-          }}
-          transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-          className="absolute bottom-0 left-1/4 w-[500px] h-[500px] bg-purple-400 rounded-full blur-3xl"
-        />
-      </div>
+    <div className="h-full flex flex-col bg-gray-50 dark:bg-gray-950 relative overflow-hidden">
 
       {/* Header */}
-      <div className="relative z-20 bg-white/30 dark:bg-white/5 backdrop-blur-3xl border-b 
-        border-white/20 dark:border-white/10 px-6 py-5">
+      <div className="relative z-20 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4">
 
         {/* Title & Stats */}
-        <div className="flex items-center justify-between mb-5">
-          <div className="flex items-center gap-5">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-6">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-600 
-                rounded-xl flex items-center justify-center shadow-lg text-white font-bold text-lg">
+              <div className="w-10 h-10 bg-gray-900 dark:bg-white rounded-lg flex items-center justify-center text-white dark:text-gray-900 font-semibold text-sm">
                 PT
               </div>
               <div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 
-                  to-purple-800 dark:from-white dark:via-blue-200 dark:to-purple-200 
-                  bg-clip-text text-transparent">
-                  Professional Task Board
+                <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
+                  Task Board
                 </h1>
-                <p className="text-xs text-gray-600 dark:text-gray-400 font-medium">
-                  Enterprise Task Management System
+                <p className="text-xs text-gray-500 dark:text-gray-400 font-normal">
+                  Aufgabenverwaltung
                 </p>
               </div>
             </div>
 
             {/* Quick Stats */}
-            <div className="flex items-center gap-2">
-              <StatBadge icon="◉" value={statistics.activeTasks} label="Aktiv" color="blue" />
-              <StatBadge icon="●" value={statistics.completedTasks} label="Erledigt" color="green" />
+            <div className="flex items-center gap-3">
+              <StatBadge value={statistics.activeTasks} label="Aktiv" color="blue" />
+              <StatBadge value={statistics.completedTasks} label="Erledigt" color="green" />
               {statistics.overdueTasks > 0 && (
-                <StatBadge icon="⚠" value={statistics.overdueTasks} label="Überfällig" color="red" />
+                <StatBadge value={statistics.overdueTasks} label="Überfällig" color="red" />
               )}
               <StatBadge
-                icon="▢"
                 value={`${Math.round(statistics.completionRate)}%`}
-                label="Fertigstellung"
-                color="purple"
+                label="Fertig"
+                color="gray"
               />
             </div>
           </div>
@@ -485,29 +459,28 @@ export const ProfessionalKanbanBoard: React.FC<ProfessionalKanbanBoardProps> = (
             {/* Feature Menu */}
             <div className="relative" ref={menuRef}>
               <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={() => setShowFeatureMenu(!showFeatureMenu)}
-                className="px-4 py-2.5 bg-white/40 dark:bg-white/10 hover:bg-white/60 
-                  dark:hover:bg-white/15 rounded-xl text-sm font-medium text-gray-700 
-                  dark:text-gray-300 transition-all backdrop-blur-2xl border 
-                  border-white/20 dark:border-white/10 flex items-center gap-2"
+                className="px-3 py-2 bg-white dark:bg-gray-800 hover:bg-gray-50 
+                  dark:hover:bg-gray-700 rounded-lg text-sm font-medium text-gray-700 
+                  dark:text-gray-300 transition-colors border border-gray-200 
+                  dark:border-gray-700 flex items-center gap-2"
               >
-                <span className="text-lg">☰</span>
-                Features
+                <span className="text-base">☰</span>
+                <span>Menü</span>
               </motion.button>
 
               {/* Dropdown Menu */}
               <AnimatePresence>
                 {showFeatureMenu && (
                   <motion.div
-                    initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                    transition={{ duration: 0.2 }}
-                    className="absolute right-0 mt-2 w-56 bg-white/95 dark:bg-gray-800/95 
-                      backdrop-blur-xl rounded-xl shadow-xl border border-white/20 
-                      dark:border-white/10 py-2 z-50"
+                    initial={{ opacity: 0, y: -8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 
+                      rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50"
                   >
                     {onSummarizeBoard && (
                       <button
@@ -515,12 +488,12 @@ export const ProfessionalKanbanBoard: React.FC<ProfessionalKanbanBoardProps> = (
                           onSummarizeBoard();
                           setShowFeatureMenu(false);
                         }}
-                        className="w-full px-4 py-2.5 text-left text-sm text-gray-700 
-                          dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 
-                          transition-colors flex items-center gap-3"
+                        className="w-full px-3 py-2 text-left text-sm text-gray-700 
+                          dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 
+                          transition-colors flex items-center gap-2.5"
                       >
-                        <span className="text-lg">🤖</span>
-                        <span>KI-Summary</span>
+                        <span className="text-base">🤖</span>
+                        <span>KI-Zusammenfassung</span>
                       </button>
                     )}
                     <button
@@ -528,23 +501,23 @@ export const ProfessionalKanbanBoard: React.FC<ProfessionalKanbanBoardProps> = (
                         setShowShortcuts(true);
                         setShowFeatureMenu(false);
                       }}
-                      className="w-full px-4 py-2.5 text-left text-sm text-gray-700 
-                        dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 
-                        transition-colors flex items-center gap-3"
+                      className="w-full px-3 py-2 text-left text-sm text-gray-700 
+                        dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 
+                        transition-colors flex items-center gap-2.5"
                     >
-                      <span className="text-lg">⌨️</span>
-                      <span>Shortcuts</span>
+                      <span className="text-base">⌨️</span>
+                      <span>Tastenkürzel</span>
                     </button>
                     <button
                       onClick={() => {
                         toggleBulkMode();
                         setShowFeatureMenu(false);
                       }}
-                      className="w-full px-4 py-2.5 text-left text-sm text-gray-700 
-                        dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 
-                        transition-colors flex items-center gap-3"
+                      className="w-full px-3 py-2 text-left text-sm text-gray-700 
+                        dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 
+                        transition-colors flex items-center gap-2.5"
                     >
-                      <span className="text-lg">{bulkMode ? '✕' : '☑'}</span>
+                      <span className="text-base">{bulkMode ? '✕' : '☑'}</span>
                       <span>{bulkMode ? 'Mehrfach beenden' : 'Mehrfach-Auswahl'}</span>
                     </button>
                     {onAiCreateTask && (
@@ -553,11 +526,11 @@ export const ProfessionalKanbanBoard: React.FC<ProfessionalKanbanBoardProps> = (
                           onAiCreateTask('todo');
                           setShowFeatureMenu(false);
                         }}
-                        className="w-full px-4 py-2.5 text-left text-sm text-gray-700 
-                          dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 
-                          transition-colors flex items-center gap-3"
+                        className="w-full px-3 py-2 text-left text-sm text-gray-700 
+                          dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 
+                          transition-colors flex items-center gap-2.5"
                       >
-                        <span className="text-lg">✨</span>
+                        <span className="text-base">✨</span>
                         <span>KI-Task erstellen</span>
                       </button>
                     )}
@@ -568,52 +541,51 @@ export const ProfessionalKanbanBoard: React.FC<ProfessionalKanbanBoardProps> = (
 
             {/* Primary Action */}
             <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               onClick={() => onCreateTask('todo')}
-              className="px-5 py-2.5 bg-gradient-to-r from-blue-500 to-purple-600 
-                hover:from-blue-600 hover:to-purple-700 text-white rounded-xl font-semibold 
-                text-sm transition-all duration-200 shadow-lg hover:shadow-xl 
-                flex items-center gap-2"
+              className="px-4 py-2 bg-gray-900 dark:bg-white hover:bg-gray-800 
+                dark:hover:bg-gray-100 text-white dark:text-gray-900 rounded-lg 
+                font-medium text-sm transition-colors flex items-center gap-2"
             >
-              <span className="text-lg">+</span>
-              Neue Aufgabe
+              <span className="text-base">+</span>
+              <span>Neue Aufgabe</span>
             </motion.button>
           </div>
         </div>
 
         {/* Filters & Search */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <div className="relative flex-1 max-w-md">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-lg">◉</span>
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">🔍</span>
             <input
               type="text"
               placeholder="Aufgaben durchsuchen... (Taste /)"
               value={filters.search || ''}
               onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-              className="w-full pl-12 pr-4 py-3 bg-white/40 dark:bg-white/10 backdrop-blur-2xl 
-                border border-white/20 dark:border-white/10 rounded-xl text-sm 
+              className="w-full pl-9 pr-4 py-2 bg-white dark:bg-gray-800 
+                border border-gray-200 dark:border-gray-700 rounded-lg text-sm 
                 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 
-                focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 shadow-glass-sm 
+                focus:ring-2 focus:ring-gray-900 dark:focus:ring-white focus:border-transparent 
                 transition-all"
             />
           </div>
 
           <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
             onClick={() => setShowFilters(!showFilters)}
-            className={`px-5 py-3 rounded-xl font-semibold text-sm transition-all 
-              backdrop-blur-2xl border flex items-center gap-2 ${showFilters
-                ? 'bg-blue-500/80 text-white border-blue-600/50 shadow-glass-lg'
-                : 'bg-white/40 dark:bg-white/10 text-gray-700 dark:text-gray-300 border-white/20 dark:border-white/10 hover:bg-white/60 dark:hover:bg-white/15'
+            className={`px-3 py-2 rounded-lg font-medium text-sm transition-colors 
+              border flex items-center gap-2 ${showFilters
+                ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 border-gray-900 dark:border-white'
+                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
               }`}
           >
-            <span>⊛</span>
-            Filter
-            <span className="text-xs opacity-75">(F)</span>
+            <span className="text-sm">⊛</span>
+            <span>Filter</span>
+            <span className="text-xs opacity-60">(F)</span>
             {Object.values(filters).filter(Boolean).length > 0 && (
-              <span className="ml-1 px-2 py-0.5 bg-white/30 rounded-full text-xs">
+              <span className="ml-1 px-1.5 py-0.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded text-xs font-medium">
                 {Object.values(filters).filter(Boolean).length}
               </span>
             )}
@@ -659,7 +631,7 @@ export const ProfessionalKanbanBoard: React.FC<ProfessionalKanbanBoardProps> = (
             }
           }}
         >
-          <div className="h-full w-full flex gap-2 px-4 py-6">
+          <div className="h-full w-full flex gap-3 px-4 py-4">
             {boardColumns.map((column, index) => {
               const columnTasks = filteredTasks[column.id] || [];
               const isOverLimit = !!(column.limit && columnTasks.length > column.limit);
@@ -688,16 +660,16 @@ export const ProfessionalKanbanBoard: React.FC<ProfessionalKanbanBoardProps> = (
                       <div
                         ref={provided.innerRef}
                         {...provided.droppableProps}
-                        className={`flex-1 bg-white/20 dark:bg-white/5 backdrop-blur-xl 
-                          rounded-b-2xl border border-white/20 dark:border-white/10 border-t-0 
-                          p-4 space-y-3 min-h-[500px] max-h-[calc(100vh-400px)] overflow-y-auto 
-                          transition-all duration-150 custom-scrollbar ${snapshot.isDraggingOver
-                            ? 'bg-blue-500/20 ring-2 ring-blue-500/60 ring-inset shadow-inner'
+                        className={`flex-1 bg-gray-100/50 dark:bg-gray-900/50 
+                          rounded-b-lg border border-gray-200 dark:border-gray-800 border-t-0 
+                          p-3 space-y-2.5 min-h-[500px] max-h-[calc(100vh-400px)] overflow-y-auto 
+                          transition-colors duration-150 custom-scrollbar ${snapshot.isDraggingOver
+                            ? 'bg-blue-50 dark:bg-blue-950/30 ring-1 ring-blue-300 dark:ring-blue-700'
                             : ''
                           }`}
                         style={{
                           minHeight: '500px',
-                          transition: 'background-color 0.15s ease, box-shadow 0.15s ease'
+                          transition: 'background-color 0.15s ease'
                         }}
                       >
                         <AnimatePresence>
@@ -740,31 +712,24 @@ export const ProfessionalKanbanBoard: React.FC<ProfessionalKanbanBoardProps> = (
 // ============================================================================
 
 const StatBadge: React.FC<{
-  icon: string;
   value: number | string;
   label: string;
-  color: 'blue' | 'green' | 'red' | 'orange' | 'purple';
-}> = ({ icon, value, label, color }) => {
+  color: 'blue' | 'green' | 'red' | 'orange' | 'purple' | 'gray';
+}> = ({ value, label, color }) => {
   const colorClasses = {
-    blue: 'bg-blue-500/10 border-blue-500/30 text-blue-600 dark:text-blue-400',
-    green: 'bg-green-500/10 border-green-500/30 text-green-600 dark:text-green-400',
-    red: 'bg-red-500/10 border-red-500/30 text-red-600 dark:text-red-400',
-    orange: 'bg-orange-500/10 border-orange-500/30 text-orange-600 dark:text-orange-400',
-    purple: 'bg-purple-500/10 border-purple-500/30 text-purple-600 dark:text-purple-400'
+    blue: 'text-blue-600 dark:text-blue-400',
+    green: 'text-green-600 dark:text-green-400',
+    red: 'text-red-600 dark:text-red-400',
+    orange: 'text-orange-600 dark:text-orange-400',
+    purple: 'text-purple-600 dark:text-purple-400',
+    gray: 'text-gray-600 dark:text-gray-400'
   };
 
   return (
-    <motion.div
-      whileHover={{ scale: 1.05 }}
-      className={`px-4 py-2 backdrop-blur-2xl rounded-xl border shadow-glass-sm 
-        ${colorClasses[color]} transition-all cursor-default`}
-    >
-      <div className="flex items-center gap-2">
-        <span className="text-lg">{icon}</span>
-        <span className="text-sm font-bold">{value}</span>
-        <span className="text-xs opacity-80">{label}</span>
-      </div>
-    </motion.div>
+    <div className="flex items-center gap-1.5">
+      <span className={`text-sm font-semibold ${colorClasses[color]}`}>{value}</span>
+      <span className="text-xs text-gray-500 dark:text-gray-400 font-normal">{label}</span>
+    </div>
   );
 };
 
@@ -775,46 +740,44 @@ const ColumnHeader: React.FC<{
   completionPercentage: number;
   onAddTask: () => void;
 }> = ({ column, taskCount, isOverLimit, completionPercentage, onAddTask }) => (
-  <div className="bg-white/40 dark:bg-white/10 backdrop-blur-2xl rounded-t-2xl 
-    border border-white/20 dark:border-white/10 border-b-0 p-4 shadow-glass">
-    <div className="flex items-center justify-between mb-3">
-      <div className="flex items-center gap-3">
+  <div className="bg-white dark:bg-gray-900 rounded-t-lg border border-gray-200 dark:border-gray-800 border-b-0 p-3 sticky top-0 z-10">
+    <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center gap-2.5">
         <div
-          className="w-11 h-11 rounded-xl flex items-center justify-center shadow-glass-sm 
-            transition-transform hover:scale-110"
-          style={{ backgroundColor: `${column.color}20` }}
-        >
-          <span className="text-2xl">{column.icon}</span>
-        </div>
+          className="w-1.5 h-8 rounded-full flex-shrink-0"
+          style={{ backgroundColor: column.color }}
+        />
         <div>
-          <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wide">
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
             {column.title}
           </h3>
-          <p className="text-xs text-gray-600 dark:text-gray-400">{column.description}</p>
+          {column.description && (
+            <p className="text-xs text-gray-500 dark:text-gray-400">{column.description}</p>
+          )}
         </div>
       </div>
       <motion.button
-        whileHover={{ scale: 1.1, rotate: 90 }}
-        whileTap={{ scale: 0.9 }}
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
         onClick={onAddTask}
-        className="p-2 bg-white/40 dark:bg-white/10 hover:bg-white/60 dark:hover:bg-white/15 
-          rounded-lg transition-all"
+        className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-gray-600 
+          dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
         title="Task hinzufügen"
       >
-        <span className="text-gray-700 dark:text-gray-300 font-bold text-lg">+</span>
+        <span className="text-base font-medium">+</span>
       </motion.button>
     </div>
 
-    <div className="flex items-center justify-between mb-2">
-      <span className={`px-3 py-1.5 rounded-lg text-xs font-bold border ${isOverLimit
-        ? 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/30 animate-pulse'
-        : 'bg-white/40 dark:bg-white/10 text-gray-700 dark:text-gray-300 border-white/20 dark:border-white/10'
+    <div className="flex items-center justify-between">
+      <span className={`px-2 py-0.5 rounded text-xs font-medium ${isOverLimit
+        ? 'bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400'
+        : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
         }`}>
         {taskCount}{column.limit ? `/${column.limit}` : ''}
       </span>
       {isOverLimit && (
-        <span className="text-xs text-red-600 dark:text-red-400 font-semibold">
-          WIP Limit erreicht!
+        <span className="text-xs text-red-600 dark:text-red-400 font-medium">
+          Limit erreicht
         </span>
       )}
     </div>
@@ -822,12 +785,12 @@ const ColumnHeader: React.FC<{
     {/* Progress bar for done column */}
     {column.id === 'done' && completionPercentage > 0 && (
       <div className="mt-2">
-        <div className="w-full h-2 bg-white/30 dark:bg-white/10 rounded-full overflow-hidden">
+        <div className="w-full h-1 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
           <motion.div
             initial={{ width: 0 }}
             animate={{ width: `${completionPercentage}%` }}
-            transition={{ duration: 1, ease: "easeOut" }}
-            className="h-full bg-gradient-to-r from-green-400 to-green-600"
+            transition={{ duration: 0.5, ease: "easeOut" }}
+            className="h-full bg-green-500 dark:bg-green-600"
           />
         </div>
       </div>
@@ -842,23 +805,24 @@ const EmptyColumnState: React.FC<{
   <motion.div
     initial={{ opacity: 0 }}
     animate={{ opacity: 1 }}
-    className="flex flex-col items-center justify-center py-16 text-center"
+    className="flex flex-col items-center justify-center py-12 text-center"
   >
-    <div className="text-7xl mb-4 opacity-30">{column.icon}</div>
-    <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
+    <div className="w-12 h-12 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-3">
+      <span className="text-2xl opacity-40">{column.icon}</span>
+    </div>
+    <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
       Keine Aufgaben
     </p>
-    <p className="text-xs text-gray-500 dark:text-gray-500 mb-5">
+    <p className="text-xs text-gray-400 dark:text-gray-500 mb-4">
       Ziehe Tasks hierher oder erstelle neue
     </p>
     <motion.button
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.95 }}
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
       onClick={onAddTask}
-      className="px-5 py-2.5 bg-white/40 dark:bg-white/10 hover:bg-white/60 
-        dark:hover:bg-white/15 rounded-xl text-sm font-semibold text-gray-700 
-        dark:text-gray-300 transition-all backdrop-blur-sm border 
-        border-white/20 dark:border-white/10 shadow-glass-sm"
+      className="px-3 py-1.5 bg-white dark:bg-gray-800 hover:bg-gray-50 
+        dark:hover:bg-gray-700 rounded-lg text-xs font-medium text-gray-700 
+        dark:text-gray-300 transition-colors border border-gray-200 dark:border-gray-700"
     >
       + Aufgabe erstellen
     </motion.button>
@@ -883,16 +847,16 @@ const QuickFilterBar: React.FC<QuickFilterBarProps> = ({ filters, setFilters, as
           priorities: value === 'all' ? undefined : [value as Task['priority']]
         });
       }}
-      className="px-4 py-3 bg-white/40 dark:bg-white/10 backdrop-blur-2xl border 
-        border-white/20 dark:border-white/10 rounded-xl text-sm font-medium 
-        text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500/50 
-        shadow-glass-sm transition-all"
+      className="px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 
+        dark:border-gray-700 rounded-lg text-sm font-medium text-gray-900 
+        dark:text-white focus:ring-2 focus:ring-gray-900 dark:focus:ring-white 
+        focus:border-transparent transition-all"
     >
-      <option value="all">◈ Alle Prioritäten</option>
-      <option value="critical">▲▲ Kritisch</option>
-      <option value="high">▲ Hoch</option>
-      <option value="medium">▬ Mittel</option>
-      <option value="low">▼ Niedrig</option>
+      <option value="all">Alle Prioritäten</option>
+      <option value="critical">Kritisch</option>
+      <option value="high">Hoch</option>
+      <option value="medium">Mittel</option>
+      <option value="low">Niedrig</option>
     </select>
 
     <select
@@ -904,12 +868,12 @@ const QuickFilterBar: React.FC<QuickFilterBarProps> = ({ filters, setFilters, as
           assignees: value === 'all' ? undefined : [value]
         });
       }}
-      className="px-4 py-3 bg-white/40 dark:bg-white/10 backdrop-blur-2xl border 
-        border-white/20 dark:border-white/10 rounded-xl text-sm font-medium 
-        text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500/50 
-        shadow-glass-sm transition-all"
+      className="px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 
+        dark:border-gray-700 rounded-lg text-sm font-medium text-gray-900 
+        dark:text-white focus:ring-2 focus:ring-gray-900 dark:focus:ring-white 
+        focus:border-transparent transition-all"
     >
-      <option value="all">👥 Alle Mitarbeiter</option>
+      <option value="all">Alle Mitarbeiter</option>
       {assignees.map(assignee => (
         <option key={assignee.id} value={assignee.id}>
           {assignee.name}
@@ -927,23 +891,28 @@ const AdvancedFilterPanel: React.FC<{
   onClose: () => void;
 }> = ({ filters, setFilters, onClose }) => (
   <motion.div
-    initial={{ opacity: 0, y: -20, height: 0 }}
+    initial={{ opacity: 0, y: -8, height: 0 }}
     animate={{ opacity: 1, y: 0, height: 'auto' }}
-    exit={{ opacity: 0, y: -20, height: 0 }}
-    className="mt-4 p-6 bg-white/60 dark:bg-white/15 backdrop-blur-3xl rounded-2xl 
-      border border-white/20 dark:border-white/10 shadow-glass-lg overflow-hidden"
+    exit={{ opacity: 0, y: -8, height: 0 }}
+    className="mt-3 p-4 bg-white dark:bg-gray-800 rounded-lg 
+      border border-gray-200 dark:border-gray-700 overflow-hidden"
   >
-    <div className="flex items-center justify-between mb-4">
-      <h3 className="text-lg font-bold text-gray-900 dark:text-white">Erweiterte Filter</h3>
-      <button onClick={onClose} className="text-gray-500 hover:text-gray-700">✕</button>
+    <div className="flex items-center justify-between mb-3">
+      <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Erweiterte Filter</h3>
+      <button 
+        onClick={onClose} 
+        className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+      >
+        ✕
+      </button>
     </div>
-    <div className="grid grid-cols-3 gap-4">
+    <div className="grid grid-cols-3 gap-3">
       <label className="flex items-center gap-2 cursor-pointer">
         <input
           type="checkbox"
           checked={filters.overdueOnly || false}
           onChange={(e) => setFilters({ ...filters, overdueOnly: e.target.checked })}
-          className="w-4 h-4 rounded"
+          className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-gray-900 dark:focus:ring-white"
         />
         <span className="text-sm text-gray-700 dark:text-gray-300">Nur überfällige</span>
       </label>
@@ -952,7 +921,7 @@ const AdvancedFilterPanel: React.FC<{
           type="checkbox"
           checked={filters.blockedOnly || false}
           onChange={(e) => setFilters({ ...filters, blockedOnly: e.target.checked })}
-          className="w-4 h-4 rounded"
+          className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-gray-900 dark:focus:ring-white"
         />
         <span className="text-sm text-gray-700 dark:text-gray-300">Nur blockierte</span>
       </label>
@@ -961,7 +930,7 @@ const AdvancedFilterPanel: React.FC<{
           type="checkbox"
           checked={filters.hasAttachments || false}
           onChange={(e) => setFilters({ ...filters, hasAttachments: e.target.checked })}
-          className="w-4 h-4 rounded"
+          className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-gray-900 dark:focus:ring-white"
         />
         <span className="text-sm text-gray-700 dark:text-gray-300">Mit Anhängen</span>
       </label>
@@ -978,47 +947,48 @@ const BulkActionsBar: React.FC<{
   assignees: any[];
 }> = ({ selectedCount, onSelectAll, onClearSelection, onAction, assignees }) => (
   <motion.div
-    initial={{ opacity: 0, y: -10 }}
+    initial={{ opacity: 0, y: -8 }}
     animate={{ opacity: 1, y: 0 }}
-    exit={{ opacity: 0, y: -10 }}
-    className="mt-4 p-4 bg-gradient-to-r from-blue-500/10 to-purple-500/10 backdrop-blur-2xl 
-      rounded-xl border border-blue-500/30 shadow-glass-lg"
+    exit={{ opacity: 0, y: -8 }}
+    className="mt-3 p-3 bg-blue-50 dark:bg-blue-950/30 
+      rounded-lg border border-blue-200 dark:border-blue-900"
   >
     <div className="flex items-center justify-between">
-      <div className="flex items-center gap-4">
-        <div className="w-12 h-12 bg-blue-500/20 rounded-full flex items-center 
-          justify-center font-bold text-lg text-blue-600 dark:text-blue-400">
+      <div className="flex items-center gap-3">
+        <div className="w-8 h-8 bg-blue-600 dark:bg-blue-500 rounded-lg flex items-center 
+          justify-center font-semibold text-sm text-white">
           {selectedCount}
         </div>
-        <span className="font-semibold text-gray-900 dark:text-white">
+        <span className="font-medium text-gray-900 dark:text-white text-sm">
           {selectedCount} Aufgabe{selectedCount !== 1 ? 'n' : ''} ausgewählt
         </span>
       </div>
       <div className="flex items-center gap-2">
         <button
           onClick={onSelectAll}
-          className="px-4 py-2 bg-white/40 dark:bg-white/10 hover:bg-white/60 
-            dark:hover:bg-white/15 text-gray-700 dark:text-gray-300 rounded-lg 
-            text-sm font-medium transition-all"
+          className="px-3 py-1.5 bg-white dark:bg-gray-800 hover:bg-gray-50 
+            dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg 
+            text-sm font-medium transition-colors border border-gray-200 dark:border-gray-700"
         >
           Alle auswählen
         </button>
         <select
           onChange={(e) => onAction('status', e.target.value)}
-          className="px-4 py-2 bg-white/40 dark:bg-white/10 rounded-lg text-sm 
-            font-medium text-gray-700 dark:text-gray-300 border-0"
+          className="px-3 py-1.5 bg-white dark:bg-gray-800 rounded-lg text-sm 
+            font-medium text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 
+            focus:ring-2 focus:ring-gray-900 dark:focus:ring-white focus:border-transparent"
         >
           <option value="">Status ändern...</option>
-          <option value="todo">◐ Zu erledigen</option>
-          <option value="in_progress">◉ In Arbeit</option>
-          <option value="review">◎ Überprüfung</option>
-          <option value="done">● Abgeschlossen</option>
+          <option value="todo">Zu erledigen</option>
+          <option value="in_progress">In Arbeit</option>
+          <option value="review">Überprüfung</option>
+          <option value="done">Abgeschlossen</option>
         </select>
         <button
           onClick={onClearSelection}
-          className="px-4 py-2 bg-white/40 dark:bg-white/10 hover:bg-white/60 
-            dark:hover:bg-white/15 text-gray-700 dark:text-gray-300 rounded-lg 
-            text-sm font-medium transition-all"
+          className="px-3 py-1.5 bg-white dark:bg-gray-800 hover:bg-gray-50 
+            dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg 
+            text-sm font-medium transition-colors border border-gray-200 dark:border-gray-700"
         >
           Auswahl löschen
         </button>
@@ -1043,35 +1013,36 @@ const KeyboardShortcutsModal: React.FC<{
           className="fixed inset-0 z-[10000] bg-black/60 backdrop-blur-sm"
         />
         <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
+          initial={{ opacity: 0, scale: 0.98 }}
           animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.95 }}
+          exit={{ opacity: 0, scale: 0.98 }}
           className="fixed inset-0 z-[10001] flex items-center justify-center p-4"
         >
-          <div className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-3xl rounded-3xl 
-            border border-white/20 dark:border-white/10 shadow-glass-xl p-8 max-w-2xl w-full">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                ⌨️ Tastenkürzel
+          <div className="bg-white dark:bg-gray-900 rounded-lg 
+            border border-gray-200 dark:border-gray-700 shadow-xl p-6 max-w-2xl w-full">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Tastenkürzel
               </h2>
               <button
                 onClick={onClose}
-                className="w-10 h-10 flex items-center justify-center rounded-xl 
-                  bg-white/40 dark:bg-white/10 hover:bg-white/60 dark:hover:bg-white/15"
+                className="w-8 h-8 flex items-center justify-center rounded-lg 
+                  hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-gray-600 
+                  dark:hover:text-gray-300 transition-colors"
               >
                 ✕
               </button>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3">
               {KEYBOARD_SHORTCUTS.map((shortcut, index) => (
                 <div
                   key={index}
-                  className="flex items-center justify-between p-4 bg-white/40 
-                    dark:bg-white/10 rounded-xl"
+                  className="flex items-center justify-between p-3 bg-gray-50 
+                    dark:bg-gray-800 rounded-lg"
                 >
-                  <span className="text-gray-700 dark:text-gray-300">{shortcut.description}</span>
-                  <kbd className="px-3 py-1.5 bg-gray-700 dark:bg-gray-600 text-white 
-                    rounded-lg font-mono text-sm font-semibold">
+                  <span className="text-sm text-gray-700 dark:text-gray-300">{shortcut.description}</span>
+                  <kbd className="px-2 py-1 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white 
+                    rounded font-mono text-xs font-medium">
                     {shortcut.key}
                   </kbd>
                 </div>

@@ -90,6 +90,33 @@ class TasksService {
     const response = await apiClient.get<TaskStatisticsResponse>('/api/v1/tasks/statistics');
     return response;
   }
+
+  /**
+   * GET /api/v1/tasks/{id}/transitions - Erlaubte Status-Transitions
+   */
+  async getTaskTransitions(taskId: string): Promise<string[]> {
+    const response = await apiClient.get<string[]>(`/api/v1/tasks/${taskId}/transitions`);
+    return response;
+  }
+
+  /**
+   * POST /api/v1/tasks/bulk-update - Bulk-Update für mehrere Tasks
+   */
+  async bulkUpdateTasks(taskIds: string[], updates: Partial<CreateTaskRequest>): Promise<{
+    updated_count: number;
+    failed_count: number;
+    errors: Array<{ task_id: string; error: string }>;
+  }> {
+    const response = await apiClient.post<{
+      updated_count: number;
+      failed_count: number;
+      errors: Array<{ task_id: string; error: string }>;
+    }>('/api/v1/tasks/bulk-update', {
+      task_ids: taskIds,
+      updates: updates
+    });
+    return response;
+  }
 }
 
 export const tasksService = new TasksService();

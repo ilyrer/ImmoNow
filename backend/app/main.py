@@ -140,6 +140,25 @@ async def lifespan(app: FastAPI):
     # Validate AI configuration
     validate_ai_configuration()
     
+    # Register Event Subscribers
+    from app.core.event_bus import event_bus
+    from app.services.event_subscribers import (
+        handle_task_activity_event,
+        handle_automation_event
+    )
+    
+    # TaskActivity Subscribers
+    event_bus.subscribe("task.created", handle_task_activity_event)
+    event_bus.subscribe("task.status_changed", handle_task_activity_event)
+    event_bus.subscribe("task.assigned", handle_task_activity_event)
+    
+    # Automation Subscribers
+    event_bus.subscribe("task.created", handle_automation_event)
+    event_bus.subscribe("task.status_changed", handle_automation_event)
+    event_bus.subscribe("task.assigned", handle_automation_event)
+    
+    logger.info("Event subscribers registered (TaskActivity + Automation)")
+    
     yield
     # Shutdown
     logger.info("Shutting down CIM Backend API")
