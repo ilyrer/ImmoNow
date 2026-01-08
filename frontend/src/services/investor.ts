@@ -3,7 +3,7 @@
  * Complete implementation of all investor endpoints
  */
 
-import { apiClient } from '../lib/api/client';
+import { apiClient } from '../api/config';
 import {
   InvestorAssetResponse,
   PortfolioKPIsResponse

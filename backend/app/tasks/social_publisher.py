@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Any
 from asgiref.sync import sync_to_async
 
-from app.db.models import SocialPost, SocialAccount
+from communications.models import SocialPost, SocialAccount
 from app.services.instagram_service import InstagramService
 from app.services.rate_limit_manager import RateLimitManager
 from app.core.errors import ExternalServiceError

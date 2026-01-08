@@ -16,7 +16,7 @@ from app.schemas.location import (
     LocationSearchResult,
     LocationListResponse,
 )
-from app.db.models.location import LocationMarketData
+from locations.models import LocationMarketData
 from asgiref.sync import sync_to_async
 
 router = APIRouter()

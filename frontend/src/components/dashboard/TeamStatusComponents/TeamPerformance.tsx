@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, AreaChart, Area } from 'recharts';
 import { CHART_COLORS } from '../../charts/constants/colors';
 import { CustomTooltip } from '../components/CustomTooltip';
-import { apiClient } from '../../../lib/api/client';
+import { apiClient } from '../../../api/config';
 
 // Real API interfaces
 interface PerformanceTimeRange {

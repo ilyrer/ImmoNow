@@ -6,7 +6,8 @@ from typing import Dict, Any
 from asgiref.sync import sync_to_async
 import logging
 
-from app.db.models import TaskActivity, Task, User
+from tasks.models import TaskActivity, Task
+from accounts.models import User
 
 logger = logging.getLogger(__name__)
 

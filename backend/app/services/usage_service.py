@@ -7,15 +7,11 @@ from django.utils import timezone
 from django.db import models
 from asgiref.sync import sync_to_async
 
-from app.db.models import (
-    UserProfile,
-    Property,
-    Document,
-    PropertyImage,
-    PropertyDocument,
-    BillingAccount,
-    Attachment,
-)
+from accounts.models import UserProfile
+from properties.models import Property, PropertyImage, PropertyDocument
+from documents.models import Document
+from billing.models import BillingAccount
+from communications.models import Attachment
 
 
 class UsageService:

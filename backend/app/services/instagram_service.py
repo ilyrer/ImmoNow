@@ -10,7 +10,7 @@ import httpx
 from asgiref.sync import sync_to_async
 from cryptography.fernet import Fernet
 
-from app.db.models import SocialAccount, SocialPost
+from communications.models import SocialAccount, SocialPost
 from app.core.errors import ValidationError, ExternalServiceError
 from app.services.rate_limit_manager import RateLimitManager
 

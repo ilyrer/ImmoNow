@@ -4,7 +4,7 @@
  * Use the new hooks in src/api/hooks.ts instead.
  */
 
-import { apiClient } from '../lib/api/client';
+import { apiClient } from '../api/config';
 
 // Legacy API service for backward compatibility
 const apiService = {

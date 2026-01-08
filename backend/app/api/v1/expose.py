@@ -15,7 +15,7 @@ from app.schemas.expose import (
 )
 from app.services.expose_service import ExposeService
 from app.services.pdf_generator_service import PDFGeneratorService
-from app.db.models import ExposeVersion
+from properties.models import ExposeVersion
 
 router = APIRouter()
 

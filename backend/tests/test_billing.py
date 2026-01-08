@@ -14,7 +14,9 @@ from app.core.billing_config import (
 )
 from app.core.billing_guard import BillingGuard
 from app.services.billing_service import BillingService
-from app.db.models import BillingAccount, Tenant, UserProfile, Property
+from billing.models import BillingAccount
+from accounts.models import Tenant, UserProfile
+from properties.models import Property
 
 
 class TestBillingConfig(TestCase):

@@ -8,7 +8,7 @@ from datetime import datetime, date
 from typing import Optional, List, Dict, Any
 from asgiref.sync import sync_to_async
 
-from app.db.models import Task, Project, TaskStatus
+from tasks.models import Task, Project, TaskStatus
 from app.tools.registry import ToolRegistry, ToolParameter, ToolResult
 from app.core.errors import NotFoundError, ValidationError
 
@@ -91,13 +91,10 @@ async def create_task_handler(
 
         # Add tags if provided
         if tags:
-            from app.db.models.tasks import Tag
-
-            for tag_name in tags:
-                tag, _ = await sync_to_async(Tag.objects.get_or_create)(
-                    tenant_id=tenant_id, name=tag_name, defaults={"color": "#808080"}
-                )
-                await sync_to_async(task.tags.add)(tag)
+            # Task.tags is a JSONField, not a ManyToManyField
+            # Simply store tags as a list in the JSONField
+            task.tags = tags
+            await sync_to_async(task.save)()
 
         logger.info(f"Task created: {task.id} - {task.title}")
 

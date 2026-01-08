@@ -12,7 +12,8 @@ from asgiref.sync import sync_to_async
 from app.services.billing_service import BillingService
 from app.services.auth_service import AuthService
 from app.core.billing_config import PLAN_LIMITS, STRIPE_PRICE_MAP
-from app.db.models import User, BillingAccount
+from accounts.models import User
+from billing.models import BillingAccount
 from app.core.errors import UnauthorizedError, NotFoundError
 from django.utils import timezone
 
@@ -178,7 +179,8 @@ async def get_billing_info(
         limits = PLAN_LIMITS[billing.plan_key]
         
         # Hole aktuelle Usage (vereinfacht - später durch UsageService ersetzen)
-        from app.db.models import UserProfile, Property
+        from accounts.models import UserProfile
+        from properties.models import Property
         users_count = await sync_to_async(UserProfile.objects.filter(
             tenant_id=tenant_id, 
             is_active=True
@@ -349,7 +351,8 @@ async def get_billing_info(
         limits = PLAN_LIMITS.get(billing.plan_key, PLAN_LIMITS['free'])
         
         # Berechne aktuelle Usage (vereinfacht)
-        from app.db.models import UserProfile, Property
+        from accounts.models import UserProfile
+        from properties.models import Property
         
         current_users = await sync_to_async(UserProfile.objects.filter(
             tenant_id=tenant_id,

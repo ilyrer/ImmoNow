@@ -3,7 +3,7 @@
  * API calls for tenant/organization management
  */
 
-import { apiClient } from '../lib/api/client';
+import { apiClient } from '../api/config';
 
 // ============================================================================
 // TYPE DEFINITIONS

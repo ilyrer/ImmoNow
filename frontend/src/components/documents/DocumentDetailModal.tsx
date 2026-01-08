@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { apiClient } from '../../lib/api/client';
+import { apiClient } from '../../api/config';
 import { toast } from 'react-hot-toast';
 
 // Mock interfaces

@@ -8,7 +8,8 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 from asgiref.sync import sync_to_async
 
-from app.db.models import Property, ExposeVersion, User
+from properties.models import Property, ExposeVersion
+from accounts.models import User
 from app.services.llm_service import LLMService
 from app.services.ai_manager import AIManager
 from app.schemas.llm import LLMRequest

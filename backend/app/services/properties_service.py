@@ -10,18 +10,18 @@ from django.core.files.uploadedfile import UploadedFile
 from asgiref.sync import sync_to_async
 import os
 
-from app.db.models import (
+from properties.models import (
     Property,
     Address,
     ContactPerson,
     PropertyFeatures,
     PropertyImage,
     PropertyDocument,
-    User,
     PropertyMetrics,
     PropertyMetricsSnapshot,
     PublishJob,
 )
+from accounts.models import User
 from app.schemas.properties import (
     PropertyResponse,
     CreatePropertyRequest,

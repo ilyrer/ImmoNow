@@ -3,7 +3,9 @@
  * Implementiert alle AVM-Endpunkte aus dem Backend Contract
  */
 
-import { apiClient } from '../lib/api/client';
+import { apiClient } from '../api/config';
+import { logger } from '../utils/logger';
+import { handleError } from '../utils/errorHandler';
 import {
   AvmRequest,
   AvmResponseData,

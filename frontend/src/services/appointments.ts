@@ -3,7 +3,7 @@
  * Implementiert alle Appointment-Endpunkte aus dem Backend Contract
  */
 
-import { apiClient } from '../lib/api/client';
+import { apiClient } from '../api/config';
 import {
   AppointmentResponse,
   CreateAppointmentRequest

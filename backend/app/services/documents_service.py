@@ -10,15 +10,14 @@ from django.db import models
 from django.db.models import Q, Count, Sum
 from asgiref.sync import sync_to_async
 
-from app.db.models import (
+from documents.models import (
     Document,
     DocumentFolder,
     DocumentVersion,
-    Tenant,
-    User,
     DocumentActivity,
     DocumentComment,
 )
+from accounts.models import Tenant, User
 from app.schemas.documents import (
     DocumentResponse,
     DocumentFolderResponse,

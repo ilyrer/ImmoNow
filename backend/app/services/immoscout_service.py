@@ -15,7 +15,8 @@ from cryptography.fernet import Fernet
 import base64
 import os
 
-from app.db.models import IntegrationSettings, Property, PublishJob, User
+from properties.models import IntegrationSettings, Property, PublishJob
+from accounts.models import User
 from app.core.errors import NotFoundError, UnauthorizedError, ExternalServiceError
 
 logger = logging.getLogger(__name__)

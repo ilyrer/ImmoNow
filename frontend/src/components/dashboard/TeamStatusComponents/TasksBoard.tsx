@@ -2,7 +2,7 @@ import React, { useState, forwardRef, useImperativeHandle, useEffect } from 'rea
 import { motion } from 'framer-motion';
 import { DragDropContext, Droppable, Draggable, DropResult, DroppableProvided, DraggableProvided } from '@hello-pangea/dnd';
 import { AIAssistant } from '../Kanban';
-import { apiClient } from '../../../lib/api/client';
+import { apiClient } from '../../../api/config';
 
 // Import AnimatePresence separat, um TypeScript-Probleme zu vermeiden
 // @ts-ignore - Notwendig für Kompatibilität mit framer-motion@4.1.17

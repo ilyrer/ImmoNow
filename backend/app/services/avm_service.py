@@ -26,7 +26,7 @@ from app.schemas.common import PropertyType
 from app.services.ai_manager import AIManager
 from app.services.geocoding_service import GeocodingService
 from app.services.market_data_service import MarketDataService
-from app.db.models.location import LocationMarketData
+from locations.models import LocationMarketData
 
 logger = logging.getLogger(__name__)
 

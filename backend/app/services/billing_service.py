@@ -9,7 +9,7 @@ from django.conf import settings
 from django.utils import timezone
 from asgiref.sync import sync_to_async
 
-from app.db.models import BillingAccount, StripeWebhookEvent
+from billing.models import BillingAccount, StripeWebhookEvent
 from app.core.billing_config import get_plan_from_price_id, PLAN_LIMITS
 
 

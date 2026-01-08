@@ -3,7 +3,7 @@
  * Implementiert alle Task/Kanban-Endpunkte aus dem Backend Contract
  */
 
-import { apiClient } from '../lib/api/client';
+import { apiClient } from '../api/config';
 import {
   TaskResponse,
   TaskStatisticsResponse,

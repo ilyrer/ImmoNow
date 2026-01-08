@@ -6,7 +6,8 @@ from datetime import datetime
 from django.db import models
 from asgiref.sync import sync_to_async
 
-from app.db.models import Appointment, Attendee, User
+from appointments.models import Appointment, Attendee
+from accounts.models import User
 from app.schemas.appointments import (
     AppointmentResponse, CreateAppointmentRequest, UpdateAppointmentRequest,
     Attendee as AttendeeSchema

@@ -3,7 +3,7 @@ import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, A
 import { motion } from 'framer-motion';
 // Use new API hooks
 import { useDashboardAnalytics, useProperties } from '../../api/hooks';
-import { apiClient } from '../../lib/api/client';
+import { apiClient } from '../../api/config';
 import { PropertyDistributionChart, StatusOverviewChart } from './charts';
 
 // API-gestützte Dashboard-Daten (werden via useEffect geladen)

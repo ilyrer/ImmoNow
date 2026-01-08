@@ -21,7 +21,7 @@ from app.schemas.auth import (
 )
 from app.services.auth_service import AuthService
 from app.core.errors import UnauthorizedError, ConflictError, NotFoundError
-from app.db.models import User, TenantUser
+from accounts.models import User, TenantUser
 
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])

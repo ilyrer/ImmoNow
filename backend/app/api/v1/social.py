@@ -526,7 +526,7 @@ async def get_dashboard_stats(
     Returns connected accounts, post counts, engagement metrics, and recent activities.
     """
     from datetime import datetime, timedelta
-    from app.db.models import SocialAccount, SocialPost
+    from communications.models import SocialAccount, SocialPost
     from django.db.models import Count, Avg
     from django.utils import timezone
 
@@ -771,7 +771,7 @@ async def get_scheduled_posts(
     tenant_id: str = Depends(get_tenant_id),
 ):
     """Get all scheduled posts"""
-    from app.db.models import SocialPost
+    from communications.models import SocialPost
     from django.utils import timezone
 
     now = timezone.now()
@@ -822,7 +822,7 @@ async def get_post_queue(
     tenant_id: str = Depends(get_tenant_id),
 ):
     """Get post queue with status"""
-    from app.db.models import SocialPost
+    from communications.models import SocialPost
     from django.utils import timezone
 
     # Get posts in queue (scheduled for future or in processing)

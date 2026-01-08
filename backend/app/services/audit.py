@@ -8,7 +8,8 @@ from django.db import models
 import logging
 from asgiref.sync import sync_to_async
 
-from app.db.models import AuditLog, User
+from common.models import AuditLog
+from accounts.models import User
 
 logger = logging.getLogger(__name__)
 

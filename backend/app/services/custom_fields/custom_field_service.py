@@ -6,7 +6,7 @@ from typing import List, Optional, Dict, Any
 from asgiref.sync import sync_to_async
 import logging
 
-from app.db.models import CustomField, CustomFieldValue
+from custom_fields.models import CustomField, CustomFieldValue
 from app.core.errors import ValidationError, NotFoundError
 
 logger = logging.getLogger(__name__)
@@ -49,7 +49,7 @@ class CustomFieldService:
         
         @sync_to_async
         def create():
-            from app.db.models import User
+            from accounts.models import User
             
             created_by = None
             if created_by_id:

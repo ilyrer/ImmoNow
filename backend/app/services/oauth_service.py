@@ -12,7 +12,8 @@ import httpx
 from asgiref.sync import sync_to_async
 from cryptography.fernet import Fernet
 
-from app.db.models import SocialAccount, Tenant, User
+from communications.models import SocialAccount
+from accounts.models import Tenant, User
 from app.core.errors import ValidationError, ExternalServiceError
 
 logger = logging.getLogger(__name__)

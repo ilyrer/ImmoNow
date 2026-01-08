@@ -11,7 +11,8 @@ from pydantic import BaseModel, Field
 from cryptography.fernet import Fernet
 import os
 import base64
-from app.db.models import IntegrationSettings, Tenant, User
+from properties.models import IntegrationSettings
+from accounts.models import Tenant, User
 from app.core.settings import settings
 from app.services.auth_service import AuthService
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials

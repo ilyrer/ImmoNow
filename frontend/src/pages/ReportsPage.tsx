@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { apiClient } from '../lib/api/client';
+import { apiClient } from '../api/config';
 
 type ReportTemplate = {
   id: number;

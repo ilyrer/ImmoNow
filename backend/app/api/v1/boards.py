@@ -8,7 +8,7 @@ from asgiref.sync import sync_to_async
 from typing import Dict
 from app.api.deps import require_read_scope, require_write_scope, get_tenant_id
 from app.core.security import TokenData
-from app.db.models import Board, BoardStatus, Task
+from tasks.models import Board, BoardStatus, Task
 from app.schemas.tasks import BoardResponse, BoardStatus as BoardStatusSchema
 
 router = APIRouter()

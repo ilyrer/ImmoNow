@@ -6,7 +6,10 @@ from datetime import datetime, timedelta
 from django.db.models import Count, Avg, Sum, F, Q
 from asgiref.sync import sync_to_async
 
-from app.db.models import Property, Contact, Task, Appointment
+from properties.models import Property
+from contacts.models import Contact
+from tasks.models import Task
+from appointments.models import Appointment
 from app.schemas.kpi import (
     KPIDashboardResponse, KPIMetricResponse, ConversionFunnelStage,
     TimeToCloseData, VacancyData, PerformanceRadar

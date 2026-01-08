@@ -7,7 +7,10 @@ from typing import Optional
 from asgiref.sync import sync_to_async
 from django.utils import timezone
 
-from app.db.models import BillingAccount, UserProfile, Property, Document
+from billing.models import BillingAccount
+from accounts.models import UserProfile
+from properties.models import Property
+from documents.models import Document
 from app.core.billing_config import PLAN_LIMITS, get_required_plan_for_limit
 
 
@@ -196,7 +199,9 @@ class BillingGuard:
     ) -> None:
         """Prüfe Storage-Limit"""
         from django.db.models import Sum
-        from app.db.models import Document, PropertyImage, PropertyDocument, Attachment
+        from documents.models import Document
+        from properties.models import PropertyImage, PropertyDocument
+        from communications.models import Attachment
 
         limit_gb = limits["storage_gb"]
 

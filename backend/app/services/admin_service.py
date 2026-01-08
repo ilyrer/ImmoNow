@@ -6,10 +6,11 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta
 from asgiref.sync import sync_to_async
 
-from app.db.models import (
-    User, UserProfile, Tenant, Permission, Role, FeatureFlag,
-    Property, ContactPerson, Document, Task, AuditLog
-)
+from accounts.models import User, UserProfile, Tenant, Permission, Role, FeatureFlag
+from properties.models import Property, ContactPerson
+from documents.models import Document
+from tasks.models import Task
+from common.models import AuditLog
 from app.schemas.admin import (
     PermissionResponse, RoleResponse, CreateRoleRequest, UpdateRoleRequest,
     FeatureFlagResponse, CreateFeatureFlagRequest, UpdateFeatureFlagRequest,

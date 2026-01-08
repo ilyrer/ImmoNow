@@ -5,7 +5,9 @@
  */
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { apiClient } from '../lib/api/client';
+import { apiClient } from '../api/config';
+import { storage } from '../utils/storage';
+import { logger } from '../utils/logger';
 
 // Utility to decode JWT and get expiration
 const getTokenExpiration = (token: string): number | null => {
@@ -67,19 +69,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Force logout with reason - clears auth and reloads page to login
   const forceLogout = useCallback((reason: string = 'Ihre Sitzung ist abgelaufen') => {
-    console.log('⚠️ AuthContext: Force logout -', reason);
+    logger.warn('Force logout', 'AuthContext', { reason });
 
     // Clear all auth data
     setToken(null);
     setTenantId(null);
     setTokenExpiresAt(null);
 
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('tenant_id');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('tenantId');
-    localStorage.removeItem('refreshToken');
+    storage.remove('auth_token');
+    storage.remove('tenant_id');
+    storage.remove('refresh_token');
+    storage.remove('authToken');
+    storage.remove('tenantId');
+    storage.remove('refreshToken');
 
     apiClient.clearAuth();
 
@@ -89,7 +91,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
 
   const setAuth = (newToken: string, newTenantId: string) => {
-    console.log('🔐 AuthContext: Setting auth', {
+    logger.info('Setting auth', 'AuthContext', {
       token: newToken.substring(0, 20) + '...',
       tenantId: newTenantId
     });
@@ -101,34 +103,34 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const exp = getTokenExpiration(newToken);
     if (exp) {
       setTokenExpiresAt(new Date(exp));
-      console.log('⏰ Token expires at:', new Date(exp).toLocaleString('de-DE'));
+      logger.debug('Token expires at', 'AuthContext', { expiration: new Date(exp).toISOString() });
     }
 
     // Speichere in localStorage
-    localStorage.setItem('auth_token', newToken);
-    localStorage.setItem('tenant_id', newTenantId);
+    storage.set('auth_token', newToken);
+    storage.set('tenant_id', newTenantId);
 
     // Setze auch im API Client
     apiClient.setAuthToken(newToken, newTenantId);
 
-    console.log('✅ AuthContext: Auth set successfully');
+    logger.info('Auth set successfully', 'AuthContext');
   };
 
   const clearAuth = () => {
-    console.log('🚪 AuthContext: MANUAL clear auth - nur auf expliziten Aufruf');
+    logger.info('MANUAL clear auth - nur auf expliziten Aufruf', 'AuthContext');
     setToken(null);
     setTenantId(null);
     setTokenExpiresAt(null);
 
     // Entferne aus localStorage
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('tenant_id');
-    localStorage.removeItem('refresh_token');
+    storage.remove('auth_token');
+    storage.remove('tenant_id');
+    storage.remove('refresh_token');
 
     // Clear auch im API Client
     apiClient.clearAuth();
 
-    console.log('✅ AuthContext: Auth cleared successfully');
+    logger.info('Auth cleared successfully', 'AuthContext');
   };
 
   // Authentication is valid if we have a token
@@ -136,10 +138,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Initialisierung beim Mount - lade Tokens aus localStorage
   useEffect(() => {
-    const savedToken = localStorage.getItem('auth_token');
-    const savedTenantId = localStorage.getItem('tenant_id');
+    const savedToken = storage.get<string>('auth_token');
+    const savedTenantId = storage.get<string>('tenant_id');
 
-    console.log('🔄 AuthContext: Initializing from localStorage', {
+    logger.debug('Initializing from localStorage', 'AuthContext', {
       hasToken: !!savedToken,
       hasTenantId: !!savedTenantId
     });
@@ -147,7 +149,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     if (savedToken && savedTenantId) {
       // Check if token is already expired
       if (isTokenExpired(savedToken, 0)) {
-        console.log('❌ AuthContext: Saved token is expired, forcing logout');
+        logger.warn('Saved token is expired, forcing logout', 'AuthContext');
         forceLogout('Ihre Sitzung ist abgelaufen');
         return;
       }
@@ -161,9 +163,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
 
       apiClient.setAuthToken(savedToken, savedTenantId);
-      console.log('✅ AuthContext: Tokens loaded from localStorage');
+      logger.info('Tokens loaded from localStorage', 'AuthContext');
     } else {
-      console.log('⚠️ AuthContext: No tokens found in localStorage');
+      logger.debug('No tokens found in localStorage', 'AuthContext');
     }
   }, [forceLogout]);
 

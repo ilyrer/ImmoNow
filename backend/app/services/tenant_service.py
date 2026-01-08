@@ -9,7 +9,7 @@ from asgiref.sync import sync_to_async
 import uuid
 import os
 
-from app.db.models import Tenant
+from accounts.models import Tenant
 from app.schemas.tenant import TenantDetailResponse, TenantUpdateRequest
 from app.core.errors import NotFoundError, ValidationError
 
@@ -100,7 +100,8 @@ class TenantService:
                 tenant = Tenant.objects.get(id=self.tenant_id)
                 
                 # Import here to avoid circular imports
-                from app.db.models import UserProfile, Property
+                from accounts.models import UserProfile
+                from properties.models import Property
                 
                 # Count current usage
                 user_count = UserProfile.objects.filter(tenant_id=self.tenant_id, is_active=True).count()

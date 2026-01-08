@@ -9,7 +9,7 @@ import DocumentListView from './DocumentListView';
 import DocumentAdvancedFilters from './DocumentAdvancedFilters';
 import DocumentAnalyticsDashboard from './DocumentAnalyticsDashboard';
 import { useDocuments, useDocumentFolders, useDocumentAnalytics } from '../../api/hooks';
-import { apiClient } from '../../lib/api/client';
+import { apiClient } from '../../api/config';
 import { toast } from 'react-hot-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';

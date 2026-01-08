@@ -6,21 +6,18 @@ from typing import Optional, Dict, Any, List
 from datetime import datetime, timedelta
 from django.utils import timezone
 
-from app.models import (
+from notifications.models import (
     Notification, 
     NotificationPreference,
-    User, 
-    Tenant,
-    Property,
-    Contact,
-    Task,
-    Appointment,
-)
-from app.db.models.notification import (
     NotificationType,
     NotificationCategory,
     NotificationPriority,
 )
+from accounts.models import User, Tenant
+from properties.models import Property
+from contacts.models import Contact
+from tasks.models import Task
+from appointments.models import Appointment
 
 
 class NotificationService:

@@ -7,7 +7,8 @@ from asgiref.sync import sync_to_async
 from datetime import datetime, timedelta
 import logging
 
-from app.db.models import SLA, SLAInstance, Task
+from sla.models import SLA, SLAInstance
+from tasks.models import Task
 from app.core.errors import ValidationError, NotFoundError
 
 logger = logging.getLogger(__name__)
@@ -32,7 +33,7 @@ class SLAService:
         
         @sync_to_async
         def create():
-            from app.db.models import User
+            from accounts.models import User
             
             created_by = None
             if created_by_id:

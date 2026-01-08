@@ -15,7 +15,7 @@ import {
   Channel,
   ChannelMessage,
 } from '../../api/hooks';
-import { apiClient } from '../../lib/api/client';
+import { apiClient } from '../../api/config';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';

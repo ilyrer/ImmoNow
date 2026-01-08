@@ -2,7 +2,7 @@
  * Location Service - API client for dynamic location management
  */
 
-import { apiClient } from '../lib/api/client';
+import { apiClient } from '../api/config';
 import {
     LocationMarketData,
     LocationSearchResult,

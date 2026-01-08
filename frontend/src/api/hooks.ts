@@ -4,7 +4,9 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '../lib/api/client';
+import { apiClient } from './config';
+import { storage } from '../utils/storage';
+import { logger } from '../utils/logger';
 import type {
   // Auth Types
   LoginRequest, LoginResponse, RegisterRequest, RegisterResponse,
@@ -140,22 +142,22 @@ export const useLogin = () => {
 
   return useMutation<LoginResponse, Error, LoginRequest>({
     mutationFn: async (data) => {
-      console.log('🔐 useLogin: Starting login request...');
+      logger.debug('Starting login request', 'useLogin');
       const response = await apiClient.post<LoginResponse>('/api/v1/auth/login', data);
-      console.log('✅ useLogin: Login response received:', response);
+      logger.debug('Login response received', 'useLogin');
 
       // Tokens werden NICHT hier gespeichert - das macht der AuthContext
       // Hier nur die Response zurückgeben
       return response;
     },
     onSuccess: (data) => {
-      console.log('🎉 useLogin: Login successful, invalidating queries...');
+      logger.info('Login successful, invalidating queries', 'useLogin');
       // Invalidate auth queries
       queryClient.invalidateQueries({ queryKey: queryKeys.auth.me });
       queryClient.invalidateQueries({ queryKey: queryKeys.auth.tenant });
     },
     onError: (error) => {
-      console.error('❌ useLogin: Login failed:', error);
+      logger.error('Login failed', 'useLogin', error);
     },
   });
 };
@@ -169,15 +171,16 @@ export const useRegister = () => {
 
       // Store tokens and tenant info
       if (response.access_token) {
-        localStorage.setItem('auth_token', response.access_token);
-        localStorage.setItem('tenant_id', response.tenant.id);
-        localStorage.setItem('authToken', response.access_token);
-        localStorage.setItem('refreshToken', response.refresh_token);
-        localStorage.setItem('tenantId', response.tenant.id);
-        localStorage.setItem('tenantSlug', response.tenant.slug);
+        storage.set('auth_token', response.access_token);
+        storage.set('tenant_id', response.tenant.id);
+        storage.set('authToken', response.access_token);
+        storage.set('refreshToken', response.refresh_token);
+        storage.set('tenantId', response.tenant.id);
+        storage.set('tenantSlug', response.tenant.slug);
 
         // Set in API client
         apiClient.setAuthToken(response.access_token, response.tenant.id);
+        logger.info('Login successful', 'useLogin', { tenantId: response.tenant.id });
       }
 
       return response;
@@ -198,15 +201,16 @@ export const useLogout = () => {
       await apiClient.post('/api/v1/auth/logout');
 
       // Clear all tokens
-      localStorage.removeItem('auth_token');
-      localStorage.removeItem('tenant_id');
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('refreshToken');
-      localStorage.removeItem('tenantId');
-      localStorage.removeItem('tenantSlug');
+      storage.remove('auth_token');
+      storage.remove('tenant_id');
+      storage.remove('authToken');
+      storage.remove('refreshToken');
+      storage.remove('tenantId');
+      storage.remove('tenantSlug');
 
       // Clear API client
       apiClient.clearAuth();
+      logger.info('Logout successful', 'useLogout');
     },
     onSuccess: () => {
       // Clear all queries
@@ -222,22 +226,23 @@ export const useRefreshToken = () => {
 
       // Update tokens
       if (response.access_token) {
-        localStorage.setItem('auth_token', response.access_token);
-        localStorage.setItem('authToken', response.access_token);
+        storage.set('auth_token', response.access_token);
+        storage.set('authToken', response.access_token);
 
         if (response.tenant) {
-          localStorage.setItem('tenant_id', response.tenant.id);
-          localStorage.setItem('tenantId', response.tenant.id);
-          localStorage.setItem('tenantSlug', response.tenant.slug);
+          storage.set('tenant_id', response.tenant.id);
+          storage.set('tenantId', response.tenant.id);
+          storage.set('tenantSlug', response.tenant.slug);
         }
 
         // Set in API client
-        const tenantId = localStorage.getItem('tenantId');
+        const tenantId = storage.get<string>('tenantId');
         if (tenantId) {
           apiClient.setAuthToken(response.access_token, tenantId);
         } else {
           apiClient.setAuthToken(response.access_token);
         }
+        logger.debug('Token refreshed', 'useRefreshToken');
       }
 
       return response;

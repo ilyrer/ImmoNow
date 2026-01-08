@@ -19,7 +19,7 @@ load_dotenv("../../env.local")
 
 from app.services.auth_service import AuthService
 from app.core.billing_config import PLAN_LIMITS, STRIPE_PRICE_MAP
-from app.db.models import User, Tenant
+from accounts.models import User, Tenant
 from app.core.errors import UnauthorizedError, NotFoundError
 from django.utils.text import slugify
 
@@ -280,7 +280,8 @@ async def complete_registration(
             )
         
         # Erstelle Tenant mit bezahltem Plan
-        from app.db.models import Tenant, BillingAccount
+        from accounts.models import Tenant
+        from billing.models import BillingAccount
         
         try:
             # Erstelle eindeutigen Slug
@@ -384,7 +385,7 @@ async def complete_registration(
             )
         
         # Erstelle Tenant-User Beziehung
-        from app.db.models import TenantUser
+        from accounts.models import TenantUser
         try:
             tenant_user = await sync_to_async(TenantUser.objects.create)(
                 user=user,

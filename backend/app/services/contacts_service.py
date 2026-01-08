@@ -7,7 +7,10 @@ from django.db import models
 from django.db.models import Q
 from asgiref.sync import sync_to_async
 
-from app.db.models import Contact, Property, Task, Appointment
+from contacts.models import Contact
+from properties.models import Property
+from tasks.models import Task
+from appointments.models import Appointment
 from app.schemas.contacts import (
     ContactResponse, CreateContactRequest, UpdateContactRequest
 )

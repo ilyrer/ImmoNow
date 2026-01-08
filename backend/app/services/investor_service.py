@@ -12,9 +12,9 @@ from django.db import models
 from django.db.models import Sum, Avg, Count, Q, F
 from asgiref.sync import sync_to_async
 
-from app.db.models import (
-    Property,
-    Tenant,
+from properties.models import Property
+from accounts.models import Tenant, User
+from investor.models import (
     Investment,
     InvestorPortfolio,
     InvestmentExpense,
@@ -23,7 +23,6 @@ from app.db.models import (
     InvestorReport,
     MarketplacePackage,
     PackageReservation,
-    User,
 )
 from app.schemas.investor import (
     InvestorPortfolioResponse,

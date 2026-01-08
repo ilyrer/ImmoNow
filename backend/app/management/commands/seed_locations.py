@@ -3,7 +3,7 @@ Management command to seed LocationMarketData with German cities
 """
 
 from django.core.management.base import BaseCommand
-from app.db.models.location import LocationMarketData
+from locations.models import LocationMarketData
 
 
 class Command(BaseCommand):

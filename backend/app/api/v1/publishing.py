@@ -11,7 +11,8 @@ from pydantic import BaseModel, Field
 from uuid import UUID
 from datetime import datetime
 
-from app.db.models import Property, PublishJob, User
+from properties.models import Property, PublishJob
+from accounts.models import User
 from app.services.immoscout_service import ImmoScout24Service
 from app.services.auth_service import AuthService
 from app.core.errors import NotFoundError, UnauthorizedError, ExternalServiceError

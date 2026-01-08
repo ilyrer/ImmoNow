@@ -3,7 +3,7 @@
  * Implementiert alle CIM-Endpunkte aus dem Backend Contract
  */
 
-import { apiClient } from '../lib/api/client';
+import { apiClient } from '../api/config';
 import {
   CIMOverviewResponse
 } from '../lib/api/types';

@@ -7,7 +7,8 @@ from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from pydantic import BaseModel, EmailStr, Field
 from asgiref.sync import sync_to_async
 
-from app.db.models import User, UserProfile, Notification
+from accounts.models import User, UserProfile
+from notifications.models import Notification
 from app.api.v1.auth import get_current_user
 from app.schemas.auth import UserResponse
 

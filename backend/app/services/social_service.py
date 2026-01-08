@@ -9,7 +9,8 @@ from asgiref.sync import sync_to_async
 from cryptography.fernet import Fernet
 import httpx
 
-from app.db.models import SocialAccount, SocialPost, Tenant, User
+from communications.models import SocialAccount, SocialPost
+from accounts.models import Tenant, User
 from app.schemas.social import (
     SocialAccountResponse, SocialPostResponse, SocialAnalyticsResponse,
     PostAnalyticsResponse, SocialQueueResponse, CreatePostRequest,

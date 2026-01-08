@@ -6,7 +6,8 @@ from typing import List, Optional, Dict, Any
 from asgiref.sync import sync_to_async
 import logging
 
-from app.db.models import Workflow, WorkflowInstance, Board
+from workflow.models import Workflow, WorkflowInstance
+from tasks.models import Board
 from app.core.errors import ValidationError, NotFoundError
 from app.services.workflow.workflow_engine import WorkflowEngine
 
@@ -46,7 +47,7 @@ class WorkflowService:
         
         @sync_to_async
         def create():
-            from app.db.models import User
+            from accounts.models import User
             
             created_by = None
             if created_by_id:
@@ -208,7 +209,7 @@ class WorkflowService:
         """Synchronisiert BoardStatuses aus Workflow-Stages (async)"""
         @sync_to_async
         def sync():
-            from app.db.models import BoardStatus
+            from tasks.models import BoardStatus
             
             board = Board.objects.get(id=board_id, tenant_id=self.tenant_id)
             

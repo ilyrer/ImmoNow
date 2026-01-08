@@ -3,7 +3,7 @@
  * Keine Mockdaten!
  */
 
-import { apiClient } from '../lib/api/client';
+import { apiClient } from '../api/config';
 import {
   PropertyResponse,
   CreatePropertyRequest,

@@ -39,8 +39,30 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "corsheaders",  # CORS headers for API access
-    "app",  # Our main app with models
+    # Core Apps
+    "accounts",
+    "common",
+    # Domain Apps
+    "properties",
+    "contacts",
+    "documents",
+    "tasks",
+    "appointments",
+    "communications",
+    "investor",
+    "notifications",
+    "billing",
+    "automation",
+    "workflow",
+    "sla",
+    "locations",
+    "custom_fields",
+    # Legacy app (for backward compatibility during migration)
+    "app",
 ]
+
+# Custom User Model
+AUTH_USER_MODEL = 'accounts.User'
 
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
@@ -134,56 +156,14 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
-STATIC_URL = "static/"
+STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-# Media files
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-
-# Custom User Model
-AUTH_USER_MODEL = "app.User"
-
-# Security settings
-SECURE_BROWSER_XSS_FILTER = True
-SECURE_CONTENT_TYPE_NOSNIFF = True
-
-# CORS settings for Docker
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:5173",  # Vite default port
-    "http://127.0.0.1:5173",  # Vite default port
-    "http://localhost",
-    "http://127.0.0.1",
-]
-
-CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOW_ALL_ORIGINS = DEBUG  # Only in development
-
-# Logging
-LOGGING = {
-    "version": 1,
-    "disable_existing_loggers": False,
-    "formatters": {
-        "verbose": {
-            "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
-            "style": "{",
-        },
-    },
-    "handlers": {
-        "console": {
-            "class": "logging.StreamHandler",
-            "formatter": "verbose",
-        },
-    },
-    "root": {
-        "handlers": ["console"],
-        "level": os.getenv("LOG_LEVEL", "INFO"),
-    },
-}

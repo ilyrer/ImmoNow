@@ -14,6 +14,8 @@ import {
   useSocialHubDashboard,
   useFinancingScenarios
 } from '../../api/hooks';
+import { storage } from '../../utils/storage';
+import { logger } from '../../utils/logger';
 import { useAppointments } from '../../hooks/useAppointments';
 import { useEmployees } from '../../hooks/useTasks';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, LineChart, Line, Legend, RadialBarChart, RadialBar } from 'recharts';
@@ -817,21 +819,16 @@ const KPICardsWidget: React.FC = () => {
   });
 
   useEffect(() => {
-    const saved = localStorage.getItem('kpiGoals');
+    const saved = storage.get<typeof goals>('kpiGoals');
     if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        setGoals((prev) => ({ ...prev, ...parsed }));
-      } catch (e) {
-        console.warn('KPI Goals konnten nicht geladen werden', e);
-      }
+      setGoals((prev) => ({ ...prev, ...saved }));
     }
   }, []);
 
   const updateGoal = (key: keyof typeof goals, value: number) => {
     setGoals((prev) => {
       const next = { ...prev, [key]: value };
-      localStorage.setItem('kpiGoals', JSON.stringify(next));
+      storage.set('kpiGoals', next);
       return next;
     });
   };
@@ -1667,19 +1664,14 @@ const RoleBasedDashboard: React.FC = () => {
     return roleMapping[userRole] || userRole;
   }, [user]);
 
-  // Load widgets from localStorage on component mount (pro Rolle)
+  // Load widgets from storage on component mount (pro Rolle)
   useEffect(() => {
     if (isLoading) return;
-    const storageKey = `dashboardWidgets_${getUserRoleKey}`;
-    const savedWidgets = localStorage.getItem(storageKey);
+    const storageKey = `dashboardWidgets_${getUserRoleKey}` as any;
+    const savedWidgets = storage.get<DashboardWidget[]>(storageKey);
     
-    // FORCE NEW 5-WIDGET LAYOUT - Lösche alten localStorage
-    // localStorage.removeItem(storageKey); // Uncomment to force reset
-    
-    if (savedWidgets) {
-      try {
-        const parsed = JSON.parse(savedWidgets);
-        const restoredWidgets = parsed
+    if (savedWidgets && Array.isArray(savedWidgets)) {
+      const restoredWidgets = savedWidgets
           .map((widget: any) => {
             const template = filteredAvailableWidgets.find(aw => aw.type === widget.type);
             if (!template) return null;
@@ -1703,8 +1695,8 @@ const RoleBasedDashboard: React.FC = () => {
         
         // Wenn nicht genau 5 Widgets ODER nicht die richtigen Widgets, setze neue Defaults
         if (restoredWidgets.length !== 5 || !hasRequiredWidgets) {
-          console.log('🔄 Dashboard: Alte Widget-Konfiguration gefunden, setze neue 5-Widget Layout');
-          localStorage.removeItem(storageKey);
+          logger.debug('Alte Widget-Konfiguration gefunden, setze neue 5-Widget Layout', 'RoleBasedDashboard');
+          storage.remove(storageKey as any);
           setDefaultWidgets(filteredAvailableWidgets);
         } else {
           setWidgets(restoredWidgets);
@@ -1717,12 +1709,12 @@ const RoleBasedDashboard: React.FC = () => {
     }
   }, [filteredAvailableWidgets, isLoading, getUserRoleKey]);
 
-  // Save widgets to localStorage whenever widgets change (pro Rolle)
+  // Save widgets to storage whenever widgets change (pro Rolle)
   useEffect(() => {
     if (widgets.length > 0) {
-      const storageKey = `dashboardWidgets_${getUserRoleKey}`;
+      const storageKey = `dashboardWidgets_${getUserRoleKey}` as any;
       const serializableWidgets = widgets.map(({ icon, ...widget }) => widget);
-      localStorage.setItem(storageKey, JSON.stringify(serializableWidgets));
+      storage.set(storageKey, serializableWidgets);
     }
   }, [widgets, getUserRoleKey]);
 
@@ -1826,9 +1818,9 @@ const RoleBasedDashboard: React.FC = () => {
   const generateId = () => Math.random().toString(36).substr(2, 9);
 
   const handleLoadDefaultLayout = () => {
-    // Lösche localStorage für aktuelle Rolle und lade Standard-Widgets
-    const storageKey = `dashboardWidgets_${getUserRoleKey}`;
-    localStorage.removeItem(storageKey);
+    // Lösche storage für aktuelle Rolle und lade Standard-Widgets
+    const storageKey = `dashboardWidgets_${getUserRoleKey}` as any;
+    storage.remove(storageKey);
     setDefaultWidgets();
   };
 
@@ -1846,7 +1838,7 @@ const RoleBasedDashboard: React.FC = () => {
       color: template?.color || widget.color
     };
     
-    console.log('✅ Adding widget with restored icon:', newWidget.type, !!newWidget.icon);
+    logger.debug('Adding widget with restored icon', 'RoleBasedDashboard', { type: newWidget.type, hasIcon: !!newWidget.icon });
     
     setWidgets(prev => [...prev, newWidget]);
   };
@@ -1914,24 +1906,22 @@ const RoleBasedDashboard: React.FC = () => {
   };
 
   const handleResetLayout = () => {
-    // Lösche localStorage für aktuelle Rolle und setze Standard-Widgets
-    const storageKey = `dashboardWidgets_${getUserRoleKey}`;
-    localStorage.removeItem(storageKey);
-    console.log('🔄 Layout wird zurückgesetzt...');
-    console.log('📊 Available widgets count:', availableWidgets.length);
-    console.log('📊 Filtered widgets count:', filteredAvailableWidgets.length);
+    // Lösche storage für aktuelle Rolle und setze Standard-Widgets
+    const storageKey = `dashboardWidgets_${getUserRoleKey}` as any;
+    storage.remove(storageKey);
+    logger.info('Layout wird zurückgesetzt', 'RoleBasedDashboard', {
+      availableWidgets: availableWidgets.length,
+      filteredWidgets: filteredAvailableWidgets.length
+    });
     
     // Setze Widgets direkt - verwende availableWidgets als Fallback wenn filteredAvailableWidgets leer ist
     const templatesToUse = filteredAvailableWidgets.length > 0 ? filteredAvailableWidgets : availableWidgets;
-    console.log('📊 Using templates count:', templatesToUse.length);
     setDefaultWidgets(templatesToUse);
     
     // Schließe Widget Manager nach kurzer Verzögerung
     setTimeout(() => {
       setIsWidgetManagerOpen(false);
     }, 300);
-    
-    console.log('✅ Layout zurückgesetzt - 5 Widgets sollten jetzt angezeigt werden');
   };
 
   const handleEditWidget = (widgetId: string) => {

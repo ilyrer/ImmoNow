@@ -8,7 +8,8 @@ from datetime import datetime
 import logging
 import time
 
-from app.db.models import AutomationRule, AutomationLog, Task
+from automation.models import AutomationRule, AutomationLog
+from tasks.models import Task
 from app.services.automation.condition_evaluator import ConditionEvaluator
 from app.services.automation.action_executor import ActionExecutor
 
@@ -208,7 +209,7 @@ class AutomationService:
         
         @sync_to_async
         def create():
-            from app.db.models import User
+            from accounts.models import User
             
             created_by = None
             if created_by_id:

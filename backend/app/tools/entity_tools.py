@@ -7,7 +7,8 @@ import logging
 from typing import Optional
 from asgiref.sync import sync_to_async
 
-from app.db.models import Contact, Property
+from contacts.models import Contact
+from properties.models import Property
 from app.tools.registry import ToolRegistry, ToolParameter, ToolResult
 
 

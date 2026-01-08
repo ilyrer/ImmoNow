@@ -11,7 +11,8 @@ from asgiref.sync import sync_to_async
 
 from app.api.deps import get_current_user, get_tenant_id
 from app.core.security import TokenData
-from app.models import User, Tenant, Notification, NotificationPreference
+from accounts.models import User, Tenant
+from notifications.models import Notification, NotificationPreference
 from app.schemas.notification import (
     NotificationResponse,
     NotificationCreate,

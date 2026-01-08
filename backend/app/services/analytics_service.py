@@ -7,7 +7,11 @@ from django.db import models
 from django.db.models import Count, Sum, Avg
 from asgiref.sync import sync_to_async
 
-from app.db.models import Property, Contact, Task, Document, Appointment
+from properties.models import Property
+from contacts.models import Contact
+from tasks.models import Task
+from documents.models import Document
+from appointments.models import Appointment
 from app.schemas.analytics import (
     DashboardAnalyticsResponse, PropertyAnalyticsResponse,
     ContactAnalyticsResponse, TaskAnalyticsResponse

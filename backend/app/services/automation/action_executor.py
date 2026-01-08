@@ -7,7 +7,8 @@ from asgiref.sync import sync_to_async
 from django.db import models
 import logging
 
-from app.db.models import Task, User, TaskComment
+from tasks.models import Task, TaskComment
+from accounts.models import User
 from app.services.tasks_service import TasksService
 from app.core.errors import ValidationError
 
@@ -121,7 +122,7 @@ class ActionExecutor:
         # Erstelle Notification (vereinfacht - nutze bestehendes Notification-System)
         @sync_to_async
         def create_notification():
-            from app.db.models import Notification
+            from notifications.models import Notification
             
             Notification.objects.create(
                 tenant_id=self.tenant_id,
@@ -160,7 +161,7 @@ class ActionExecutor:
         def get_system_user():
             # Versuche Admin-User zu finden, sonst ersten User
             try:
-                from app.db.models import User
+                from accounts.models import User
                 return User.objects.filter(tenantuser__tenant_id=self.tenant_id).first()
             except Exception:
                 return None
@@ -186,7 +187,7 @@ class ActionExecutor:
             
             # System-User für Automation-Comments
             try:
-                from app.db.models import User
+                from accounts.models import User
                 system_user = User.objects.filter(tenantuser__tenant_id=self.tenant_id).first()
                 if not system_user:
                     raise ValidationError("No system user found")
@@ -214,7 +215,7 @@ class ActionExecutor:
             except Task.DoesNotExist:
                 raise ValidationError(f"Task {task_id} not found")
             
-            from app.db.models import TaskSubtask
+            from tasks.models import TaskSubtask
             
             # Hole nächste Order
             max_order = task.subtasks.aggregate(models.Max("order"))["order__max"] or 0

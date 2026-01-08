@@ -7,7 +7,9 @@ from django.db import models
 from django.db.models import Q, Count
 from asgiref.sync import sync_to_async
 
-from app.db.models import Property, Contact, Tenant
+from properties.models import Property
+from contacts.models import Contact
+from accounts.models import Tenant
 from app.schemas.cim import (
     CIMOverviewResponse, RecentPropertySummary, RecentContactSummary,
     PerfectMatch, CIMSummary

@@ -7,7 +7,8 @@ from datetime import datetime
 from asgiref.sync import sync_to_async
 import logging
 
-from app.db.models import Workflow, WorkflowInstance, Task, Board
+from workflow.models import Workflow, WorkflowInstance
+from tasks.models import Task, Board
 from app.core.errors import ValidationError
 
 logger = logging.getLogger(__name__)

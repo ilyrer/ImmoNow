@@ -8,7 +8,7 @@ from django.db import models
 from django.db.models import Q, Count, Sum, Avg
 from asgiref.sync import sync_to_async
 
-from app.db.models import (
+from tasks.models import (
     Task,
     TaskLabel,
     TaskComment,
@@ -18,11 +18,10 @@ from app.db.models import (
     Board,
     BoardStatus,
     Project,
-    UserProfile,
-    User,
     TaskPriority,
     TaskStatus,
 )
+from accounts.models import User, UserProfile
 from app.schemas.tasks import (
     TaskResponse,
     CreateTaskRequest,
@@ -328,7 +327,7 @@ class TasksService:
         @sync_to_async
         def check_workflow_instance():
             try:
-                from app.db.models import WorkflowInstance
+                from workflow.models import WorkflowInstance
                 return WorkflowInstance.objects.get(task_id=task.id, tenant_id=self.tenant_id)
             except WorkflowInstance.DoesNotExist:
                 return None
@@ -458,7 +457,7 @@ class TasksService:
         @sync_to_async
         def check_workflow_instance():
             try:
-                from app.db.models import WorkflowInstance
+                from workflow.models import WorkflowInstance
                 return WorkflowInstance.objects.get(task_id=task_id, tenant_id=self.tenant_id)
             except WorkflowInstance.DoesNotExist:
                 return None
@@ -574,7 +573,7 @@ class TasksService:
             @sync_to_async
             def check_workflow_instance():
                 try:
-                    from app.db.models import WorkflowInstance
+                    from workflow.models import WorkflowInstance
                     return WorkflowInstance.objects.get(task_id=task_id, tenant_id=self.tenant_id)
                 except WorkflowInstance.DoesNotExist:
                     return None
@@ -736,7 +735,7 @@ class TasksService:
         # Get recent activity (last 50 activities across all tasks)
         @sync_to_async
         def get_recent_activities():
-            from app.db.models import TaskActivity
+            from tasks.models import TaskActivity
 
             activities = (
                 TaskActivity.objects.filter(task__tenant_id=self.tenant_id)
@@ -892,7 +891,7 @@ class TasksService:
             property_info = None
             if task.property_id:
                 try:
-                    from app.db.models import Property
+                    from properties.models import Property
 
                     property_obj = Property.objects.filter(
                         id=task.property_id, tenant_id=self.tenant_id

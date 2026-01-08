@@ -49,7 +49,7 @@ class TenantAwareModel(models.Model):
     """
     
     tenant = models.ForeignKey(
-        'Tenant',
+        'accounts.Tenant',
         on_delete=models.CASCADE,
         help_text="Tenant, dem dieses Objekt gehört"
     )

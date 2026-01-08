@@ -4,6 +4,9 @@
  */
 
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
+import { storage } from '../utils/storage';
+import { logger } from '../utils/logger';
+import { createErrorFromResponse, isAuthError, getUserFriendlyMessage } from '../utils/errorHandler';
 
 // Create base axios instance
 const baseClient = axios.create({
@@ -18,8 +21,8 @@ const baseClient = axios.create({
 baseClient.interceptors.request.use(
   (config) => {
     // Check both possible token locations for backwards compatibility
-    const token = localStorage.getItem('auth_token') || localStorage.getItem('authToken');
-    const tenantId = localStorage.getItem('tenant_id') || localStorage.getItem('tenantId');
+    const token = storage.get<string>('auth_token') || storage.get<string>('authToken');
+    const tenantId = storage.get<string>('tenant_id') || storage.get<string>('tenantId');
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -30,6 +33,7 @@ baseClient.interceptors.request.use(
     return config;
   },
   (error) => {
+    logger.error('Request interceptor error', 'API', error);
     return Promise.reject(error);
   }
 );
@@ -42,23 +46,28 @@ baseClient.interceptors.response.use(
   },
   (error) => {
     // Handle 401 Unauthorized - token expired or invalid
-    if (error.response?.status === 401) {
-      console.warn('🔐 API: 401 Unauthorized - token expired or invalid');
+    if (isAuthError(error)) {
+      logger.warn('401 Unauthorized - token expired or invalid', 'API');
 
       // Check if we're not already on the login page to prevent loops
       if (!window.location.pathname.includes('/login')) {
         // Clear all auth data
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('tenant_id');
-        localStorage.removeItem('refresh_token');
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('tenantId');
-        localStorage.removeItem('refreshToken');
+        storage.remove('auth_token');
+        storage.remove('tenant_id');
+        storage.remove('refresh_token');
+        storage.remove('authToken');
+        storage.remove('tenantId');
+        storage.remove('refreshToken');
 
-        // Show message and redirect to login
-        alert('Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.');
+        // Show user-friendly message and redirect to login
+        const message = getUserFriendlyMessage(error);
+        alert(message);
         window.location.href = '/login';
       }
+    } else {
+      // Log other errors
+      const apiError = createErrorFromResponse(error.response || error);
+      logger.error('API request failed', 'API', apiError);
     }
     return Promise.reject(error);
   }
@@ -82,15 +91,15 @@ const apiClient = baseClient as unknown as ApiClient;
 
 // Add helper methods
 (apiClient as any).setAuthToken = (token: string, tenantId?: string) => {
-  localStorage.setItem('authToken', token);
+  storage.set('authToken', token);
   if (tenantId) {
-    localStorage.setItem('tenantId', tenantId);
+    storage.set('tenantId', tenantId);
   }
 };
 
 (apiClient as any).clearAuth = () => {
-  localStorage.removeItem('authToken');
-  localStorage.removeItem('tenantId');
+  storage.remove('authToken');
+  storage.remove('tenantId');
 };
 
 /**
@@ -105,8 +114,8 @@ apiClient.uploadFile = async <T = any>(url: string, file: File, metadata?: any, 
   const formData = new FormData();
   formData.append('file', file);
 
-  const token = localStorage.getItem('authToken');
-  const tenantId = localStorage.getItem('tenantId');
+  const token = storage.get<string>('authToken');
+  const tenantId = storage.get<string>('tenantId');
 
   // Build URL with metadata as query parameter
   let uploadUrl = url;
@@ -114,11 +123,12 @@ apiClient.uploadFile = async <T = any>(url: string, file: File, metadata?: any, 
     const metadataJson = JSON.stringify(metadata);
     uploadUrl = `${url}?metadata=${encodeURIComponent(metadataJson)}`;
 
-    console.log('📤 Upload request:');
-    console.log('  File:', file.name, `(${file.size} bytes)`);
-    console.log('  Metadata:', metadata);
-    console.log('  JSON:', metadataJson);
-    console.log('  URL:', uploadUrl);
+    logger.debug('Upload request', 'API', {
+      file: file.name,
+      size: file.size,
+      metadata,
+      url: uploadUrl
+    });
   }
 
   const response = await axios.post(uploadUrl, formData, {
@@ -135,7 +145,7 @@ apiClient.uploadFile = async <T = any>(url: string, file: File, metadata?: any, 
     } : undefined,
   });
 
-  console.log('✅ Upload successful:', response.data);
+  logger.info('Upload successful', 'API', { fileName: file.name });
   return response.data;
 };
 

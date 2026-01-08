@@ -1,4 +1,6 @@
 import { apiClient } from '../config';
+import { logger } from '../../utils/logger';
+import { handleError } from '../../utils/errorHandler';
 import { 
   Activity,
   ActivityFilterParams,
@@ -13,10 +15,10 @@ import {
  */
 export const getActivities = async (params: ActivityFilterParams = {}): Promise<ActivitiesResponse> => {
   try {
-  const response = await apiClient.get(`/activities`, { params });
+    const response = await apiClient.get(`/activities`, { params });
     return response.data;
   } catch (error) {
-    console.error('Fehler beim Abrufen der Aktivitäten:', error);
+    handleError(error, 'teamActivities/getActivities');
     throw error;
   }
 };

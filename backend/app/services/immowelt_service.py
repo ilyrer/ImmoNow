@@ -11,7 +11,7 @@ import httpx
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timedelta
 from django.conf import settings
-from app.db.models import Property, PublishJob
+from properties.models import Property, PublishJob
 from app.services.oauth_service import OAuthService
 from app.services.rate_limit_manager import PlatformRateLimiter
 
@@ -42,7 +42,7 @@ class ImmoweltService:
         Get a valid access token for Immowelt API.
         Automatically refreshes if expired.
         """
-        from app.db.models import SocialAccount
+        from communications.models import SocialAccount
 
         try:
             account = await SocialAccount.objects.filter(

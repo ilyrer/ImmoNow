@@ -6,7 +6,7 @@ from django.db import models
 from django.db.models import Q
 from asgiref.sync import sync_to_async
 
-from app.db.models import UserProfile, User
+from accounts.models import UserProfile, User
 from app.schemas.tasks import EmployeeResponse
 from app.core.errors import NotFoundError
 

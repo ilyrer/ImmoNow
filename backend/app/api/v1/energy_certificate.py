@@ -15,7 +15,7 @@ from app.schemas.energy_certificate import (
 )
 from app.services.properties_service import PropertiesService
 from app.services.pdf_generator_service import PDFGeneratorService
-from app.db.models import Property, IntegrationSettings
+from properties.models import Property, IntegrationSettings
 
 router = APIRouter()
 

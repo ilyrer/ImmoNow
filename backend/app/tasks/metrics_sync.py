@@ -12,13 +12,8 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Any
 from asgiref.sync import sync_to_async
 
-from app.db.models import (
-    Property,
-    PublishJob,
-    PropertyMetrics,
-    PropertyMetricsSnapshot,
-    Tenant,
-)
+from properties.models import Property, PublishJob, PropertyMetrics, PropertyMetricsSnapshot
+from accounts.models import Tenant
 from app.services.immoscout_service import ImmoScout24Service
 from app.services.immowelt_service import ImmoweltService
 from app.core.errors import ExternalServiceError
