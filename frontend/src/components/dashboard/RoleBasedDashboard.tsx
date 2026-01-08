@@ -1671,7 +1671,8 @@ const RoleBasedDashboard: React.FC = () => {
     const savedWidgets = storage.get<DashboardWidget[]>(storageKey);
     
     if (savedWidgets && Array.isArray(savedWidgets)) {
-      const restoredWidgets = savedWidgets
+      try {
+        const restoredWidgets = savedWidgets
           .map((widget: any) => {
             const template = filteredAvailableWidgets.find(aw => aw.type === widget.type);
             if (!template) return null;
@@ -1701,7 +1702,7 @@ const RoleBasedDashboard: React.FC = () => {
         } else {
           setWidgets(restoredWidgets);
         }
-      } catch {
+      } catch (_error) {
         setDefaultWidgets(filteredAvailableWidgets);
       }
     } else {
