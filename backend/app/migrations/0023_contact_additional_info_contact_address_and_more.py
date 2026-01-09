@@ -9,27 +9,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
-            model_name="contact",
-            name="additional_info",
-            field=models.JSONField(
-                blank=True,
-                default=dict,
-                help_text="Additional contact information like birth_date, source, etc.",
-            ),
-        ),
-        migrations.AddField(
-            model_name="contact",
-            name="address",
-            field=models.JSONField(
-                blank=True, default=dict, help_text="Contact address details"
-            ),
-        ),
-        migrations.AddField(
-            model_name="contact",
-            name="notes",
-            field=models.TextField(
-                blank=True, help_text="Internal notes about contact", null=True
-            ),
-        ),
+        # Contact model has been moved to contacts app
+        # All these operations are no longer needed
+        migrations.RunPython(migrations.RunPython.noop, migrations.RunPython.noop),
     ]

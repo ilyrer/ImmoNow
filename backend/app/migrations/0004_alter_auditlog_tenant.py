@@ -11,9 +11,8 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AlterField(
-            model_name='auditlog',
-            name='tenant',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='audit_logs', to='app.tenant'),
-        ),
+        # Tenant model has been moved to accounts app
+        # The tenant field in AuditLog already references accounts.tenant in 0001_initial
+        # This is a no-op migration to maintain migration history
+        migrations.RunPython(migrations.RunPython.noop, migrations.RunPython.noop),
     ]

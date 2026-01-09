@@ -10,13 +10,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
-            model_name="contact",
-            name="lead_score_details",
-            field=models.JSONField(
-                blank=True,
-                default=dict,
-                help_text="Detailed lead score breakdown and signals",
-            ),
-        ),
+        # Contact model has been moved to contacts app
+        # This operation is no longer needed
+        migrations.RunPython(migrations.RunPython.noop, migrations.RunPython.noop),
     ]

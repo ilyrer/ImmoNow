@@ -10,42 +10,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
-            model_name='contact',
-            name='avatar',
-            field=models.URLField(blank=True, null=True),
-        ),
-        migrations.AddField(
-            model_name='contact',
-            name='category',
-            field=models.CharField(blank=True, max_length=100, null=True),
-        ),
-        migrations.AddField(
-            model_name='contact',
-            name='last_contact',
-            field=models.DateTimeField(blank=True, null=True),
-        ),
-        migrations.AddField(
-            model_name='contact',
-            name='location',
-            field=models.CharField(blank=True, max_length=255, null=True),
-        ),
-        migrations.AddField(
-            model_name='contact',
-            name='priority',
-            field=models.CharField(choices=[('low', 'Low'), ('medium', 'Medium'), ('high', 'High'), ('urgent', 'Urgent')], default='medium', max_length=20),
-        ),
-        migrations.AlterField(
-            model_name='contact',
-            name='status',
-            field=models.CharField(default='Lead', max_length=50),
-        ),
-        migrations.AddIndex(
-            model_name='contact',
-            index=models.Index(fields=['tenant', 'priority'], name='contacts_tenant__2435c1_idx'),
-        ),
-        migrations.AddIndex(
-            model_name='contact',
-            index=models.Index(fields=['tenant', 'category'], name='contacts_tenant__892561_idx'),
-        ),
+        # Contact model has been moved to contacts app
+        # All these operations are no longer needed
+        migrations.RunPython(migrations.RunPython.noop, migrations.RunPython.noop),
     ]

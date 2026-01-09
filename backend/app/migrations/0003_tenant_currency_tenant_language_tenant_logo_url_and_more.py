@@ -10,49 +10,8 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
-            model_name='tenant',
-            name='currency',
-            field=models.CharField(default='EUR', help_text='Default currency (ISO code)', max_length=3),
-        ),
-        migrations.AddField(
-            model_name='tenant',
-            name='language',
-            field=models.CharField(default='de', help_text='Default language code', max_length=10),
-        ),
-        migrations.AddField(
-            model_name='tenant',
-            name='logo_url',
-            field=models.URLField(blank=True, help_text='URL zum Firmenlogo', max_length=500, null=True),
-        ),
-        migrations.AddField(
-            model_name='tenant',
-            name='primary_color',
-            field=models.CharField(default='#3B82F6', help_text='Primary brand color (hex)', max_length=7),
-        ),
-        migrations.AddField(
-            model_name='tenant',
-            name='registration_number',
-            field=models.CharField(blank=True, help_text='Handelsregisternummer', max_length=100, null=True),
-        ),
-        migrations.AddField(
-            model_name='tenant',
-            name='secondary_color',
-            field=models.CharField(default='#1E40AF', help_text='Secondary brand color (hex)', max_length=7),
-        ),
-        migrations.AddField(
-            model_name='tenant',
-            name='tax_id',
-            field=models.CharField(blank=True, help_text='Steuernummer / VAT', max_length=50, null=True),
-        ),
-        migrations.AddField(
-            model_name='tenant',
-            name='timezone',
-            field=models.CharField(default='Europe/Berlin', help_text='Default timezone', max_length=50),
-        ),
-        migrations.AddField(
-            model_name='tenant',
-            name='website',
-            field=models.URLField(blank=True, help_text='Firmen-Website', max_length=255, null=True),
-        ),
+        # Tenant model has been moved to accounts app
+        # All these fields are already in accounts/migrations/0001_initial.py
+        # This is a no-op migration to maintain migration history
+        migrations.RunPython(migrations.RunPython.noop, migrations.RunPython.noop),
     ]

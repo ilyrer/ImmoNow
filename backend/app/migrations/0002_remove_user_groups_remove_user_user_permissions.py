@@ -10,12 +10,8 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RemoveField(
-            model_name='user',
-            name='groups',
-        ),
-        migrations.RemoveField(
-            model_name='user',
-            name='user_permissions',
-        ),
+        # User model has been moved to accounts app, so this migration is no longer needed
+        # The groups and user_permissions fields were never added to accounts.User
+        # This is a no-op migration to maintain migration history
+        migrations.RunPython(migrations.RunPython.noop, migrations.RunPython.noop),
     ]

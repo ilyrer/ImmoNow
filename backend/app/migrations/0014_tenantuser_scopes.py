@@ -10,9 +10,8 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
-            model_name='tenantuser',
-            name='scopes',
-            field=models.JSONField(blank=True, default=list, help_text='List of permission scopes'),
-        ),
+        # TenantUser model has been moved to accounts app
+        # The scopes field is already in accounts/migrations/0001_initial.py
+        # This is a no-op migration to maintain migration history
+        migrations.RunPython(migrations.RunPython.noop, migrations.RunPython.noop),
     ]

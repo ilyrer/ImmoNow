@@ -10,9 +10,8 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
-            model_name='user',
-            name='google_id',
-            field=models.CharField(blank=True, max_length=255, null=True, unique=True),
-        ),
+        # User model has been moved to accounts app
+        # The google_id field is already in accounts/migrations/0001_initial.py
+        # This is a no-op migration to maintain migration history
+        migrations.RunPython(migrations.RunPython.noop, migrations.RunPython.noop),
     ]

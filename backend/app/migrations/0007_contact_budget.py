@@ -2,12 +2,10 @@
 from django.db import migrations, models
 
 
-def migrate_budget_max_to_budget(apps, schema_editor):
-    """Migrate budget_max values to new budget field"""
-    Contact = apps.get_model('app', 'Contact')
-    for contact in Contact.objects.filter(budget__isnull=True, budget_max__isnull=False):
-        contact.budget = contact.budget_max
-        contact.save(update_fields=['budget'])
+# Contact model has been moved to contacts app
+# All these operations are no longer needed
+
+from django.db import migrations
 
 
 class Migration(migrations.Migration):
@@ -17,12 +15,5 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        # Add new budget field
-        migrations.AddField(
-            model_name='contact',
-            name='budget',
-            field=models.DecimalField(blank=True, decimal_places=2, help_text='Hauptbudget / Potenzialwert', max_digits=12, null=True),
-        ),
-        # Run data migration
-        migrations.RunPython(migrate_budget_max_to_budget, reverse_code=migrations.RunPython.noop),
+        migrations.RunPython(migrations.RunPython.noop, migrations.RunPython.noop),
     ]

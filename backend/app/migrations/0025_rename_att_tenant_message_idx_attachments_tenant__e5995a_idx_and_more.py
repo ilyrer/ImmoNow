@@ -9,64 +9,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RenameIndex(
-            model_name="attachment",
-            new_name="attachments_tenant__e5995a_idx",
-            old_name="att_tenant_message_idx",
-        ),
-        migrations.RenameIndex(
-            model_name="channel",
-            new_name="channels_tenant__bbeeb9_idx",
-            old_name="channel_tenant_team_idx",
-        ),
-        migrations.RenameIndex(
-            model_name="channel",
-            new_name="channels_tenant__97c86c_idx",
-            old_name="channel_private_idx",
-        ),
-        migrations.RenameIndex(
-            model_name="channelmembership",
-            new_name="channel_mem_tenant__5fa730_idx",
-            old_name="cm_tenant_channel_idx",
-        ),
-        migrations.RenameIndex(
-            model_name="channelmembership",
-            new_name="channel_mem_tenant__9e93d8_idx",
-            old_name="cm_tenant_user_idx",
-        ),
-        migrations.RenameIndex(
-            model_name="message",
-            new_name="messages_tenant__19aa55_idx",
-            old_name="msg_tenant_channel_idx",
-        ),
-        migrations.RenameIndex(
-            model_name="message",
-            new_name="messages_tenant__d05804_idx",
-            old_name="msg_tenant_parent_idx",
-        ),
-        migrations.RenameIndex(
-            model_name="message",
-            new_name="messages_tenant__a683c0_idx",
-            old_name="msg_tenant_created_idx",
-        ),
-        migrations.RenameIndex(
-            model_name="reaction",
-            new_name="reactions_tenant__9678e5_idx",
-            old_name="react_tenant_message_idx",
-        ),
-        migrations.RenameIndex(
-            model_name="resourcelink",
-            new_name="resource_li_tenant__322dc9_idx",
-            old_name="rl_tenant_type_idx",
-        ),
-        migrations.RenameIndex(
-            model_name="resourcelink",
-            new_name="resource_li_resourc_2b3184_idx",
-            old_name="rl_resource_id_idx",
-        ),
-        migrations.RenameIndex(
-            model_name="team",
-            new_name="teams_tenant__032cb0_idx",
-            old_name="team_tenant_name_idx",
-        ),
+        # Attachment, Channel, ChannelMembership, Message, Reaction, ResourceLink, Team models have been moved to communications app
+        # All RenameIndex operations are no longer needed
+        migrations.RunPython(migrations.RunPython.noop, migrations.RunPython.noop),
     ]

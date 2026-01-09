@@ -10,9 +10,8 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AlterField(
-            model_name='tenant',
-            name='name',
-            field=models.CharField(help_text='Name der Organisation', max_length=255, unique=True),
-        ),
+        # Tenant model has been moved to accounts app
+        # The name field already has unique=True in accounts/migrations/0001_initial.py
+        # This is a no-op migration to maintain migration history
+        migrations.RunPython(migrations.RunPython.noop, migrations.RunPython.noop),
     ]

@@ -1,4 +1,4 @@
-from django.db import migrations, models
+from django.db import migrations
 
 
 class Migration(migrations.Migration):
@@ -8,17 +8,8 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AlterField(
-            model_name="resourcelink",
-            name="resource_type",
-            field=models.CharField(
-                max_length=20,
-                choices=[
-                    ("contact", "Contact"),
-                    ("property", "Property"),
-                    ("task", "Task"),
-                ],
-            ),
-        ),
+        # ResourceLink model has been moved to communications app
+        # Task model has been moved to tasks app
+        # All operations are no longer needed
+        migrations.RunPython(migrations.RunPython.noop, migrations.RunPython.noop),
     ]
-
